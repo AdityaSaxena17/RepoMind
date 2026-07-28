@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": ["DATABASE_URL", "NODE_ENV", "CLERK_WEBHOOK_SIGNING_SECRET"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

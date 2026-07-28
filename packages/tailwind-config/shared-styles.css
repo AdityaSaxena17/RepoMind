@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@source "../ui/src";
+
+@theme {
+  --color-repo-blue: #2a8af6;
+  --color-repo-purple: #a853ba;
+  --color-repo-pink: #e92a67;
+}

@@ -1,5 +1,14 @@
+import {
+  ClerkProvider,
+  Show,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@clerk/nextjs";
 import type { Metadata } from "next";
+import Link from "next/link";
 import localFont from "next/font/local";
+import "@repo/ui/styles.css";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -22,10 +31,31 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable}`}>
+          <header className="flex h-[73px] items-center justify-between border-b border-black/10 px-6 dark:border-white/15">
+            <Link className="text-sm font-semibold" href="/">
+              RepoMind
+            </Link>
+            <nav className="flex items-center gap-3 text-sm font-medium">
+              <Show when="signed-out">
+                <SignInButton />
+                <SignUpButton>
+                  <button className="h-9 rounded-full bg-[var(--foreground)] px-4 text-[var(--background)]">
+                    Sign up
+                  </button>
+                </SignUpButton>
+              </Show>
+              <Show when="signed-in">
+                <Link href="/dashboard">Dashboard</Link>
+                <UserButton />
+              </Show>
+            </nav>
+          </header>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

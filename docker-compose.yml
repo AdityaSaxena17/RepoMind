@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: repomind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: RepoMind
+      POSTGRES_USER: repomind
+      POSTGRES_PASSWORD: repomind_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - repomind-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repomind -d RepoMind"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  repomind-postgres-data:
