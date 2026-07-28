@@ -27,22 +27,22 @@ export default async function RepositoryWorkspace({
               <p className="text-sm text-zinc-300">{repository.status}</p>
               <p className="mt-2 text-xs leading-5 text-zinc-500">
                 {repository.indexedFiles.toLocaleString()} indexed files and{" "}
-                {repository.embeddings.toLocaleString()} chunks. Retrieval over
-                pgvector is deferred.
+                {repository.embeddings.toLocaleString()} chunks. Chat uses
+                parent-window hybrid retrieval over pgvector and PostgreSQL FTS.
               </p>
             </div>
           </section>
           <section>
-            <p className="text-sm font-semibold text-zinc-100">Live context</p>
+            <p className="text-sm font-semibold text-zinc-100">Retrieval</p>
             <p className="mt-3 text-xs leading-5 text-zinc-500">
-              Chat can use GitHub MCP for files, code search, branches, commits,
-              issues, and pull requests while indexing is running.
+              Code chat cites indexed source windows. Issues and pull requests
+              remain available from the side navigation.
             </p>
           </section>
         </div>
       }
     >
-      <RepositoryChat owner={repository.owner} repo={repository.name} />
+      <RepositoryChat repository={repository} />
     </AppShell>
   );
 }

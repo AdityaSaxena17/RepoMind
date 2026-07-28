@@ -45,6 +45,18 @@ enum RepositoryIndexJobTrigger {
   PUSH
 }
 
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum ChatMessageStatus {
+  PENDING
+  STREAMING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
   id         String     @id @default(cuid())
   clerkId    String     @unique
@@ -58,57 +70,15 @@ model User {
   updatedAt  DateTime   @updatedAt
   inactiveAt DateTime?
 
-  githubInstallations UserGitHubInstallation[]
-  repositories         UserRepository[]
+  repositories UserRepository[]
+  chatConversations ChatConversation[]
 
   @@index([status])
-}
-
-model GitHubOAuthState {
-  id                   String    @id @default(cuid())
-  stateHash            String    @unique
-  userId               String
-  githubInstallationId String?
-  expiresAt            DateTime
-  usedAt               DateTime?
-  createdAt            DateTime  @default(now())
-
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-model GitHubInstallation {
-  id                   String                   @id @default(cuid())
-  githubInstallationId String                   @unique
-  accountLogin         String
-  accountType          String
-  targetType           String?
-  suspendedAt          DateTime?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  users                UserGitHubInstallation[]
-  repositories         Repository[]
-
-  @@index([accountLogin])
-}
-
-model UserGitHubInstallation {
-  id                   String             @id @default(cuid())
-  userId               String
-  githubInstallationId String
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  installation         GitHubInstallation @relation(fields: [githubInstallationId], references: [githubInstallationId], onDelete: Cascade)
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, githubInstallationId])
-  @@index([githubInstallationId])
 }
 
 model Repository {
   id                   String                @id @default(cuid())
   githubRepositoryId   String                @unique
-  githubInstallationId String
   owner                String
   name                 String
   fullName             String
@@ -129,11 +99,10 @@ model Repository {
   updatedAt            DateTime              @updatedAt
   files                RepositoryFile[]
   chunks               RepositoryChunk[]
-  installation         GitHubInstallation    @relation(fields: [githubInstallationId], references: [githubInstallationId], onDelete: Cascade)
   indexJobs            RepositoryIndexJob[]
   users                UserRepository[]
+  chatConversations    ChatConversation[]
 
-  @@index([githubInstallationId])
   @@index([owner, name])
   @@index([indexStatus])
   @@index([accessStatus])
@@ -208,4 +177,49 @@ model RepositoryChunk {
 
   @@unique([fileId, chunkIndex])
   @@index([repositoryId, path])
+}
+
+model ChatConversation {
+  id           String        @id @default(cuid())
+  userId       String
+  repositoryId String
+  title        String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  messages     ChatMessage[]
+  repository   Repository    @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, repositoryId, updatedAt])
+  @@index([repositoryId])
+}
+
+model ChatMessage {
+  id             String                @id @default(cuid())
+  conversationId String
+  role           ChatMessageRole
+  content        String
+  status         ChatMessageStatus     @default(SUCCEEDED)
+  errorMessage   String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  citations      ChatMessageCitation[]
+  conversation   ChatConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([status])
+}
+
+model ChatMessageCitation {
+  id          String      @id @default(cuid())
+  messageId   String
+  sourceIndex Int
+  path        String
+  startLine   Int
+  endLine     Int
+  url         String?
+  createdAt   DateTime    @default(now())
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, sourceIndex])
 }

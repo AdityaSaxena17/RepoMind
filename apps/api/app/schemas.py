@@ -12,3 +12,10 @@ class ConnectRepositoryResponse(BaseModel):
     queue_name: str
     repository_id: str
     status: str
+
+
+class ChatStreamRequest(BaseModel):
+    repository_id: str = Field(min_length=1)
+    conversation_id: str = Field(min_length=1)
+    user_id: str = Field(min_length=1)
+    message_id: str = Field(min_length=1)

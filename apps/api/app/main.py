@@ -3,7 +3,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .config import get_settings
 from .queue import create_redis_pool
+from .routers.chat import router as chat_router
 from .routers.repositories import router as repositories_router
 
 
@@ -25,10 +27,14 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(repositories_router, prefix="/api/v1")
+    app.include_router(chat_router, prefix="/api/v1")
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
-        return {"status": "ok"}
+        return {
+            "status": "ok",
+            "openai_chat_model": get_settings().openai_chat_model or "missing",
+        }
 
     return app
 

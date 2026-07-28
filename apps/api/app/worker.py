@@ -1,21 +1,23 @@
 import asyncio
 import base64
 import hashlib
-import time
 import uuid
 from typing import Any
 
 import asyncpg
 import httpx
-import jwt
-import tiktoken
+from langchain_core.documents import Document
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import get_settings
+from .retrieval import RepoMindRepositoryVectorStore, create_embedding_model
 
 MAX_FILE_BYTES = 1_048_576
 CHUNK_TOKENS = 800
 CHUNK_OVERLAP = 100
-EMBEDDING_DIMENSIONS = 1536
+GITHUB_API_BASE_URL = "https://api.github.com"
+GITHUB_API_VERSION = "2022-11-28"
 
 SKIPPED_DIR_PARTS = {
     ".git",
@@ -78,44 +80,27 @@ def sha256_text(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def create_github_jwt() -> str:
-    settings = get_settings()
-
-    if not settings.github_app_id or not settings.github_app_private_key:
-        raise RuntimeError("GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are required.")
-
-    now = int(time.time())
-    return jwt.encode(
-        {
-            "iat": now - 60,
-            "exp": now + 540,
-            "iss": settings.github_app_id,
-        },
-        settings.github_app_private_key.replace("\\n", "\n"),
-        algorithm="RS256",
-    )
-
-
 async def github_json(
     client: httpx.AsyncClient,
     path: str,
-    token: str,
-    method: str = "GET",
-    json_body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    settings = get_settings()
     response = await client.request(
-        method,
-        f"{settings.github_api_base_url}{path}",
+        "GET",
+        f"{GITHUB_API_BASE_URL}{path}",
         headers={
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
             "User-Agent": "RepoMind",
-            "X-GitHub-Api-Version": settings.github_api_version,
+            "X-GitHub-Api-Version": GITHUB_API_VERSION,
         },
-        json=json_body,
         timeout=30,
     )
+
+    if response.status_code == 404:
+        raise RuntimeError("GitHub repository was not found or is not public.")
+
+    if response.status_code == 403:
+        raise RuntimeError("GitHub rate limit blocked this public request.")
+
     response.raise_for_status()
     payload = response.json()
 
@@ -125,37 +110,15 @@ async def github_json(
     return payload
 
 
-async def create_installation_token(
-    client: httpx.AsyncClient,
-    installation_id: str,
-    repository_name: str,
-) -> str:
-    payload = await github_json(
-        client,
-        f"/app/installations/{installation_id}/access_tokens",
-        create_github_jwt(),
-        method="POST",
-        json_body={"repositories": [repository_name]},
-    )
-    token = payload.get("token")
-
-    if not isinstance(token, str):
-        raise RuntimeError("GitHub did not return an installation token.")
-
-    return token
-
-
 async def fetch_default_branch_head(
     client: httpx.AsyncClient,
     owner: str,
     name: str,
     branch: str,
-    token: str,
 ) -> str:
     payload = await github_json(
         client,
         f"/repos/{owner}/{name}/commits/{branch}",
-        token,
     )
     sha = payload.get("sha")
 
@@ -170,12 +133,10 @@ async def fetch_tree(
     owner: str,
     name: str,
     commit_sha: str,
-    token: str,
 ) -> list[dict[str, Any]]:
     payload = await github_json(
         client,
         f"/repos/{owner}/{name}/git/trees/{commit_sha}?recursive=1",
-        token,
     )
     tree = payload.get("tree")
 
@@ -186,7 +147,6 @@ async def fetch_tree(
         root = await github_json(
             client,
             f"/repos/{owner}/{name}/git/trees/{commit_sha}",
-            token,
         )
         root_tree = root.get("tree")
 
@@ -210,7 +170,6 @@ async def fetch_tree(
             subtree = await github_json(
                 client,
                 f"/repos/{owner}/{name}/git/trees/{entry['sha']}",
-                token,
             )
             subtree_items = subtree.get("tree")
 
@@ -241,12 +200,10 @@ async def fetch_file_content(
     name: str,
     path: str,
     commit_sha: str,
-    token: str,
 ) -> str | None:
     payload = await github_json(
         client,
         f"/repos/{owner}/{name}/contents/{path}?ref={commit_sha}",
-        token,
     )
 
     if payload.get("encoding") != "base64" or not isinstance(
@@ -262,8 +219,13 @@ async def fetch_file_content(
         return None
 
 
-def chunk_file(path: str, content: str) -> list[dict[str, Any]]:
-    encoding = tiktoken.get_encoding("cl100k_base")
+def chunk_file(path: str, content: str) -> list[Document]:
+    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        encoding_name="cl100k_base",
+        chunk_size=CHUNK_TOKENS,
+        chunk_overlap=CHUNK_OVERLAP,
+        add_start_index=True,
+    )
     lines = content.splitlines()
     line_offsets: list[int] = []
     offset = 0
@@ -272,14 +234,13 @@ def chunk_file(path: str, content: str) -> list[dict[str, Any]]:
         line_offsets.append(offset)
         offset += len(line) + 1
 
-    tokens = encoding.encode(content)
-    chunks: list[dict[str, Any]] = []
-    start_token = 0
+    chunks: list[Document] = []
+    documents = splitter.create_documents([content])
 
-    while start_token < len(tokens):
-        end_token = min(start_token + CHUNK_TOKENS, len(tokens))
-        text = encoding.decode(tokens[start_token:end_token])
-        start_char = len(encoding.decode(tokens[:start_token]))
+    for document in documents:
+        text = document.page_content
+        start_index = document.metadata.get("start_index")
+        start_char = start_index if isinstance(start_index, int) else content.find(text)
         end_char = start_char + len(text)
         start_line = 1
         end_line = max(1, len(lines))
@@ -291,63 +252,27 @@ def chunk_file(path: str, content: str) -> list[dict[str, Any]]:
                 end_line = index + 1
 
         chunks.append(
-            {
-                "path": path,
-                "content": text,
-                "content_sha": sha256_text(text),
-                "start_line": start_line,
-                "end_line": end_line,
-            },
+            Document(
+                page_content=text,
+                metadata={
+                    "path": path,
+                    "content_sha": sha256_text(text),
+                    "start_line": start_line,
+                    "end_line": end_line,
+                },
+            ),
         )
-
-        if end_token == len(tokens):
-            break
-
-        start_token = max(end_token - CHUNK_OVERLAP, start_token + 1)
 
     return chunks
 
 
-async def embed_chunks(chunks: list[dict[str, Any]]) -> list[list[float]]:
-    settings = get_settings()
-
-    if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is required for repository indexing.")
-
-    embeddings: list[list[float]] = []
-
-    async with httpx.AsyncClient() as client:
-        for index in range(0, len(chunks), 64):
-            batch = chunks[index : index + 64]
-            response = await client.post(
-                "https://api.openai.com/v1/embeddings",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": settings.openai_embeddings_model,
-                    "dimensions": EMBEDDING_DIMENSIONS,
-                    "input": [chunk["content"] for chunk in batch],
-                },
-                timeout=60,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            data = payload.get("data") if isinstance(payload, dict) else None
-
-            if not isinstance(data, list):
-                raise RuntimeError("OpenAI embeddings response was incomplete.")
-
-            for item in data:
-                if not isinstance(item, dict) or not isinstance(
-                    item.get("embedding"),
-                    list,
-                ):
-                    raise RuntimeError("OpenAI embedding item was incomplete.")
-                embeddings.append([float(value) for value in item["embedding"]])
-
-    return embeddings
+def chunk_file_runnable() -> Any:
+    """Create the LangChain runnable used to produce chunk documents per file."""
+    return RunnablePassthrough.assign(
+        chunk_documents=RunnableLambda(
+            lambda file: chunk_file(str(file["path"]), str(file["content"])),
+        ),
+    )
 
 
 async def promote_index(
@@ -356,7 +281,7 @@ async def promote_index(
     job_id: str,
     commit_sha: str,
     files: list[dict[str, Any]],
-    chunks: list[dict[str, Any]],
+    chunks: list[Document],
     embeddings: list[list[float]],
 ) -> None:
     async with connection.transaction():
@@ -388,28 +313,13 @@ async def promote_index(
             )
             file_ids[str(file["path"])] = str(row["id"])
 
-        for index, chunk in enumerate(chunks):
-            file_id = file_ids[str(chunk["path"])]
-            vector = "[" + ",".join(str(value) for value in embeddings[index]) + "]"
-            await connection.execute(
-                """
-                INSERT INTO "RepositoryChunk"
-                  ("id", "repositoryId", "fileId", "chunkIndex", "path",
-                   "startLine", "endLine", "content", "contentSha", "embedding")
-                VALUES
-                  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::vector)
-                """,
-                uuid.uuid4().hex,
-                repository_id,
-                file_id,
-                index,
-                chunk["path"],
-                chunk["start_line"],
-                chunk["end_line"],
-                chunk["content"],
-                chunk["content_sha"],
-                vector,
-            )
+        vector_store = RepoMindRepositoryVectorStore(
+            connection=connection,
+            embeddings=create_embedding_model(),
+            repository_id=repository_id,
+            file_ids_by_path=file_ids,
+        )
+        await vector_store.awrite_embedded_documents(chunks, embeddings)
 
         await connection.execute(
             """
@@ -456,8 +366,7 @@ async def index_repository(
     try:
         repository = await connection.fetchrow(
             """
-            SELECT "owner", "name", "defaultBranch", "githubInstallationId",
-                   "indexStatus"
+            SELECT "owner", "name", "defaultBranch", "indexStatus"
             FROM "Repository"
             WHERE "id" = $1 AND "accessStatus" = 'ACTIVE'
             """,
@@ -477,27 +386,21 @@ async def index_repository(
         )
 
         async with httpx.AsyncClient() as client:
-            token = await create_installation_token(
-                client,
-                str(repository["githubInstallationId"]),
-                str(repository["name"]),
-            )
             commit_sha = await fetch_default_branch_head(
                 client,
                 str(repository["owner"]),
                 str(repository["name"]),
                 str(repository["defaultBranch"]),
-                token,
             )
             tree = await fetch_tree(
                 client,
                 str(repository["owner"]),
                 str(repository["name"]),
                 commit_sha,
-                token,
             )
             files: list[dict[str, Any]] = []
-            chunks: list[dict[str, Any]] = []
+            chunks: list[Document] = []
+            file_chunk_chain = chunk_file_runnable()
 
             for entry in tree:
                 if entry.get("type") != "blob":
@@ -521,25 +424,41 @@ async def index_repository(
                     str(repository["name"]),
                     path,
                     commit_sha,
-                    token,
                 )
 
                 if content is None or "-----BEGIN " in content[:2000]:
                     continue
 
-                files.append(
-                    {
-                        "path": path,
-                        "blob_sha": blob_sha,
-                        "content_sha": sha256_text(content),
-                        "byte_size": len(content.encode("utf-8")),
-                        "line_count": max(1, len(content.splitlines())),
-                        "content": content,
-                    },
-                )
-                chunks.extend(chunk_file(path, content))
+                file_record = {
+                    "path": path,
+                    "blob_sha": blob_sha,
+                    "content_sha": sha256_text(content),
+                    "byte_size": len(content.encode("utf-8")),
+                    "line_count": max(1, len(content.splitlines())),
+                    "content": content,
+                }
+                chunked_file = file_chunk_chain.invoke(file_record)
+                chunk_documents = chunked_file.get("chunk_documents")
 
-        embeddings = await embed_chunks(chunks) if chunks else []
+                if not isinstance(chunk_documents, list):
+                    raise RuntimeError("Chunk runnable did not return documents.")
+
+                files.append(file_record)
+                chunks.extend(
+                    document
+                    for document in chunk_documents
+                    if isinstance(document, Document)
+                )
+
+        embeddings = (
+            await RepoMindRepositoryVectorStore(
+                connection=connection,
+                embeddings=create_embedding_model(),
+                repository_id=repository_id,
+            ).aembed_documents(chunks)
+            if chunks
+            else []
+        )
         await promote_index(
             connection,
             repository_id,

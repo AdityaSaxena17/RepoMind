@@ -1,38 +1,19 @@
 import { RepositoryIndexJobTrigger } from "@repo/db";
 import type { NextRequest } from "next/server";
 import {
-  connectRepositoryForUser,
-  readNumberLike,
+  connectPublicRepositoryForUser,
+  readPublicRepoInput,
   requireRepoMindUser,
-} from "../../../../lib/github-app";
+} from "../../../../lib/github-public";
 
 export const runtime = "nodejs";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function readPayload(body: unknown) {
-  if (!isRecord(body)) {
-    return null;
-  }
-
-  const installationId = readNumberLike(body.installation_id);
-  const repositoryId = readNumberLike(body.github_repository_id);
-
-  if (!installationId || !repositoryId) {
-    return null;
-  }
-
-  return { installationId, repositoryId };
-}
 
 async function enqueueFastApiJob(
   repositoryId: string,
   jobId: string,
   userId: string,
 ) {
-  const apiBaseUrl = process.env.FASTAPI_BASE_URL ?? "http://127.0.0.1:8000";
+  const apiBaseUrl = process.env.FASTAPI_BASE_URL ?? "http://127.0.0.1:8137";
   const credential = process.env.INTERNAL_API_CREDENTIAL;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -53,26 +34,31 @@ async function enqueueFastApiJob(
   });
 
   if (!response.ok) {
-    throw new Error(`FastAPI repository enqueue failed: ${response.status}`);
+    const detail = await response.text();
+    throw new Error(
+      `FastAPI repository enqueue failed: ${response.status}${
+        detail ? ` ${detail}` : ""
+      }`,
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   const user = await requireRepoMindUser();
-  const payload = readPayload(await request.json());
+  const payload = readPublicRepoInput(await request.json());
 
   if (!payload) {
     return Response.json(
-      { error: "installation_id and github_repository_id are required strings." },
+      { error: "Owner and repository name are required." },
       { status: 400 },
     );
   }
 
   try {
-    const { repository, job, status } = await connectRepositoryForUser(
+    const { repository, job, status } = await connectPublicRepositoryForUser(
       user.id,
-      payload.installationId,
-      payload.repositoryId,
+      payload.owner,
+      payload.repo,
       RepositoryIndexJobTrigger.CONNECT,
     );
 
@@ -87,7 +73,10 @@ export async function POST(request: NextRequest) {
     console.error("Repository connection failed", error);
 
     return Response.json(
-      { error: "Repository connection failed." },
+      {
+        error:
+          error instanceof Error ? error.message : "Repository connection failed.",
+      },
       { status: 400 },
     );
   }

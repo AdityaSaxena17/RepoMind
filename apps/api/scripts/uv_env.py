@@ -22,10 +22,31 @@ def uv_python_executable() -> str:
     return sys.executable
 
 
+def load_env_file(env: dict[str, str], path: Path) -> None:
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        if key:
+            env[key] = value.replace("\\n", "\n")
+
+
 def uv_environment() -> dict[str, str]:
     env = os.environ.copy()
     root = repo_root()
     api = api_root()
+    load_env_file(env, root / ".env")
+    load_env_file(env, root / "apps" / "web" / ".env")
+    load_env_file(env, api / ".env")
     env.setdefault("UV_CACHE_DIR", str(root / ".uv-cache"))
     env.setdefault("UV_PROJECT_ENVIRONMENT", str(root / ".venv-api"))
     env.setdefault("MYPY_CACHE_DIR", str(root / ".mypy-cache"))

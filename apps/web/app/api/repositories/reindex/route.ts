@@ -1,23 +1,19 @@
 import { RepositoryIndexJobTrigger } from "@repo/db";
 import type { NextRequest } from "next/server";
 import {
-  connectRepositoryForUser,
-  readNumberLike,
+  connectPublicRepositoryForUser,
+  readPublicRepoInput,
   requireRepoMindUser,
-} from "../../../../lib/github-app";
+} from "../../../../lib/github-public";
 
 export const runtime = "nodejs";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 async function enqueueFastApiJob(
   repositoryId: string,
   jobId: string,
   userId: string,
 ) {
-  const apiBaseUrl = process.env.FASTAPI_BASE_URL ?? "http://127.0.0.1:8000";
+  const apiBaseUrl = process.env.FASTAPI_BASE_URL ?? "http://127.0.0.1:8137";
   const credential = process.env.INTERNAL_API_CREDENTIAL;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -38,30 +34,28 @@ async function enqueueFastApiJob(
   });
 
   if (!response.ok) {
-    throw new Error("FastAPI repository enqueue failed.");
+    const detail = await response.text();
+    throw new Error(
+      `FastAPI repository enqueue failed: ${response.status}${
+        detail ? ` ${detail}` : ""
+      }`,
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   const user = await requireRepoMindUser();
-  const body = await request.json();
+  const payload = readPublicRepoInput(await request.json());
 
-  if (!isRecord(body)) {
+  if (!payload) {
     return Response.json({ error: "Invalid reindex payload." }, { status: 400 });
   }
 
-  const installationId = readNumberLike(body.installation_id);
-  const repositoryId = readNumberLike(body.github_repository_id);
-
-  if (!installationId || !repositoryId) {
-    return Response.json({ error: "Missing repository identifiers." }, { status: 400 });
-  }
-
   try {
-    const { repository, job, status } = await connectRepositoryForUser(
+    const { repository, job, status } = await connectPublicRepositoryForUser(
       user.id,
-      installationId,
-      repositoryId,
+      payload.owner,
+      payload.repo,
       RepositoryIndexJobTrigger.RETRY,
     );
 
@@ -75,6 +69,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Repository reindex failed", error);
 
-    return Response.json({ error: "Repository reindex failed." }, { status: 400 });
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Repository reindex failed." },
+      { status: 400 },
+    );
   }
 }

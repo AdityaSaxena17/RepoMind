@@ -12,8 +12,7 @@ export default async function Dashboard() {
               Repositories
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              Choose repositories from your GitHub App installations and click
-              Connect repository to start indexing.
+              Connect public GitHub repositories by owner and repository name.
             </p>
           </div>
         </div>

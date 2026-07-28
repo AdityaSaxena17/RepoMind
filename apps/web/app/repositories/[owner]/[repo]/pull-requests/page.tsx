@@ -2,11 +2,9 @@ import { ExternalLink, GitPullRequest } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppShell } from "../../../../../components/app-shell";
 import {
-  githubFetch,
-  githubTokenForConnectedRepository,
-  readString,
-  requireRepoMindUser,
-} from "../../../../../lib/github-app";
+  GitHubPublicApiError,
+  publicGithubFetch,
+} from "../../../../../lib/github-public";
 import { requireConnectedRepositoryView } from "../../../../../lib/repository-view";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -23,9 +21,9 @@ function readPullRequests(value: unknown) {
       return [];
     }
 
-    const title = readString(item.title);
-    const url = readString(item.html_url);
-    const state = readString(item.state);
+    const title = typeof item.title === "string" ? item.title : null;
+    const url = typeof item.html_url === "string" ? item.html_url : null;
+    const state = typeof item.state === "string" ? item.state : null;
     const number = typeof item.number === "number" ? item.number : null;
 
     if (!title || !url || !state || number === null) {
@@ -48,13 +46,18 @@ export default async function RepositoryPullRequests({
     notFound();
   }
 
-  const user = await requireRepoMindUser();
-  const { token } = await githubTokenForConnectedRepository(user.id, owner, repo);
-  const response = await githubFetch(
-    `/search/issues?q=${encodeURIComponent(`repo:${owner}/${repo} is:pr`)}&per_page=20`,
-    token,
-  );
-  const pullRequests = readPullRequests(await response.json());
+  let githubError: string | null = null;
+  let pullRequests: ReturnType<typeof readPullRequests> = [];
+
+  try {
+    pullRequests = readPullRequests(await publicGithubFetch(
+      `/search/issues?q=${encodeURIComponent(`repo:${owner}/${repo} is:pr`)}&per_page=20`,
+    ));
+  } catch (error) {
+    githubError = error instanceof GitHubPublicApiError
+      ? error.message
+      : "GitHub pull requests are temporarily unavailable.";
+  }
 
   return (
     <AppShell activeItem="pull-requests" repository={repository}>
@@ -64,6 +67,11 @@ export default async function RepositoryPullRequests({
           Pull requests
         </h1>
         <div className="mt-8 grid gap-3">
+          {githubError ? (
+            <p className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
+              {githubError}
+            </p>
+          ) : null}
           {pullRequests.map((pullRequest) => (
             <a
               className="rounded-lg border border-white/10 bg-white/[0.03] p-5 transition hover:border-white/20"
@@ -86,7 +94,7 @@ export default async function RepositoryPullRequests({
               </div>
             </a>
           ))}
-          {pullRequests.length === 0 ? (
+          {!githubError && pullRequests.length === 0 ? (
             <p className="rounded-lg border border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-500">
               No GitHub pull requests found.
             </p>

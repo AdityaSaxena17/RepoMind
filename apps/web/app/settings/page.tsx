@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@repo/db";
 import { Bot, GitBranch, SlidersHorizontal, UserRound } from "lucide-react";
 import { AppShell } from "../../components/app-shell";
-import { repositories } from "../../lib/prototype-data";
 
 export default async function SettingsPage() {
   const { userId } = await auth.protect();
@@ -11,6 +10,13 @@ export default async function SettingsPage() {
       clerkId: userId,
     },
   });
+  const repositoryCount = user
+    ? await prisma.userRepository.count({
+        where: {
+          userId: user.id,
+        },
+      })
+    : 0;
 
   return (
     <AppShell activeItem="settings">
@@ -35,13 +41,13 @@ export default async function SettingsPage() {
           <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
             <p className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
               <GitBranch className="h-4 w-4 text-zinc-300" />
-              Installed repositories
+              Connected repositories
             </p>
             <p className="mt-4 text-3xl font-semibold text-zinc-50">
-              {repositories.length}
+              {repositoryCount}
             </p>
             <p className="mt-2 text-xs text-zinc-600">
-              Prototype repositories represent GitHub App installations.
+              Public repositories connected by owner and repository name.
             </p>
           </section>
           <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
@@ -50,8 +56,8 @@ export default async function SettingsPage() {
               AI stack
             </p>
             <p className="mt-4 text-sm leading-6 text-zinc-400">
-              OpenAI chat and embeddings with pgvector-backed retrieval are the
-              selected backend stack for the later implementation.
+              OpenAI embeddings and pgvector-backed retrieval are the selected
+              backend stack for the later chat implementation.
             </p>
           </section>
           <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">

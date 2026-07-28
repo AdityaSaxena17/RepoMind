@@ -1,4 +1,6 @@
 export {
+  ChatMessageRole,
+  ChatMessageStatus,
   Prisma,
   RepositoryAccessStatus,
   RepositoryIndexJobStatus,

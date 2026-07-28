@@ -18,17 +18,12 @@ type ActiveItem =
   | "dashboard"
   | "repositories"
   | "chat"
-  | "search"
   | "issues"
   | "pull-requests"
   | "settings";
 
 function navigationHref(activeItem: ActiveItem, repository: RepositoryView) {
   const base = `/repositories/${repository.owner}/${repository.name}`;
-
-  if (activeItem === "search") {
-    return `${base}/search`;
-  }
 
   if (activeItem === "issues") {
     return `${base}/issues`;
@@ -67,7 +62,6 @@ const repositoryNavigationItems: {
   icon: typeof LayoutDashboard;
 }[] = [
   { id: "chat", label: "AI Chat", icon: Bot },
-  { id: "search", label: "Search", icon: Search },
   { id: "issues", label: "Issues", icon: TerminalSquare },
   { id: "pull-requests", label: "Pull Requests", icon: GitPullRequest },
 ];
