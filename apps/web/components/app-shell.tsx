@@ -5,7 +5,6 @@ import {
   Code2,
   GitPullRequest,
   LayoutDashboard,
-  Search,
   Settings,
   Sparkles,
   TerminalSquare,
@@ -103,12 +102,6 @@ export async function AppShell({
           <div className="flex h-9 min-w-56 items-center rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm text-zinc-300">
             {selectedRepositoryLabel}
           </div>
-          {repository ? (
-            <div className="flex h-9 flex-1 max-w-xl items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm text-zinc-500">
-              <Search className="h-4 w-4" />
-              <span>Search code, issues, pull requests...</span>
-            </div>
-          ) : null}
         </div>
         <div className="ml-auto flex items-center gap-3">
           <UserButton />

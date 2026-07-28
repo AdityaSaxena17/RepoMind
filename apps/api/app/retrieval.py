@@ -12,11 +12,6 @@ from langchain_core.callbacks.manager import (
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
-from langchain_core.runnables import (
-    RunnableLambda,
-    RunnableParallel,
-    RunnablePassthrough,
-)
 from langchain_core.vectorstores import VectorStore
 from langchain_openai import OpenAIEmbeddings
 from pydantic import ConfigDict
@@ -225,33 +220,6 @@ class RepoMindRepositoryVectorStore(VectorStore):
             )
             for row in rows
         ]
-
-
-class RepoMindRepositoryRetriever(BaseRetriever):
-    """LangChain retriever for repository chunks stored in pgvector."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    vector_store: RepoMindRepositoryVectorStore
-    k: int = 6
-
-    def _get_relevant_documents(
-        self,
-        query: str,
-        *,
-        run_manager: CallbackManagerForRetrieverRun,
-    ) -> list[Document]:
-        del query, run_manager
-        raise NotImplementedError("Use async retriever calls with ainvoke.")
-
-    async def _aget_relevant_documents(
-        self,
-        query: str,
-        *,
-        run_manager: AsyncCallbackManagerForRetrieverRun,
-    ) -> list[Document]:
-        del run_manager
-        return await self.vector_store.asimilarity_search(query, k=self.k)
 
 
 class RepoMindParentHybridRetriever(BaseRetriever):
@@ -492,40 +460,3 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             )
 
         return documents
-
-
-def build_repository_context_runnable(
-    retriever: BaseRetriever,
-) -> Any:
-    """Compose query, retrieved docs, and formatted context for future RAG chains."""
-
-    def format_context(value: dict[str, Any]) -> str:
-        documents = value.get("documents")
-
-        if not isinstance(documents, list):
-            return ""
-
-        sections: list[str] = []
-
-        for document in documents:
-            if not isinstance(document, Document):
-                continue
-
-            path = document.metadata.get("path")
-            start_line = document.metadata.get("start_line")
-            end_line = document.metadata.get("end_line")
-            location = (
-                f"{path}:{start_line}-{end_line}"
-                if isinstance(path, str)
-                and isinstance(start_line, int)
-                and isinstance(end_line, int)
-                else "unknown"
-            )
-            sections.append(f"{location}\n{document.page_content}")
-
-        return "\n\n".join(sections)
-
-    return RunnableParallel(
-        query=RunnablePassthrough(),
-        documents=retriever,
-    ) | RunnablePassthrough.assign(context=RunnableLambda(format_context))

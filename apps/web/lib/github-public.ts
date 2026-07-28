@@ -299,7 +299,6 @@ export async function connectPublicRepositoryForUser(
       where: { id: repository.id },
       data: {
         indexStatus: nextStatus,
-        indexProgress: 0,
         targetCommitSha,
         lastIndexError: null,
       },

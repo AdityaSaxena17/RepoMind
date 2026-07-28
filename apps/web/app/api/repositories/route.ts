@@ -18,7 +18,6 @@ export async function GET() {
       archived: repository.archived,
       html_url: repository.htmlUrl,
       status: repository.indexStatus,
-      progress: repository.indexProgress,
       indexed_file_count: repository.indexedFileCount,
       indexed_chunk_count: repository.indexedChunkCount,
       last_indexed_at: repository.lastIndexedAt?.toISOString() ?? null,

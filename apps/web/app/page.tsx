@@ -46,7 +46,7 @@ export default function Home() {
               href="/dashboard"
               prefetch={false}
             >
-              Open prototype
+            Open dashboard
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
@@ -55,7 +55,7 @@ export default function Home() {
               prefetch={false}
             >
               <GitBranch className="h-4 w-4" />
-              Sign in with GitHub
+              Sign in
             </Link>
           </div>
         </div>

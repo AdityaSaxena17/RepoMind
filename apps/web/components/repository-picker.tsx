@@ -26,7 +26,6 @@ interface RepositorySummary {
   default_branch: string;
   html_url: string | null;
   status: RepositoryStatus;
-  progress: number;
   indexed_file_count: number;
   indexed_chunk_count: number;
   last_indexed_at: string | null;
@@ -175,8 +174,8 @@ export function RepositoryPicker() {
             Connect a public repository
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Enter a public GitHub owner and repository name. No redirects or
-            extra GitHub setup are needed.
+            Enter a public GitHub owner and repository name. RepoMind verifies
+            it, then queues indexing.
           </p>
         </div>
         <button
@@ -291,7 +290,7 @@ export function RepositoryPicker() {
                   {repository.status === "INDEXING" ||
                   repository.status === "UPDATING" ? (
                     <span className="inline-flex h-8 items-center rounded-md border border-sky-400/20 px-2.5 text-xs text-sky-200">
-                      {repository.progress}%
+                      Working
                     </span>
                   ) : null}
                   {canOpen ? (

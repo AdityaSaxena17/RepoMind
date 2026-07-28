@@ -42,7 +42,6 @@ enum RepositoryIndexJobStatus {
 enum RepositoryIndexJobTrigger {
   CONNECT
   RETRY
-  PUSH
 }
 
 enum ChatMessageRole {
@@ -88,7 +87,6 @@ model Repository {
   htmlUrl              String?
   accessStatus         RepositoryAccessStatus @default(ACTIVE)
   indexStatus          RepositoryIndexStatus  @default(NOT_INDEXED)
-  indexProgress        Int                   @default(0)
   indexedCommitSha     String?
   targetCommitSha      String?
   indexedFileCount     Int                   @default(0)
@@ -130,7 +128,6 @@ model RepositoryIndexJob {
   status          RepositoryIndexJobStatus @default(QUEUED)
   sourceCommitSha String?
   targetCommitSha String?
-  progress        Int                      @default(0)
   errorMessage    String?
   startedAt       DateTime?
   finishedAt      DateTime?

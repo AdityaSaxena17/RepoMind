@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import hashlib
 import uuid
@@ -7,7 +6,6 @@ from typing import Any
 import asyncpg
 import httpx
 from langchain_core.documents import Document
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import get_settings
@@ -286,15 +284,6 @@ def chunk_file(path: str, content: str) -> list[Document]:
     return chunks
 
 
-def chunk_file_runnable() -> Any:
-    """Create the LangChain runnable used to produce chunk documents per file."""
-    return RunnablePassthrough.assign(
-        chunk_documents=RunnableLambda(
-            lambda file: chunk_file(str(file["path"]), str(file["content"])),
-        ),
-    )
-
-
 async def promote_index(
     connection: asyncpg.Connection,
     repository_id: str,
@@ -345,7 +334,6 @@ async def promote_index(
             """
             UPDATE "Repository"
             SET "indexStatus" = 'READY',
-                "indexProgress" = 100,
                 "indexedCommitSha" = $2,
                 "targetCommitSha" = $2,
                 "indexedFileCount" = $3,
@@ -364,7 +352,6 @@ async def promote_index(
             """
             UPDATE "RepositoryIndexJob"
             SET "status" = 'SUCCEEDED',
-                "progress" = 100,
                 "finishedAt" = now(),
                 "updatedAt" = now()
             WHERE "id" = $1
@@ -377,7 +364,6 @@ async def index_repository(
     ctx: dict[str, Any],
     payload: dict[str, Any],
 ) -> dict[str, str]:
-    await asyncio.sleep(0)
     repository_id = str(payload["repository_id"])
     job_id = str(payload["job_id"])
     settings = get_settings()
@@ -420,7 +406,6 @@ async def index_repository(
             )
             files: list[dict[str, Any]] = []
             chunks: list[Document] = []
-            file_chunk_chain = chunk_file_runnable()
 
             for entry in tree:
                 if entry.get("type") != "blob":
@@ -457,18 +442,8 @@ async def index_repository(
                     "line_count": max(1, len(content.splitlines())),
                     "content": content,
                 }
-                chunked_file = file_chunk_chain.invoke(file_record)
-                chunk_documents = chunked_file.get("chunk_documents")
-
-                if not isinstance(chunk_documents, list):
-                    raise RuntimeError("Chunk runnable did not return documents.")
-
                 files.append(file_record)
-                chunks.extend(
-                    document
-                    for document in chunk_documents
-                    if isinstance(document, Document)
-                )
+                chunks.extend(chunk_file(path, content))
 
         embeddings = (
             await RepoMindRepositoryVectorStore(
