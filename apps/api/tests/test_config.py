@@ -1,4 +1,8 @@
-from app.config import normalize_asyncpg_database_url, normalize_openai_chat_model
+from app.config import (
+  normalize_asyncpg_database_url,
+  normalize_openai_chat_model,
+  read_optional_token,
+)
 
 
 def test_normalize_asyncpg_database_url_removes_prisma_schema_param() -> None:
@@ -29,3 +33,11 @@ def test_normalize_openai_chat_model_converts_display_label() -> None:
 
 def test_normalize_openai_chat_model_treats_blank_as_missing() -> None:
   assert normalize_openai_chat_model("  ") is None
+
+
+def test_read_optional_token_keeps_real_token() -> None:
+  assert read_optional_token(" github_pat_abc ") == "github_pat_abc"
+
+
+def test_read_optional_token_ignores_placeholder() -> None:
+  assert read_optional_token("github_pat_optional_public_read_token") is None

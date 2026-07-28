@@ -14,6 +14,7 @@ class Settings:
     arq_queue_name: str
     database_url: str
     internal_api_credential: str | None
+    github_token: str | None
     openai_api_key: str | None
     openai_embeddings_model: str
     openai_chat_model: str | None
@@ -63,6 +64,26 @@ def normalize_openai_chat_model(model: str | None) -> str | None:
     return normalized
 
 
+def read_optional_token(value: str | None) -> str | None:
+    """Return a configured token unless it looks like an empty placeholder."""
+    if value is None:
+        return None
+
+    token = value.strip()
+    lower = token.lower()
+
+    if (
+        not token
+        or "your" in lower
+        or "replace" in lower
+        or "example" in lower
+        or "optional" in lower
+    ):
+        return None
+
+    return token
+
+
 @lru_cache
 def get_settings() -> Settings:
     database_url = (
@@ -78,6 +99,9 @@ def get_settings() -> Settings:
         arq_queue_name=os.getenv("ARQ_QUEUE_NAME", "repomind:indexing"),
         database_url=normalize_asyncpg_database_url(database_url),
         internal_api_credential=os.getenv("INTERNAL_API_CREDENTIAL"),
+        github_token=read_optional_token(
+            os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN"),
+        ),
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         openai_embeddings_model=os.getenv(
             "OPENAI_EMBEDDINGS_MODEL",

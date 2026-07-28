@@ -80,6 +80,21 @@ def sha256_text(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def github_headers() -> dict[str, str]:
+    """Build GitHub headers for repository indexing with optional auth."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "RepoMind",
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+    }
+    token = get_settings().github_token
+
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    return headers
+
+
 async def github_json(
     client: httpx.AsyncClient,
     path: str,
@@ -87,11 +102,7 @@ async def github_json(
     response = await client.request(
         "GET",
         f"{GITHUB_API_BASE_URL}{path}",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "RepoMind",
-            "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        },
+        headers=github_headers(),
         timeout=30,
     )
 
@@ -99,7 +110,16 @@ async def github_json(
         raise RuntimeError("GitHub repository was not found or is not public.")
 
     if response.status_code == 403:
-        raise RuntimeError("GitHub rate limit blocked this public request.")
+        remaining = response.headers.get("X-RateLimit-Remaining")
+        reset_at = response.headers.get("X-RateLimit-Reset")
+        auth_state = (
+            "authenticated" if get_settings().github_token else "unauthenticated"
+        )
+        detail = (
+            f"GitHub rate limit blocked this {auth_state} request"
+            f" (remaining={remaining or 'unknown'}, reset={reset_at or 'unknown'})."
+        )
+        raise RuntimeError(detail)
 
     response.raise_for_status()
     payload = response.json()

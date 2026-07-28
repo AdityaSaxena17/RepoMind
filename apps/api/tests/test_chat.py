@@ -1,6 +1,7 @@
 import pytest
+from langchain_core.messages import AIMessage, AIMessageChunk
 
-from app.chat import create_chat_model
+from app.chat import create_chat_model, message_text
 from app.config import get_settings
 
 
@@ -29,3 +30,9 @@ def test_create_chat_model_normalizes_openai_display_name(
   assert model.model_name == "gpt-4o-mini"
 
   get_settings.cache_clear()
+
+
+def test_message_text_reads_full_and_chunk_messages() -> None:
+  assert message_text(AIMessage(content="full answer")) == "full answer"
+  assert message_text(AIMessageChunk(content="streamed answer")) == "streamed answer"
+  assert message_text(object()) == ""

@@ -1,24 +1,56 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 import uuid
-from collections.abc import AsyncIterator
-from typing import Any
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any, Literal
 
 import asyncpg
+from langchain.agents import create_agent
 from langchain_core.documents import Document
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import (
-    RunnableLambda,
-    RunnableParallel,
-    RunnablePassthrough,
-)
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
 
 from .config import get_settings
 from .retrieval import RepoMindParentHybridRetriever, create_embedding_model
+
+MCP_TOOL_NAMES = {
+    "search_issues",
+    "issue_read",
+    "search_pull_requests",
+    "pull_request_read",
+}
+AgentStreamMode = Literal[
+    "values",
+    "updates",
+    "checkpoints",
+    "tasks",
+    "debug",
+    "messages",
+    "custom",
+]
+AGENT_STREAM_MODES: Sequence[AgentStreamMode] = (
+    "messages",
+    "updates",
+)
+AGENT_STREAM_VERSION: Literal["v2"] = "v2"
+
+CHAT_SYSTEM_PROMPT = (
+    "You are RepoMind, an AI assistant answering questions about one indexed "
+    "GitHub repository. Use indexed repository context for code claims. Use the "
+    "available MCP tools for live issue and pull request questions. Cite code "
+    "claims with source numbers like [1] or [2]. Cite issue and pull request "
+    "claims with GitHub URLs returned by tools. If the available context does "
+    "not contain enough evidence, say what is missing. Never invent file paths, "
+    "APIs, line numbers, issue numbers, pull request numbers, authors, labels, "
+    "states, URLs, or behavior."
+)
 
 
 def sse_event(event: str, data: dict[str, Any]) -> str:
@@ -72,44 +104,72 @@ def format_documents(documents: list[Document]) -> str:
     return "\n\n".join(sections)
 
 
-def build_chat_chain() -> Any:
-    """Build the LCEL repository QA chain with hybrid retrieval context."""
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are RepoMind, an AI assistant answering questions about one "
-                "indexed GitHub repository. Use only the provided repository context "
-                "and chat history. Cite code claims with source numbers like [1] or "
-                "[2]. If the context does not contain enough evidence, say what is "
-                "missing and suggest a precise follow-up search. Never invent file "
-                "paths, APIs, line numbers, issues, pull requests, or behavior.",
-            ),
-            MessagesPlaceholder(variable_name="history"),
-            (
-                "human",
-                "Question:\n{question}\n\nRepository context:\n{context}",
-            ),
-        ],
-    )
-    retrieved_context = RunnableParallel(
-        question=RunnablePassthrough(),
-        documents=RunnableLambda(lambda value: value["documents"]),
-    ) | RunnablePassthrough.assign(
-        context=RunnableLambda(lambda value: format_documents(value["documents"])),
+@asynccontextmanager
+async def scoped_mcp_tools(
+    user_id: str,
+    repository_id: str,
+) -> AsyncIterator[list[Any]]:
+    """Load real MCP tools from a repository-scoped stdio server session."""
+    env = dict(os.environ)
+    env["REPOMIND_MCP_USER_ID"] = user_id
+    env["REPOMIND_MCP_REPOSITORY_ID"] = repository_id
+    api_root = Path(__file__).resolve().parents[1]
+    client = MultiServerMCPClient(
+        {
+            "github": {
+                "transport": "stdio",
+                "command": sys.executable,
+                "args": ["-m", "app.github_mcp_server"],
+                "cwd": str(api_root),
+                "env": env,
+            },
+        },
+        handle_tool_errors=True,
     )
 
-    return (
-        RunnableParallel(
-            question=RunnableLambda(lambda value: value["question"]),
-            history=RunnableLambda(lambda value: value["history"]),
-            context=RunnablePassthrough() | retrieved_context
-            | RunnableLambda(lambda value: value["context"]),
-        )
-        | prompt
-        | create_chat_model()
-        | StrOutputParser()
-    )
+    async with client.session("github") as session:
+        tools = await load_mcp_tools(session)
+        yield [tool for tool in tools if tool.name in MCP_TOOL_NAMES]
+
+
+def agent_messages(
+    question: str,
+    history: list[BaseMessage],
+    documents: list[Document],
+) -> list[BaseMessage]:
+    """Build the message list passed to the repository chat agent."""
+    return [
+        *history,
+        HumanMessage(
+            content=(
+                f"Question:\n{question}\n\n"
+                f"Indexed code context:\n{format_documents(documents)}"
+            ),
+        ),
+    ]
+
+
+def message_text(token: object) -> str:
+    """Extract streamed assistant text from LangChain message events."""
+    if isinstance(token, AIMessage | AIMessageChunk):
+        return token.text
+
+    return ""
+
+
+def tool_calls(message: object) -> list[tuple[str, str]]:
+    if not isinstance(message, AIMessage):
+        return []
+
+    calls: list[tuple[str, str]] = []
+
+    for tool_call in message.tool_calls:
+        name = tool_call.get("name")
+        call_id = tool_call.get("id")
+        if isinstance(name, str) and name in MCP_TOOL_NAMES:
+            calls.append((name, str(call_id or name)))
+
+    return calls
 
 
 def github_line_url(
@@ -232,29 +292,63 @@ async def stream_repository_chat(
             repository_id=repository_id,
         )
         documents = await retriever.ainvoke(str(user_message["content"]))
+        history = await load_history(connection, conversation_id, message_id)
+        emitted_tool_calls: set[str] = set()
 
-        if not documents:
-            answer = (
-                "I could not find enough indexed repository context to answer that. "
-                "Try asking about a more specific file, function, error message, "
-                "or symbol."
+        async with scoped_mcp_tools(user_id, repository_id) as mcp_tools:
+            # LangGraph's compiled agent type is narrower than its documented
+            # dynamic state input, so keep the untyped boundary at construction.
+            agent: Any = create_agent(
+                create_chat_model(),
+                tools=mcp_tools,
+                system_prompt=CHAT_SYSTEM_PROMPT,
+                name="repomind",
             )
-            answer_parts.append(answer)
-            yield sse_event("delta", {"text": answer})
-        else:
-            chain = build_chat_chain()
-            history = await load_history(connection, conversation_id, message_id)
-
-            async for delta in chain.astream(
-                {
-                    "question": str(user_message["content"]),
-                    "history": history,
-                    "documents": documents,
-                },
+            agent_input: dict[str, Any] = {
+                "messages": agent_messages(
+                    str(user_message["content"]),
+                    history,
+                    documents,
+                ),
+            }
+            async for chunk in agent.astream(
+                agent_input,
+                stream_mode=AGENT_STREAM_MODES,
+                version=AGENT_STREAM_VERSION,
             ):
-                text = str(delta)
-                answer_parts.append(text)
-                yield sse_event("delta", {"text": text})
+                if not isinstance(chunk, dict):
+                    continue
+
+                if chunk.get("type") == "messages":
+                    data = chunk.get("data")
+
+                    if isinstance(data, tuple) and data:
+                        text = message_text(data[0])
+
+                        if text:
+                            answer_parts.append(text)
+                            yield sse_event("delta", {"text": text})
+
+                if chunk.get("type") == "updates":
+                    data = chunk.get("data")
+
+                    if not isinstance(data, dict):
+                        continue
+
+                    for update in data.values():
+                        if not isinstance(update, dict):
+                            continue
+
+                        messages = update.get("messages")
+                        if not isinstance(messages, list) or not messages:
+                            continue
+
+                        for name, call_id in tool_calls(messages[-1]):
+                            if call_id in emitted_tool_calls:
+                                continue
+
+                            emitted_tool_calls.add(call_id)
+                            yield sse_event("tool", {"name": name})
 
         final_answer = "".join(answer_parts).strip()
 

@@ -42,6 +42,7 @@ interface StreamPayload {
   message_id?: string;
   text?: string;
   message?: string;
+  name?: string;
   citations?: Citation[];
 }
 
@@ -100,6 +101,7 @@ export function RepositoryChat({
   const [loading, setLoading] = useState(true);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toolActivity, setToolActivity] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const activeConversation = useMemo(
@@ -184,6 +186,7 @@ export function RepositoryChat({
 
     setInput("");
     setError(null);
+    setToolActivity([]);
     setStreaming(true);
 
     const createdAt = new Date().toISOString();
@@ -313,6 +316,15 @@ export function RepositoryChat({
               ...assistant,
               citations: parsed.payload?.citations ?? [],
             }));
+          }
+
+          if (parsed.event === "tool" && typeof parsed.payload.name === "string") {
+            const toolName = parsed.payload.name;
+            setToolActivity((current) =>
+              current.includes(toolName)
+                ? current
+                : [...current, toolName].slice(-4),
+            );
           }
 
           if (parsed.event === "error") {
@@ -458,6 +470,11 @@ export function RepositoryChat({
             {error ? (
               <p className="mb-3 rounded-md border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">
                 {error}
+              </p>
+            ) : null}
+            {streaming && toolActivity.length > 0 ? (
+              <p className="mb-3 rounded-md border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-xs text-sky-100">
+                Using GitHub MCP: {toolActivity.join(", ")}
               </p>
             ) : null}
             <div className="flex gap-3">
