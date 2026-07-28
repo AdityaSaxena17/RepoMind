@@ -2,6 +2,13 @@
 
 # Dependencies
 node_modules
+.venv
+.venv-api
+.mypy-cache
+.pytest-cache
+.python-cache
+.ruff-cache
+.uv-cache
 .pnp
 .pnp.js
 

@@ -5,38 +5,24 @@ import {
   Code2,
   GitPullRequest,
   LayoutDashboard,
-  Search,
   Settings,
   Sparkles,
   TerminalSquare,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { repositories, type Repository } from "../lib/prototype-data";
+import type { RepositoryView } from "../lib/repository-view";
 
 type ActiveItem =
   | "dashboard"
   | "repositories"
   | "chat"
-  | "search"
   | "issues"
   | "pull-requests"
   | "settings";
 
-function navigationHref(activeItem: ActiveItem, repository?: Repository) {
-  if (activeItem === "settings") {
-    return "/settings";
-  }
-
-  if (!repository) {
-    return "/dashboard";
-  }
-
+function navigationHref(activeItem: ActiveItem, repository: RepositoryView) {
   const base = `/repositories/${repository.owner}/${repository.name}`;
-
-  if (activeItem === "search") {
-    return `${base}/search`;
-  }
 
   if (activeItem === "issues") {
     return `${base}/issues`;
@@ -53,18 +39,30 @@ function navigationHref(activeItem: ActiveItem, repository?: Repository) {
   return "/dashboard";
 }
 
-const navigationItems: {
+const globalNavigationItems: {
+  id: Extract<ActiveItem, "dashboard" | "repositories" | "settings">;
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+}[] = [
+  { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  {
+    id: "repositories",
+    label: "Repositories",
+    href: "/dashboard",
+    icon: Code2,
+  },
+  { id: "settings", label: "Settings", href: "/settings", icon: Settings },
+];
+
+const repositoryNavigationItems: {
   id: ActiveItem;
   label: string;
   icon: typeof LayoutDashboard;
 }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "repositories", label: "Repositories", icon: Code2 },
   { id: "chat", label: "AI Chat", icon: Bot },
-  { id: "search", label: "Search", icon: Search },
   { id: "issues", label: "Issues", icon: TerminalSquare },
   { id: "pull-requests", label: "Pull Requests", icon: GitPullRequest },
-  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export async function AppShell({
@@ -74,18 +72,18 @@ export async function AppShell({
   children,
 }: {
   activeItem: ActiveItem;
-  repository?: Repository;
+  repository?: RepositoryView;
   rightPanel?: ReactNode;
   children: ReactNode;
 }) {
   await auth.protect();
 
-  const fallbackRepository = repositories[0];
   const selectedRepositoryLabel = repository
     ? `${repository.owner}/${repository.name}`
-    : fallbackRepository
-      ? `${fallbackRepository.owner}/${fallbackRepository.name}`
-      : "No repository selected";
+    : "No repository selected";
+  const shellGridClass = rightPanel
+    ? "grid min-h-[calc(100svh-4rem)] grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)_336px]"
+    : "grid min-h-[calc(100svh-4rem)] grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]";
 
   return (
     <div className="min-h-svh bg-[#09090b] text-zinc-100">
@@ -104,26 +102,15 @@ export async function AppShell({
           <div className="flex h-9 min-w-56 items-center rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm text-zinc-300">
             {selectedRepositoryLabel}
           </div>
-          <div className="flex h-9 flex-1 max-w-xl items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm text-zinc-500">
-            <Search className="h-4 w-4" />
-            <span>Search code, issues, pull requests...</span>
-          </div>
         </div>
         <div className="ml-auto flex items-center gap-3">
-          <Link
-            className="hidden h-9 items-center rounded-md border border-white/10 px-3 text-sm text-zinc-300 hover:bg-white/[0.04] sm:flex"
-            href="/dashboard"
-            prefetch={false}
-          >
-            Connect repository
-          </Link>
           <UserButton />
         </div>
       </header>
-      <div className="grid min-h-[calc(100svh-4rem)] grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)_336px]">
+      <div className={shellGridClass}>
         <aside className="hidden border-r border-white/10 bg-[#0c0c0f] p-3 md:block">
           <nav className="space-y-1">
-            {navigationItems.map((item) => {
+            {globalNavigationItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeItem === item.id;
 
@@ -134,7 +121,7 @@ export async function AppShell({
                       ? "bg-white/10 text-zinc-50"
                       : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
                   }`}
-                  href={navigationHref(item.id, repository)}
+                  href={item.href}
                   key={item.id}
                   prefetch={false}
                 >
@@ -143,14 +130,39 @@ export async function AppShell({
                 </Link>
               );
             })}
+            {repository ? (
+              <>
+                <div className="px-3 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-zinc-600">
+                  Repository
+                </div>
+                {repositoryNavigationItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeItem === item.id;
+
+                  return (
+                    <Link
+                      className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm transition ${
+                        isActive
+                          ? "bg-white/10 text-zinc-50"
+                          : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
+                      }`}
+                      href={navigationHref(item.id, repository)}
+                      key={item.id}
+                      prefetch={false}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </>
+            ) : null}
           </nav>
           <div className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-3">
-            <p className="text-xs font-medium text-zinc-300">
-              Prototype mode
-            </p>
+            <p className="text-xs font-medium text-zinc-300">Indexing flow</p>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              GitHub, OpenAI, pgvector, and indexing are represented with local
-              typed data.
+              Repository connection requests go through Next.js, then FastAPI,
+              then arq Redis.
             </p>
           </div>
         </aside>

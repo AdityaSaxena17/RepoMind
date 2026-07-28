@@ -1,7 +1,38 @@
-import { CheckCircle2, FileText, ListChecks, TriangleAlert } from "lucide-react";
+import { CircleDot, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppShell } from "../../../../../components/app-shell";
-import { getRepository, issuePlans } from "../../../../../lib/prototype-data";
+import {
+  GitHubPublicApiError,
+  publicGithubFetch,
+} from "../../../../../lib/github-public";
+import { requireConnectedRepositoryView } from "../../../../../lib/repository-view";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readIssues(value: unknown) {
+  if (!isRecord(value) || !Array.isArray(value.items)) {
+    return [];
+  }
+
+  return value.items.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const title = typeof item.title === "string" ? item.title : null;
+    const url = typeof item.html_url === "string" ? item.html_url : null;
+    const state = typeof item.state === "string" ? item.state : null;
+    const number = typeof item.number === "number" ? item.number : null;
+
+    if (!title || !url || !state || number === null) {
+      return [];
+    }
+
+    return [{ number, title, url, state }];
+  });
+}
 
 export default async function RepositoryIssues({
   params,
@@ -9,107 +40,66 @@ export default async function RepositoryIssues({
   params: Promise<{ owner: string; repo: string }>;
 }) {
   const { owner, repo } = await params;
-  const repository = getRepository(owner, repo);
-  const selectedIssue = issuePlans[0];
+  const repository = await requireConnectedRepositoryView(owner, repo);
 
-  if (!repository || !selectedIssue) {
+  if (!repository) {
     notFound();
+  }
+
+  let githubError: string | null = null;
+  let issues: ReturnType<typeof readIssues> = [];
+
+  try {
+    issues = readIssues(await publicGithubFetch(
+      `/search/issues?q=${encodeURIComponent(`repo:${owner}/${repo} is:issue`)}&per_page=20`,
+    ));
+  } catch (error) {
+    githubError = error instanceof GitHubPublicApiError
+      ? error.message
+      : "GitHub issues are temporarily unavailable.";
   }
 
   return (
     <AppShell activeItem="issues" repository={repository}>
-      <div className="grid min-h-[calc(100svh-4rem)] grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="border-b border-white/10 bg-[#0c0c0f] p-5 lg:border-b-0 lg:border-r">
-          <p className="text-sm font-medium text-sky-300">GitHub context</p>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-50">Issues</h1>
-          <div className="mt-5 space-y-3">
-            {issuePlans.map((issue) => (
-              <article
-                className={`rounded-lg border p-4 ${
-                  issue.issueNumber === selectedIssue.issueNumber
-                    ? "border-sky-400/30 bg-sky-400/10"
-                    : "border-white/10 bg-white/[0.03]"
-                }`}
-                key={issue.issueNumber}
-              >
-                <p className="text-xs text-zinc-500">#{issue.issueNumber}</p>
-                <h2 className="mt-1 text-sm font-semibold leading-5 text-zinc-100">
-                  {issue.title}
-                </h2>
-                <p className="mt-3 text-xs text-zinc-500">{issue.status}</p>
-              </article>
-            ))}
-          </div>
-        </aside>
-        <section className="min-w-0 px-5 py-6 md:px-8">
-          <p className="text-sm text-zinc-500">Issue #{selectedIssue.issueNumber}</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-normal text-zinc-50">
-            {selectedIssue.title}
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
-            {selectedIssue.summary}
-          </p>
-          <div className="mt-8 grid gap-4 xl:grid-cols-2">
-            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
-              <p className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-                <FileText className="h-4 w-4 text-sky-300" />
-                Likely files
-              </p>
-              <div className="mt-4 space-y-2">
-                {selectedIssue.likelyFiles.map((file) => (
-                  <p
-                    className="rounded-md border border-white/10 px-3 py-2 font-mono text-xs text-zinc-300"
-                    key={file}
-                  >
-                    {file}
+      <div className="px-5 py-6 md:px-8">
+        <p className="text-sm font-medium text-sky-300">GitHub issues</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-normal text-zinc-50">
+          Issues
+        </h1>
+        <div className="mt-8 grid gap-3">
+          {githubError ? (
+            <p className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
+              {githubError}
+            </p>
+          ) : null}
+          {issues.map((issue) => (
+            <a
+              className="rounded-lg border border-white/10 bg-white/[0.03] p-5 transition hover:border-white/20"
+              href={issue.url}
+              key={issue.number}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-xs text-zinc-500">
+                    <CircleDot className="h-3.5 w-3.5" />
+                    Issue #{issue.number} · {issue.state}
                   </p>
-                ))}
+                  <h2 className="mt-2 text-base font-semibold leading-6 text-zinc-50">
+                    {issue.title}
+                  </h2>
+                </div>
+                <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500" />
               </div>
-            </section>
-            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
-              <p className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-                <ListChecks className="h-4 w-4 text-emerald-300" />
-                Implementation steps
-              </p>
-              <ol className="mt-4 space-y-3">
-                {selectedIssue.implementationSteps.map((step, index) => (
-                  <li className="flex gap-3 text-sm text-zinc-400" key={step}>
-                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white/10 text-xs text-zinc-200">
-                      {index + 1}
-                    </span>
-                    <span className="leading-6">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
-              <p className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-                <TriangleAlert className="h-4 w-4 text-amber-300" />
-                Edge cases
-              </p>
-              <div className="mt-4 space-y-2">
-                {selectedIssue.edgeCases.map((edgeCase) => (
-                  <p className="text-sm leading-6 text-zinc-400" key={edgeCase}>
-                    {edgeCase}
-                  </p>
-                ))}
-              </div>
-            </section>
-            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
-              <p className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-                <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                Testing considerations
-              </p>
-              <div className="mt-4 space-y-2">
-                {selectedIssue.testingNotes.map((note) => (
-                  <p className="text-sm leading-6 text-zinc-400" key={note}>
-                    {note}
-                  </p>
-                ))}
-              </div>
-            </section>
-          </div>
-        </section>
+            </a>
+          ))}
+          {!githubError && issues.length === 0 ? (
+            <p className="rounded-lg border border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-500">
+              No GitHub issues found.
+            </p>
+          ) : null}
+        </div>
       </div>
     </AppShell>
   );

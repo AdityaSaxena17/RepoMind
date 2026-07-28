@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:0.8.2-pg17
     container_name: repomind-postgres
     restart: unless-stopped
     environment:
@@ -16,6 +16,66 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  redis:
+    image: redis:8-alpine
+    container_name: repomind-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - repomind-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: repomind-redisinsight
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5540:5540"
+    volumes:
+      - repomind-redisinsight-data:/data
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: repomind-pgadmin
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: repomind_admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_DISABLE_POSTFIX: "1"
+    ports:
+      - "5050:80"
+    volumes:
+      - repomind-pgadmin-data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+  arq-dashboard:
+    build:
+      context: ./apps/arq-dashboard
+    container_name: repomind-arq-dashboard
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      ARQ_DASHBOARD_REDIS_URL: redis://redis:6379
+      ARQ_QUEUE_NAME: repomind:indexing
+    ports:
+      - "8010:8000"
 
 volumes:
   repomind-postgres-data:
+  repomind-redis-data:
+  repomind-redisinsight-data:
+  repomind-pgadmin-data:
