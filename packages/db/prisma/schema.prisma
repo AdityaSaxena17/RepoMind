@@ -12,6 +12,39 @@ enum UserStatus {
   INACTIVE
 }
 
+enum RepositoryVisibility {
+  PUBLIC
+  PRIVATE
+  INTERNAL
+}
+
+enum RepositoryAccessStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum RepositoryIndexStatus {
+  NOT_INDEXED
+  INDEXING
+  UPDATING
+  READY
+  FAILED
+}
+
+enum RepositoryIndexJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum RepositoryIndexJobTrigger {
+  CONNECT
+  RETRY
+  PUSH
+}
+
 model User {
   id         String     @id @default(cuid())
   clerkId    String     @unique
@@ -25,5 +58,154 @@ model User {
   updatedAt  DateTime   @updatedAt
   inactiveAt DateTime?
 
+  githubInstallations UserGitHubInstallation[]
+  repositories         UserRepository[]
+
   @@index([status])
+}
+
+model GitHubOAuthState {
+  id                   String    @id @default(cuid())
+  stateHash            String    @unique
+  userId               String
+  githubInstallationId String?
+  expiresAt            DateTime
+  usedAt               DateTime?
+  createdAt            DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model GitHubInstallation {
+  id                   String                   @id @default(cuid())
+  githubInstallationId String                   @unique
+  accountLogin         String
+  accountType          String
+  targetType           String?
+  suspendedAt          DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  users                UserGitHubInstallation[]
+  repositories         Repository[]
+
+  @@index([accountLogin])
+}
+
+model UserGitHubInstallation {
+  id                   String             @id @default(cuid())
+  userId               String
+  githubInstallationId String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  installation         GitHubInstallation @relation(fields: [githubInstallationId], references: [githubInstallationId], onDelete: Cascade)
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, githubInstallationId])
+  @@index([githubInstallationId])
+}
+
+model Repository {
+  id                   String                @id @default(cuid())
+  githubRepositoryId   String                @unique
+  githubInstallationId String
+  owner                String
+  name                 String
+  fullName             String
+  visibility           RepositoryVisibility
+  defaultBranch        String
+  archived             Boolean               @default(false)
+  htmlUrl              String?
+  accessStatus         RepositoryAccessStatus @default(ACTIVE)
+  indexStatus          RepositoryIndexStatus  @default(NOT_INDEXED)
+  indexProgress        Int                   @default(0)
+  indexedCommitSha     String?
+  targetCommitSha      String?
+  indexedFileCount     Int                   @default(0)
+  indexedChunkCount    Int                   @default(0)
+  lastIndexedAt        DateTime?
+  lastIndexError       String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  files                RepositoryFile[]
+  chunks               RepositoryChunk[]
+  installation         GitHubInstallation    @relation(fields: [githubInstallationId], references: [githubInstallationId], onDelete: Cascade)
+  indexJobs            RepositoryIndexJob[]
+  users                UserRepository[]
+
+  @@index([githubInstallationId])
+  @@index([owner, name])
+  @@index([indexStatus])
+  @@index([accessStatus])
+}
+
+model UserRepository {
+  id           String                 @id @default(cuid())
+  userId       String
+  repositoryId String
+  accessStatus RepositoryAccessStatus @default(ACTIVE)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  repository   Repository             @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, repositoryId])
+  @@index([repositoryId])
+  @@index([accessStatus])
+}
+
+model RepositoryIndexJob {
+  id              String                   @id @default(cuid())
+  repositoryId    String
+  trigger         RepositoryIndexJobTrigger
+  status          RepositoryIndexJobStatus @default(QUEUED)
+  sourceCommitSha String?
+  targetCommitSha String?
+  progress        Int                      @default(0)
+  errorMessage    String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  repository      Repository               @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, status])
+  @@index([createdAt])
+}
+
+model RepositoryFile {
+  id           String     @id @default(cuid())
+  repositoryId String
+  path         String
+  blobSha      String
+  contentSha   String
+  byteSize     Int
+  lineCount    Int
+  content      String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  chunks       RepositoryChunk[]
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, path])
+  @@index([repositoryId, blobSha])
+}
+
+model RepositoryChunk {
+  id           String                  @id @default(cuid())
+  repositoryId String
+  fileId       String
+  chunkIndex   Int
+  path         String
+  startLine    Int
+  endLine      Int
+  content      String
+  contentSha   String
+  embedding    Unsupported("vector(1536)")
+  createdAt    DateTime                @default(now())
+  file         RepositoryFile          @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  repository   Repository              @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, chunkIndex])
+  @@index([repositoryId, path])
 }

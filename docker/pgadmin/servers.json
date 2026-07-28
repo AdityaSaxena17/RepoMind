@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "RepoMind Postgres",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "RepoMind",
+      "Username": "repomind",
+      "SSLMode": "prefer"
+    }
+  }
+}

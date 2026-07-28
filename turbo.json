@@ -1,7 +1,29 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["DATABASE_URL", "NODE_ENV", "CLERK_WEBHOOK_SIGNING_SECRET"],
+  "globalEnv": [
+    "DATABASE_URL",
+    "NODE_ENV",
+    "CLERK_WEBHOOK_SIGNING_SECRET",
+    "FASTAPI_BASE_URL",
+    "REDIS_HOST",
+    "REDIS_PORT",
+    "REDIS_DATABASE",
+    "ARQ_QUEUE_NAME",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_SLUG",
+    "GITHUB_APP_PRIVATE_KEY",
+    "GITHUB_APP_CLIENT_ID",
+    "GITHUB_APP_CLIENT_SECRET",
+    "GITHUB_OAUTH_STATE_SECRET",
+    "GITHUB_WEBHOOK_SECRET",
+    "GITHUB_API_BASE_URL",
+    "GITHUB_API_VERSION",
+    "GITHUB_MCP_SERVER_URL",
+    "INTERNAL_API_CREDENTIAL",
+    "OPENAI_API_KEY",
+    "OPENAI_EMBEDDINGS_MODEL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -14,7 +36,14 @@
     "check-types": {
       "dependsOn": ["^check-types"]
     },
+    "test": {
+      "dependsOn": ["^test"]
+    },
     "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "worker": {
       "cache": false,
       "persistent": true
     }

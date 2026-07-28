@@ -1,4 +1,3 @@
-import { Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { ArrowRight, Bot, Code2, GitBranch, Search } from "lucide-react";
 import Link from "next/link";
 
@@ -16,23 +15,16 @@ export default function Home() {
           RepoMind
         </Link>
         <nav className="flex items-center gap-3 text-sm">
-          <Show when="signed-out">
-            <SignInButton />
-            <SignUpButton>
-              <button className="h-9 rounded-md bg-zinc-100 px-4 font-medium text-zinc-950">
-                Sign up
-              </button>
-            </SignUpButton>
-          </Show>
-          <Show when="signed-in">
-            <Link
-              className="h-9 rounded-md border border-white/10 px-4 py-2 text-zinc-200"
-              href="/dashboard"
-              prefetch={false}
-            >
-              Dashboard
-            </Link>
-          </Show>
+          <Link href="/sign-in" prefetch={false}>
+            Sign in
+          </Link>
+          <Link
+            className="h-9 rounded-md bg-zinc-100 px-4 py-2 font-medium text-zinc-950"
+            href="/sign-up"
+            prefetch={false}
+          >
+            Sign up
+          </Link>
         </nav>
       </header>
       <section className="mx-auto grid min-h-[calc(100svh-4rem)] max-w-6xl grid-cols-1 gap-10 px-6 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">

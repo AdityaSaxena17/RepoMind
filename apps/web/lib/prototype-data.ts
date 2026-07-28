@@ -10,6 +10,8 @@ export type TimelineStatus = "complete" | "active" | "pending";
 export interface Repository {
   owner: string;
   name: string;
+  githubRepositoryId: number;
+  installationId: number;
   visibility: "Public" | "Private";
   language: string;
   description: string;
@@ -85,6 +87,8 @@ export const repositories: Repository[] = [
   {
     owner: "vercel",
     name: "commerce",
+    githubRepositoryId: 12038491,
+    installationId: 834201,
     visibility: "Public",
     language: "TypeScript",
     description: "Composable storefront with product, cart, and checkout flows.",
@@ -100,6 +104,8 @@ export const repositories: Repository[] = [
   {
     owner: "acme",
     name: "payments-api",
+    githubRepositoryId: 68239104,
+    installationId: 834202,
     visibility: "Private",
     language: "Go",
     description: "Internal payment orchestration service for billing events.",
@@ -115,6 +121,8 @@ export const repositories: Repository[] = [
   {
     owner: "open-source-labs",
     name: "queuekit",
+    githubRepositoryId: 29108371,
+    installationId: 834203,
     visibility: "Public",
     language: "Rust",
     description: "Durable job runner with retry and scheduler primitives.",
@@ -130,6 +138,8 @@ export const repositories: Repository[] = [
   {
     owner: "northstar",
     name: "mobile-backend",
+    githubRepositoryId: 77190233,
+    installationId: 834204,
     visibility: "Private",
     language: "Kotlin",
     description: "API surface for mobile onboarding, sessions, and feature flags.",
