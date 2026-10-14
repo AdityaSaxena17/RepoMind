@@ -1,0 +1,612 @@
+{
+  "version": "1",
+  "provenance": "Synthetic evaluation scenarios, not snapshots of real GitHub issues or PRs. Payload fields follow RepoMind MCP serialization. All identities, dates, discussions, counts and proposed changes are fixture facts only.",
+  "scenarios": {
+    "none": [],
+    "streaming": [
+      {
+        "id": "streaming-search",
+        "tool": "search_issues",
+        "arguments": [
+          {
+            "query": "streaming",
+            "state": "all"
+          },
+          {
+            "query": "SSE",
+            "state": "all"
+          },
+          {
+            "query": "stream",
+            "state": "all"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:issue streaming",
+          "total_count": 1,
+          "items": [
+            {
+              "number": 101,
+              "title": "Unused streaming source cards",
+              "state": "open",
+              "url": "https://github.com/AdityaSaxena17/RepoMind/issues/101",
+              "author": "fixture-author",
+              "labels": [
+                "evaluation-fixture"
+              ],
+              "created_at": "2026-07-01T00:00:00Z",
+              "updated_at": "2026-07-02T00:00:00Z",
+              "body": "Retrieved source cards include files the assistant answer never cites. Please distinguish candidate sources from support for individual claims."
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "id": "issue-101",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 101
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue": {
+            "number": 101,
+            "title": "Unused streaming source cards",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/issues/101",
+            "author": "fixture-author",
+            "labels": [
+              "evaluation-fixture"
+            ],
+            "created_at": "2026-07-01T00:00:00Z",
+            "updated_at": "2026-07-02T00:00:00Z",
+            "body": "Retrieved source cards include files the assistant answer never cites. Please distinguish candidate sources from support for individual claims."
+          }
+        },
+        "error": null
+      },
+      {
+        "id": "issue-101-comments",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 101,
+            "method": "get_comments"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue_number": 101,
+          "comments": [
+            {
+              "id": 1001,
+              "url": "https://github.com/AdityaSaxena17/RepoMind/issues/101#issuecomment-1001",
+              "author": "reviewer-b",
+              "created_at": "2026-07-02T00:00:00Z",
+              "updated_at": "2026-07-02T00:00:00Z",
+              "body": "Displayed cards are retrieved candidates, not proof that answer claims are supported. Please evaluate citations at the claim level."
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "parallel-proposal": [
+      {
+        "id": "indexing-search",
+        "tool": "search_pull_requests",
+        "arguments": [
+          {
+            "query": "indexing",
+            "state": "all"
+          },
+          {
+            "query": "retrieval",
+            "state": "all"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:pr indexing",
+          "total_count": 1,
+          "items": [
+            {
+              "number": 201,
+              "title": "Parallel indexing retrieval",
+              "state": "open",
+              "url": "https://github.com/AdityaSaxena17/RepoMind/pull/201",
+              "author": "fixture-author",
+              "created_at": "2026-07-01T00:00:00Z",
+              "updated_at": "2026-07-02T00:00:00Z",
+              "merged": false,
+              "base": "main",
+              "head": "fixture-proposal",
+              "body": "Proposal: run semantic and keyword candidate retrieval concurrently using asyncio.gather on their existing shared database connection."
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "id": "pr-201",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 201
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_request": {
+            "number": 201,
+            "title": "Parallel indexing retrieval",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/pull/201",
+            "author": "fixture-author",
+            "created_at": "2026-07-01T00:00:00Z",
+            "updated_at": "2026-07-02T00:00:00Z",
+            "merged": false,
+            "base": "main",
+            "head": "fixture-proposal",
+            "body": "Proposal: run semantic and keyword candidate retrieval concurrently using asyncio.gather on their existing shared database connection."
+          }
+        },
+        "error": null
+      },
+      {
+        "id": "pr-201-get_files",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 201,
+            "method": "get_files"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_number": 201,
+          "files": [
+            {
+              "filename": "apps/api/app/retrieval.py",
+              "status": "modified",
+              "additions": 4,
+              "deletions": 2,
+              "changes": 6,
+              "url": "https://github.com/AdityaSaxena17/RepoMind/blob/678cd4ef010ef31f9293aa8ff0c92dafd255d002/apps/api/app/retrieval.py"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "id": "pr-201-get_comments",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 201,
+            "method": "get_comments"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_number": 201,
+          "comments": []
+        },
+        "error": null
+      },
+      {
+        "id": "pr-201-get_diff",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 201,
+            "method": "get_diff"
+          }
+        ],
+        "result": {},
+        "error": "GitHub request failed with status 503."
+      }
+    ],
+    "transaction-proposal": [
+      {
+        "id": "pr-202",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 202
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_request": {
+            "number": 202,
+            "title": "Transactional index replacement",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/pull/202",
+            "author": "fixture-author",
+            "created_at": "2026-07-01T00:00:00Z",
+            "updated_at": "2026-07-02T00:00:00Z",
+            "merged": false,
+            "base": "main",
+            "head": "fixture-proposal",
+            "body": "Proposal: wrap index replacement in a database transaction. We claim the previous-index chat stays available after any failed reindex."
+          }
+        },
+        "error": null
+      },
+      {
+        "id": "pr-202-files",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 202,
+            "method": "get_files"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_number": 202,
+          "files": [
+            {
+              "filename": "apps/api/app/worker.py",
+              "status": "modified",
+              "additions": 12,
+              "deletions": 4,
+              "changes": 16,
+              "url": "https://github.com/AdityaSaxena17/RepoMind/blob/678cd4ef010ef31f9293aa8ff0c92dafd255d002/apps/api/app/worker.py"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "id": "availability-search-empty",
+        "tool": "search_pull_requests",
+        "arguments": [
+          {
+            "query": "preserve chat availability after failed reindex",
+            "state": "all",
+            "per_page": 5,
+            "sort": "created"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:pr preserve chat availability after failed reindex",
+          "total_count": 0,
+          "items": []
+        },
+        "error": null
+      },
+      {
+        "id": "transaction-search",
+        "tool": "search_pull_requests",
+        "arguments": [
+          {
+            "query": "transactional",
+            "state": "all"
+          },
+          {
+            "query": "transactional",
+            "state": "open"
+          },
+          {
+            "query": "transaction",
+            "state": "all"
+          },
+          {
+            "query": "transaction",
+            "state": "open"
+          },
+          {
+            "query": "failed reindex",
+            "state": "all"
+          },
+          {
+            "query": "failed reindex",
+            "state": "open"
+          },
+          {
+            "query": "chat availability",
+            "state": "all"
+          },
+          {
+            "query": "chat availability",
+            "state": "open"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:pr transactional",
+          "total_count": 1,
+          "items": [
+            {
+              "number": 202,
+              "title": "Transactional index replacement",
+              "state": "open",
+              "url": "https://github.com/AdityaSaxena17/RepoMind/pull/202",
+              "author": "fixture-author",
+              "created_at": "2026-07-01T00:00:00Z",
+              "updated_at": "2026-07-02T00:00:00Z",
+              "merged": false,
+              "base": "main",
+              "head": "fixture-proposal",
+              "body": "Proposal: wrap index replacement in a database transaction. We claim the previous-index chat stays available after any failed reindex."
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "id": "pr-202-get_comments",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 202,
+            "method": "get_comments"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_number": 202,
+          "comments": []
+        },
+        "error": null
+      },
+      {
+        "id": "pr-202-get_diff",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 202,
+            "method": "get_diff"
+          }
+        ],
+        "result": {},
+        "error": "GitHub request failed with status 503."
+      }
+    ],
+    "large-file": [
+      {
+        "id": "issue-103",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 103
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue": {
+            "number": 103,
+            "title": "Large source file missing",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/issues/103",
+            "author": "fixture-author",
+            "labels": [
+              "evaluation-fixture"
+            ],
+            "created_at": "2026-07-01T00:00:00Z",
+            "updated_at": "2026-07-02T00:00:00Z",
+            "body": "A UTF-8 source file of 1,800,000 bytes is absent from the index. Why was it skipped?"
+          }
+        },
+        "error": null
+      }
+    ],
+    "billing-empty": [
+      {
+        "id": "billing-search",
+        "tool": "search_issues",
+        "arguments": [
+          {
+            "query": "billing",
+            "state": "all"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:issue billing",
+          "total_count": 0,
+          "items": []
+        },
+        "error": null
+      }
+    ],
+    "unavailable-pr": [
+      {
+        "id": "pr-9999",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 9999
+          }
+        ],
+        "result": {},
+        "error": "GitHub resource was not found."
+      },
+      {
+        "id": "unavailable-issues-empty",
+        "tool": "search_issues",
+        "arguments": [
+          {
+            "query": "",
+            "state": "all"
+          },
+          {
+            "query": "",
+            "state": "open"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:issue",
+          "total_count": 0,
+          "items": []
+        },
+        "error": null
+      },
+      {
+        "id": "pr-9999-get_files",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 9999,
+            "method": "get_files"
+          }
+        ],
+        "result": {},
+        "error": "GitHub resource was not found."
+      },
+      {
+        "id": "pr-9999-get_comments",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 9999,
+            "method": "get_comments"
+          }
+        ],
+        "result": {},
+        "error": "GitHub resource was not found."
+      },
+      {
+        "id": "pr-9999-get_diff",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 9999,
+            "method": "get_diff"
+          }
+        ],
+        "result": {},
+        "error": "GitHub resource was not found."
+      },
+      {
+        "id": "unavailable-pr-search",
+        "tool": "search_pull_requests",
+        "arguments": [
+          {
+            "query": "9999",
+            "state": "all"
+          },
+          {
+            "query": "9999",
+            "state": "open"
+          },
+          {
+            "query": "#9999",
+            "state": "all"
+          },
+          {
+            "query": "#9999",
+            "state": "open"
+          },
+          {
+            "query": "number:9999",
+            "state": "all"
+          },
+          {
+            "query": "number:9999",
+            "state": "open"
+          },
+          {
+            "query": "indexing speedup",
+            "state": "all"
+          },
+          {
+            "query": "indexing speedup",
+            "state": "open"
+          },
+          {
+            "query": "indexing speedup",
+            "state": "closed"
+          },
+          {
+            "query": "indexing",
+            "state": "all"
+          },
+          {
+            "query": "indexing",
+            "state": "open"
+          },
+          {
+            "query": "indexing",
+            "state": "closed"
+          },
+          {
+            "query": "speedup",
+            "state": "all"
+          },
+          {
+            "query": "speedup",
+            "state": "open"
+          },
+          {
+            "query": "speedup",
+            "state": "closed"
+          },
+          {
+            "query": "measured indexing speedup",
+            "state": "all"
+          },
+          {
+            "query": "measured indexing speedup",
+            "state": "open"
+          },
+          {
+            "query": "measured indexing speedup",
+            "state": "closed"
+          },
+          {
+            "query": "PR #9999",
+            "state": "all"
+          },
+          {
+            "query": "PR #9999",
+            "state": "open"
+          },
+          {
+            "query": "PR #9999",
+            "state": "closed"
+          },
+          {
+            "query": "is:pr 9999",
+            "state": "all"
+          },
+          {
+            "query": "is:pr 9999",
+            "state": "open"
+          },
+          {
+            "query": "is:pr 9999",
+            "state": "closed"
+          },
+          {
+            "query": "9999 indexing",
+            "state": "all"
+          },
+          {
+            "query": "9999 indexing",
+            "state": "open"
+          },
+          {
+            "query": "9999 indexing",
+            "state": "closed"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "query": "repo:AdityaSaxena17/RepoMind is:pr 9999",
+          "total_count": 0,
+          "items": []
+        },
+        "error": null
+      }
+    ]
+  }
+}

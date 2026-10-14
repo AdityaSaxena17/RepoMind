@@ -1,0 +1,4938 @@
+{
+  "artifact_kind": "judge_experiment_summary",
+  "version": "1",
+  "measured_on": "2026-10-14",
+  "note": "The original accepted GPT-5.4 baseline remains intact. Luna fails adoption gates. Mini is the requested lower-cost judge for both answer sets, but quotation validation failures prevent a complete semantic baseline/comparison. Failed labels are not accepted, zeroed or treated as abstentions.",
+  "luna_agreement": {
+    "before_judge": {
+      "model": "gpt-5.4-2026-03-05",
+      "temperature": null,
+      "reasoning_effort": "low",
+      "timeout_seconds": 120.0,
+      "max_retries": 1,
+      "grounding_validation_retries": 2,
+      "structured_output": "json_schema",
+      "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+      "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+      "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+      "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+    },
+    "candidate_judge": {
+      "model": "gpt-5.6-luna",
+      "temperature": null,
+      "reasoning_effort": "medium",
+      "timeout_seconds": 120.0,
+      "max_retries": 1,
+      "grounding_validation_retries": 2,
+      "structured_output": "json_schema",
+      "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+      "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+      "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+      "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+    },
+    "gates": {
+      "complete_runs": true,
+      "calibration": true,
+      "correctness_outcomes": true,
+      "abstention_outcomes": false,
+      "fact_labels_at_least_95_percent": false,
+      "semantic_macros_within_5_points": false
+    },
+    "eligible_for_adoption": false,
+    "requires_manual_review": true,
+    "fact_label_agreement": 0.9069767441860465,
+    "matched_fact_labels": 39,
+    "total_fact_labels": 43,
+    "fact_disagreements": [
+      {
+        "case_id": "code-04",
+        "fact_id": "f2",
+        "before": "matched",
+        "after": "missing",
+        "before_reason": "The answer mentions character constraints via PARENT_MAX_CHARS and says they can affect output indirectly, but it does not state the essential behavior that when content exceeds 16,000 characters, trailing lines are removed and the end line is updated. Therefore this fact is not fully conveyed.",
+        "after_reason": "The answer does not state the 16,000-character limit or that exceeding it removes trailing lines and updates the end line."
+      },
+      {
+        "case_id": "architecture-01",
+        "fact_id": "f1",
+        "before": "contradicted",
+        "after": "missing",
+        "before_reason": "The answer does not state that the web layer upserts repository metadata and the active user-repository relationship. It also does not state that the queued RepositoryIndexJob is created transactionally together with the repository status update. Instead, it says the database job record is created only after FastAPI successfully enqueues the job, which conflicts with the reference flow.",
+        "after_reason": "The answer omits that the web layer upserts repository metadata and the active user-repository relationship. It also reverses the key sequence by saying the database record is created after successful enqueueing, whereas the reference specifies a transactional creation of the queued job together with the repository status update."
+      },
+      {
+        "case_id": "mixed-03",
+        "fact_id": "f3",
+        "before": "contradicted",
+        "after": "missing",
+        "before_reason": "Instead of stating that the 1,800,000-byte file exceeds the worker's size limit and is therefore excluded, the answer says there could be multiple causes, including content-fetch/decoding problems, which conflicts with the reference explanation that size exclusion explains the absence rather than an embedding/content-fetch failure.",
+        "after_reason": "The answer does not establish that 1,800,000 bytes exceeds the 1,048,576-byte limit or clearly conclude that this explains the exclusion rather than an embedding failure."
+      },
+      {
+        "case_id": "mixed-04",
+        "fact_id": "f1",
+        "before": "matched",
+        "after": "missing",
+        "before_reason": "The answer correctly states that PR #202 claims the previous-index chat stays available after a failed reindex.",
+        "after_reason": "The answer conveys PR #202's claim that the previous-index chat remains available after a failed reindex, but omits that the PR proposes transactional index replacement."
+      }
+    ],
+    "correctness_disagreements": [],
+    "abstention_disagreements": [
+      {
+        "case_id": "mixed-03",
+        "before": "unnecessary",
+        "after": "none"
+      }
+    ],
+    "semantic_metrics": {
+      "groundedness": {
+        "before_macro": 0.7477933298071184,
+        "after_macro": 0.7809948505600681,
+        "absolute_macro_difference": 0.03320152075294969,
+        "passes": true,
+        "applicability_disagreements": [],
+        "per_case_delta": {
+          "code-01": -0.6,
+          "code-02": 0.09999999999999998,
+          "code-03": 0.0,
+          "code-04": -0.03076923076923077,
+          "code-05": 0.18181818181818177,
+          "code-06": 0.022875816993464082,
+          "architecture-01": 0.03703703703703698,
+          "architecture-02": 0.10317460317460314,
+          "architecture-03": 0.37878787878787884,
+          "architecture-04": 0.0,
+          "architecture-05": 0.15000000000000002,
+          "architecture-06": 0.048913043478260865,
+          "missing-02": 0.0,
+          "missing-03": 0.0,
+          "missing-04": 0.06666666666666671,
+          "github-01": 0.0,
+          "github-02": 0.0,
+          "github-03": 0.0,
+          "github-04": 0.19999999999999996,
+          "mixed-01": 0.16666666666666663,
+          "mixed-02": -0.07954545454545453,
+          "mixed-03": -0.1208791208791209,
+          "mixed-04": 0.13888888888888884
+        }
+      },
+      "citation_precision": {
+        "before_macro": 0.7142857142857143,
+        "after_macro": 0.7804232804232804,
+        "absolute_macro_difference": 0.06613756613756605,
+        "passes": false,
+        "applicability_disagreements": [],
+        "per_case_delta": {
+          "code-02": 0.0,
+          "code-03": 0.0,
+          "architecture-01": 0.5,
+          "architecture-03": -1.0,
+          "architecture-04": 0.0,
+          "architecture-05": 0.42592592592592593,
+          "github-01": 0.0,
+          "github-02": 0.0,
+          "github-03": 0.0,
+          "github-04": 1.0,
+          "mixed-01": 0.0,
+          "mixed-02": 0.0,
+          "mixed-03": 0.0,
+          "mixed-04": 0.0
+        }
+      },
+      "citation_coverage": {
+        "before_macro": 0.048019452367278455,
+        "after_macro": 0.17715404563230652,
+        "absolute_macro_difference": 0.12913459326502807,
+        "passes": false,
+        "applicability_disagreements": [],
+        "per_case_delta": {
+          "code-01": 0.0,
+          "code-02": 0.05,
+          "code-03": 0.006410256410256401,
+          "code-04": 0.0,
+          "code-05": 0.0,
+          "code-06": 0.0,
+          "architecture-01": 0.14814814814814814,
+          "architecture-02": 0.0,
+          "architecture-03": -0.09090909090909091,
+          "architecture-04": 0.0,
+          "architecture-05": 0.9,
+          "architecture-06": 0.0,
+          "missing-02": 0.0,
+          "missing-03": 0.0,
+          "missing-04": 0.0,
+          "github-01": 0.0,
+          "github-02": 0.0,
+          "github-03": 0.8571428571428572,
+          "github-04": 1.0,
+          "mixed-01": 0.0984848484848485,
+          "mixed-02": 0.03409090909090909,
+          "mixed-03": -0.005494505494505503,
+          "mixed-04": -0.027777777777777776
+        }
+      }
+    },
+    "note": "Judge agreement on fixed answers; differences are not quality gains."
+  },
+  "experiments": [
+    {
+      "artifact": ".eval-artifacts/single-agent-v1-accepted.json",
+      "artifact_sha256": "f097db668d326fe2d205b4992c3c735943ebb74377957dfb2a6a23532bd65c08",
+      "metadata": {
+        "experiment_name": "single-agent-v1-final",
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+        "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "judge_configuration": {
+          "model": "gpt-5.4-2026-03-05",
+          "temperature": null,
+          "reasoning_effort": "low",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_schema",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+        },
+        "judge_calibrated": true,
+        "complete_quality_baseline": true,
+        "completed_cases": 24,
+        "failed_cases": 0,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.5147058823529412,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 21,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.2156862745098039,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 22,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": 0.7477933298071184,
+            "scored_cases": 23,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 217,
+            "denominator_sum": 280
+          },
+          "answer_correctness": {
+            "macro_average": 0.22727272727272727,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 5,
+            "denominator_sum": 22
+          },
+          "fact_completeness": {
+            "macro_average": 0.3674242424242424,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 13,
+            "denominator_sum": 43
+          },
+          "citation_precision": {
+            "macro_average": 0.7142857142857143,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 18,
+            "denominator_sum": 34
+          },
+          "citation_coverage": {
+            "macro_average": 0.048019452367278455,
+            "scored_cases": 23,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 16,
+            "denominator_sum": 280
+          },
+          "citation_validity": {
+            "macro_average": 0.8214285714285714,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 19,
+            "denominator_sum": 25
+          },
+          "correct_abstention": {
+            "macro_average": 0.75,
+            "scored_cases": 4,
+            "not_applicable": 20,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 3,
+            "denominator_sum": 4
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.05,
+            "scored_cases": 20,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 20
+          }
+        }
+      },
+      "calibration": {
+        "total": 12,
+        "passed": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "artifact": ".eval-artifacts/single-agent-v1-luna-trial.json",
+      "artifact_sha256": "c42a94a7cc9265f06efb1426e9a3ab1b8404a18b1baac3051e26f0a4c5112160",
+      "metadata": {
+        "experiment_name": "single-agent-v1-final",
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+        "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "judge_configuration": {
+          "model": "gpt-5.6-luna",
+          "temperature": null,
+          "reasoning_effort": "medium",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_schema",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+        },
+        "judge_calibrated": true,
+        "complete_quality_baseline": true,
+        "completed_cases": 24,
+        "failed_cases": 0,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.5147058823529412,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 21,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.2156862745098039,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 22,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": 0.7809948505600681,
+            "scored_cases": 23,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 219,
+            "denominator_sum": 265
+          },
+          "answer_correctness": {
+            "macro_average": 0.22727272727272727,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 5,
+            "denominator_sum": 22
+          },
+          "fact_completeness": {
+            "macro_average": 0.33333333333333326,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 11,
+            "denominator_sum": 43
+          },
+          "citation_precision": {
+            "macro_average": 0.7804232804232804,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 54,
+            "denominator_sum": 67
+          },
+          "citation_coverage": {
+            "macro_average": 0.17715404563230652,
+            "scored_cases": 23,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 46,
+            "denominator_sum": 265
+          },
+          "citation_validity": {
+            "macro_average": 0.8214285714285714,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 19,
+            "denominator_sum": 25
+          },
+          "correct_abstention": {
+            "macro_average": 0.75,
+            "scored_cases": 4,
+            "not_applicable": 20,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 3,
+            "denominator_sum": 4
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.0,
+            "scored_cases": 20,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 20
+          }
+        }
+      },
+      "calibration": {
+        "total": 12,
+        "passed": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "artifact": ".eval-artifacts/single-agent-v1-mini-graded.json",
+      "artifact_sha256": "d9e7dd26e0cc4063ad683927d5b7237078b310a8d85706fcc402451c57ca881b",
+      "metadata": {
+        "experiment_name": "single-agent-v1-final",
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+        "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "judge_configuration": {
+          "model": "gpt-5.4-mini-2026-03-17",
+          "temperature": null,
+          "reasoning_effort": "medium",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_schema",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+        },
+        "judge_calibrated": true,
+        "complete_quality_baseline": false,
+        "completed_cases": 19,
+        "failed_cases": 5,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.5147058823529412,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 21,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.2156862745098039,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 22,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": 0.802677064457755,
+            "scored_cases": 18,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 171,
+            "denominator_sum": 219
+          },
+          "answer_correctness": {
+            "macro_average": 0.2777777777777778,
+            "scored_cases": 18,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 5,
+            "denominator_sum": 18
+          },
+          "fact_completeness": {
+            "macro_average": 0.40740740740740733,
+            "scored_cases": 18,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 11,
+            "denominator_sum": 33
+          },
+          "citation_precision": {
+            "macro_average": 0.6809258723732409,
+            "scored_cases": 12,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 76,
+            "denominator_sum": 98
+          },
+          "citation_coverage": {
+            "macro_average": 0.30780057301796426,
+            "scored_cases": 18,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 62,
+            "denominator_sum": 219
+          },
+          "citation_validity": {
+            "macro_average": 0.8214285714285714,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 19,
+            "denominator_sum": 25
+          },
+          "correct_abstention": {
+            "macro_average": 1.0,
+            "scored_cases": 2,
+            "not_applicable": 17,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 2,
+            "denominator_sum": 2
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.0,
+            "scored_cases": 17,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 5,
+            "numerator_sum": 0,
+            "denominator_sum": 17
+          }
+        }
+      },
+      "calibration": {
+        "total": 12,
+        "passed": 12
+      },
+      "errors": [
+        {
+          "case_id": "code-04",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-02",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-04",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "mixed-03",
+          "error": "grading: ValueError: Judge quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Judge quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "mixed-04",
+          "error": "grading: ValueError: Judge quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer."
+          ]
+        }
+      ],
+      "cases": []
+    },
+    {
+      "artifact": ".eval-artifacts/single-agent-v1-mini-graded-retry.json",
+      "artifact_sha256": "1910026c7c66371afbbcb38f5b8090e9fbd33934cb5a6a8334c17b14b371c267",
+      "metadata": {
+        "experiment_name": "single-agent-v1-final",
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+        "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "judge_configuration": {
+          "model": "gpt-5.4-mini-2026-03-17",
+          "temperature": null,
+          "reasoning_effort": "medium",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_schema",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+        },
+        "judge_calibrated": true,
+        "complete_quality_baseline": false,
+        "completed_cases": 1,
+        "failed_cases": 4,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.29166666666666663,
+            "scored_cases": 4,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 3,
+            "denominator_sum": 9
+          },
+          "precision_at_6": {
+            "macro_average": 0.16666666666666666,
+            "scored_cases": 4,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 4,
+            "denominator_sum": 24
+          },
+          "groundedness": {
+            "macro_average": 0.8,
+            "scored_cases": 1,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 12,
+            "denominator_sum": 15
+          },
+          "answer_correctness": {
+            "macro_average": 0.0,
+            "scored_cases": 1,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 0,
+            "denominator_sum": 1
+          },
+          "fact_completeness": {
+            "macro_average": 0.5,
+            "scored_cases": 1,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 2,
+            "denominator_sum": 4
+          },
+          "citation_precision": {
+            "macro_average": 1.0,
+            "scored_cases": 1,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 2,
+            "denominator_sum": 2
+          },
+          "citation_coverage": {
+            "macro_average": 0.13333333333333333,
+            "scored_cases": 1,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 2,
+            "denominator_sum": 15
+          },
+          "citation_validity": {
+            "macro_average": 1.0,
+            "scored_cases": 2,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 2,
+            "denominator_sum": 2
+          },
+          "correct_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.0,
+            "scored_cases": 1,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 0,
+            "denominator_sum": 1
+          }
+        }
+      },
+      "calibration": {
+        "total": 12,
+        "passed": 12
+      },
+      "errors": [
+        {
+          "case_id": "code-04",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-02",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-04",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "mixed-03",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        }
+      ],
+      "cases": []
+    },
+    {
+      "artifact": ".eval-artifacts/single-agent-v1-mini-final.json",
+      "artifact_sha256": "532fdd7f5d75cdd7d3bf3ebf2afd2cd84b7fed611b15c7b89ee9ec98d7125ca7",
+      "metadata": {
+        "experiment_name": "single-agent-v1-final",
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+        "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "judge_configuration": {
+          "model": "gpt-5.4-mini-2026-03-17",
+          "temperature": null,
+          "reasoning_effort": "medium",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_schema",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+        },
+        "judge_calibrated": true,
+        "complete_quality_baseline": false,
+        "completed_cases": 20,
+        "failed_cases": 4,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.5147058823529412,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 21,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.2156862745098039,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 22,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": 0.8025361663283995,
+            "scored_cases": 19,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 183,
+            "denominator_sum": 234
+          },
+          "answer_correctness": {
+            "macro_average": 0.2631578947368421,
+            "scored_cases": 19,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 5,
+            "denominator_sum": 19
+          },
+          "fact_completeness": {
+            "macro_average": 0.4122807017543859,
+            "scored_cases": 19,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 13,
+            "denominator_sum": 37
+          },
+          "citation_precision": {
+            "macro_average": 0.7054700360368377,
+            "scored_cases": 13,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 78,
+            "denominator_sum": 100
+          },
+          "citation_coverage": {
+            "macro_average": 0.2986180867187732,
+            "scored_cases": 19,
+            "not_applicable": 1,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 64,
+            "denominator_sum": 234
+          },
+          "citation_validity": {
+            "macro_average": 0.8214285714285714,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 19,
+            "denominator_sum": 25
+          },
+          "correct_abstention": {
+            "macro_average": 1.0,
+            "scored_cases": 2,
+            "not_applicable": 18,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 2,
+            "denominator_sum": 2
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.0,
+            "scored_cases": 18,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 0,
+            "denominator_sum": 18
+          }
+        },
+        "grading_retries": {
+          "original_artifact": ".eval-artifacts/single-agent-v1-mini-graded.json",
+          "original_sha256": "d9e7dd26e0cc4063ad683927d5b7237078b310a8d85706fcc402451c57ca881b",
+          "retry_artifact": ".eval-artifacts/single-agent-v1-mini-graded-retry.json",
+          "retry_sha256": "1910026c7c66371afbbcb38f5b8090e9fbd33934cb5a6a8334c17b14b371c267",
+          "initial_retry_input_hash_format": "The earlier grading_retry_input.source_sha256 uses normalized UTF-8 text; hashes in this grading_retries record use raw file bytes.",
+          "initial_errors": [
+            {
+              "case_id": "code-04",
+              "error": "grading: ValueError: Limitation quote does not occur in the answer."
+            },
+            {
+              "case_id": "missing-02",
+              "error": "grading: ValueError: Limitation quote does not occur in the answer."
+            },
+            {
+              "case_id": "missing-04",
+              "error": "grading: ValueError: Limitation quote does not occur in the answer."
+            },
+            {
+              "case_id": "mixed-03",
+              "error": "grading: ValueError: Judge quote does not occur in the answer."
+            },
+            {
+              "case_id": "mixed-04",
+              "error": "grading: ValueError: Judge quote does not occur in the answer."
+            }
+          ],
+          "reason": "One retry of invalid judgments only; answers unchanged, no score-based resampling. Remaining errors are retained."
+        }
+      },
+      "calibration": {
+        "total": 12,
+        "passed": 12
+      },
+      "errors": [
+        {
+          "case_id": "code-04",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-02",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-04",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "mixed-03",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        }
+      ],
+      "cases": [
+        {
+          "case_id": "code-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "contradicted",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.875,
+              "status": "scored",
+              "numerator": 14,
+              "denominator": 16
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_coverage": {
+              "value": 0.0625,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 16
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9285714285714286,
+              "status": "scored",
+              "numerator": 13,
+              "denominator": 14
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.8571428571428571,
+              "status": "scored",
+              "numerator": 24,
+              "denominator": 28
+            },
+            "citation_coverage": {
+              "value": 0.8571428571428571,
+              "status": "scored",
+              "numerator": 12,
+              "denominator": 14
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-04",
+          "status": "error",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "code-05",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 9
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 9
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-06",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5714285714285714,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 14
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 14
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8260869565217391,
+              "status": "scored",
+              "numerator": 19,
+              "denominator": 23
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.7692307692307693,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 13
+            },
+            "citation_coverage": {
+              "value": 0.43478260869565216,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 23
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 5
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.7857142857142857,
+              "status": "scored",
+              "numerator": 22,
+              "denominator": 28
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 28
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "missing",
+            "f3": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5294117647058824,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 17
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 17
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 10
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 10
+            },
+            "citation_validity": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 3
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-05",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9375,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 16
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 0.8947368421052632,
+              "status": "scored",
+              "numerator": 17,
+              "denominator": 19
+            },
+            "citation_coverage": {
+              "value": 0.9375,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 16
+            },
+            "citation_validity": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "missing",
+            "f3": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-06",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8823529411764706,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 17
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 17
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "missing-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": {},
+          "abstention": "correct"
+        },
+        {
+          "case_id": "missing-02",
+          "status": "error",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "missing-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "correct"
+        },
+        {
+          "case_id": "missing-04",
+          "status": "error",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "github-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 0.9,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 10
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.9,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 10
+            },
+            "citation_coverage": {
+              "value": 0.9,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 10
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "github-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 3
+            },
+            "citation_validity": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "github-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 5
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 5
+            },
+            "citation_coverage": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 5
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "github-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "citation_coverage": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 12
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 5
+            },
+            "citation_coverage": {
+              "value": 0.4166666666666667,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 12
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "missing",
+            "f3": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5454545454545454,
+              "status": "scored",
+              "numerator": 6,
+              "denominator": 11
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.18181818181818182,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 11
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "contradicted",
+            "f3": "contradicted"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-03",
+          "status": "error",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "mixed-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8,
+              "status": "scored",
+              "numerator": 12,
+              "denominator": 15
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.13333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 15
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "missing",
+            "f3": "missing",
+            "f4": "matched"
+          },
+          "abstention": "none"
+        }
+      ]
+    },
+    {
+      "artifact": ".eval-artifacts/single-agent-v4-selected.json",
+      "artifact_sha256": "390bc70461ce69457273c4ab5e64555f8f0a34e0c7d6b1bc2ab339dcb3bb32e4",
+      "metadata": {
+        "experiment_name": "single-agent-v4-selected",
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "7963659a384d15bc3d61dbc4a48f882c7d7a943c8e9867058f7f71bfeb7252dd",
+        "corpus_index_id": "eval_2841872174440f5f65b780f9409d6a869cff480832627fce611d6097a8c06ce0",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "judge_configuration": {
+          "model": "gpt-5.4-mini-2026-03-17",
+          "temperature": null,
+          "reasoning_effort": "medium",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_schema",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+        },
+        "judge_calibrated": true,
+        "complete_quality_baseline": false,
+        "completed_cases": 20,
+        "failed_cases": 4,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.7647058823529411,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 28,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.33333333333333337,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 34,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": 0.8346238266091207,
+            "scored_cases": 20,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 214,
+            "denominator_sum": 256
+          },
+          "answer_correctness": {
+            "macro_average": 0.55,
+            "scored_cases": 20,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 11,
+            "denominator_sum": 20
+          },
+          "fact_completeness": {
+            "macro_average": 0.6916666666666667,
+            "scored_cases": 20,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 23,
+            "denominator_sum": 38
+          },
+          "citation_precision": {
+            "macro_average": 0.7908021541950114,
+            "scored_cases": 14,
+            "not_applicable": 6,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 105,
+            "denominator_sum": 124
+          },
+          "citation_coverage": {
+            "macro_average": 0.34078477078477076,
+            "scored_cases": 20,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 82,
+            "denominator_sum": 256
+          },
+          "citation_validity": {
+            "macro_average": 0.8666666666666667,
+            "scored_cases": 15,
+            "not_applicable": 9,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 32,
+            "denominator_sum": 35
+          },
+          "correct_abstention": {
+            "macro_average": 1.0,
+            "scored_cases": 2,
+            "not_applicable": 18,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 2,
+            "denominator_sum": 2
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.0,
+            "scored_cases": 18,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 4,
+            "numerator_sum": 0,
+            "denominator_sum": 18
+          }
+        }
+      },
+      "calibration": {
+        "total": 12,
+        "passed": 12
+      },
+      "errors": [
+        {
+          "case_id": "code-02",
+          "error": "grading: ValueError: Judge quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "architecture-05",
+          "error": "grading: ValueError: Judge quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Judge referenced evidence never seen by the model.",
+            "Judge quote does not occur in the answer.",
+            "Judge quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-01",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "missing-02",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "judge_validation_errors": [
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer.",
+            "Limitation quote does not occur in the answer."
+          ]
+        }
+      ],
+      "cases": [
+        {
+          "case_id": "code-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9705882352941176,
+              "status": "scored",
+              "numerator": 33,
+              "denominator": 34
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 34
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-02",
+          "status": "error",
+          "error": "grading: ValueError: Judge quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "code-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8666666666666667,
+              "status": "scored",
+              "numerator": 13,
+              "denominator": 15
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.9375,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 16
+            },
+            "citation_coverage": {
+              "value": 0.8,
+              "status": "scored",
+              "numerator": 12,
+              "denominator": 15
+            },
+            "citation_validity": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9090909090909091,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 11
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 11
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-05",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 15
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 15
+            },
+            "citation_validity": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "code-06",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 6,
+              "denominator": 12
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.42857142857142855,
+              "status": "scored",
+              "numerator": 6,
+              "denominator": 14
+            },
+            "citation_coverage": {
+              "value": 0.4166666666666667,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 12
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.7692307692307693,
+              "status": "scored",
+              "numerator": 20,
+              "denominator": 26
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.8857142857142857,
+              "status": "scored",
+              "numerator": 31,
+              "denominator": 35
+            },
+            "citation_coverage": {
+              "value": 0.7692307692307693,
+              "status": "scored",
+              "numerator": 20,
+              "denominator": 26
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.25,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9259259259259259,
+              "status": "scored",
+              "numerator": 25,
+              "denominator": 27
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 27
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "missing",
+            "f3": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.7777777777777778,
+              "status": "scored",
+              "numerator": 14,
+              "denominator": 18
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.875,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 8
+            },
+            "citation_coverage": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 18
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 6,
+              "denominator": 6
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.875,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 8
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "architecture-05",
+          "status": "error",
+          "error": "grading: ValueError: Judge quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "architecture-06",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9333333333333333,
+              "status": "scored",
+              "numerator": 14,
+              "denominator": 15
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.9444444444444444,
+              "status": "scored",
+              "numerator": 17,
+              "denominator": 18
+            },
+            "citation_coverage": {
+              "value": 0.9333333333333333,
+              "status": "scored",
+              "numerator": 14,
+              "denominator": 15
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 7
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "missing-01",
+          "status": "error",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "missing-02",
+          "status": "error",
+          "error": "grading: ValueError: Limitation quote does not occur in the answer.",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "error",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": null,
+          "abstention": null
+        },
+        {
+          "case_id": "missing-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "correct"
+        },
+        {
+          "case_id": "missing-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5714285714285714,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 7
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 7
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "correct"
+        },
+        {
+          "case_id": "github-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 0.8888888888888888,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 9
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 9
+            },
+            "citation_coverage": {
+              "value": 0.8888888888888888,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 9
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "github-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 4
+            },
+            "citation_validity": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "github-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 8
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 8
+            },
+            "citation_coverage": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 8,
+              "denominator": 8
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "github-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "citation_coverage": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-01",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8333333333333334,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 12
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "citation_coverage": {
+              "value": 0.25,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 12
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "matched",
+            "f3": "contradicted"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-02",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8333333333333334,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 6
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "matched",
+            "f3": "matched"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-03",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.45454545454545453,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 11
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_coverage": {
+              "value": 0.09090909090909091,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 11
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "matched",
+            "f2": "missing",
+            "f3": "missing"
+          },
+          "abstention": "none"
+        },
+        {
+          "case_id": "mixed-04",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5833333333333334,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 12
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 12
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": {
+            "f1": "missing",
+            "f2": "missing",
+            "f3": "matched",
+            "f4": "matched"
+          },
+          "abstention": "none"
+        }
+      ]
+    }
+  ],
+  "paired_mini_comparison": {
+    "recall_at_6": {
+      "paired_cases": 17,
+      "per_case_delta": {
+        "architecture-01": 0.0,
+        "architecture-02": -0.25,
+        "architecture-03": 0.0,
+        "architecture-04": 0.0,
+        "architecture-05": 0.0,
+        "architecture-06": 0.33333333333333337,
+        "code-01": 1.0,
+        "code-02": 0.0,
+        "code-03": 0.0,
+        "code-04": 0.6666666666666667,
+        "code-05": 0.0,
+        "code-06": 0.5,
+        "missing-04": 1.0,
+        "mixed-01": 0.0,
+        "mixed-02": 1.0,
+        "mixed-03": 0.0,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.25
+    },
+    "precision_at_6": {
+      "paired_cases": 17,
+      "per_case_delta": {
+        "architecture-01": 0.0,
+        "architecture-02": 0.0,
+        "architecture-03": 0.0,
+        "architecture-04": 0.16666666666666669,
+        "architecture-05": 0.16666666666666669,
+        "architecture-06": 0.16666666666666669,
+        "code-01": 0.16666666666666666,
+        "code-02": 0.16666666666666669,
+        "code-03": 0.16666666666666663,
+        "code-04": 0.16666666666666666,
+        "code-05": 0.16666666666666666,
+        "code-06": 0.16666666666666666,
+        "missing-04": 0.16666666666666666,
+        "mixed-01": 0.0,
+        "mixed-02": 0.3333333333333333,
+        "mixed-03": 0.0,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.11764705882352941
+    },
+    "groundedness": {
+      "paired_cases": 17,
+      "per_case_delta": {
+        "architecture-01": -0.05685618729096986,
+        "architecture-02": 0.14021164021164023,
+        "architecture-03": 0.24836601307189543,
+        "architecture-04": -0.125,
+        "architecture-06": 0.050980392156862786,
+        "code-01": 0.9705882352941176,
+        "code-03": -0.06190476190476191,
+        "code-05": 0.0,
+        "code-06": -0.0714285714285714,
+        "github-01": -0.011111111111111183,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.0,
+        "missing-03": 0.0,
+        "mixed-01": 0.16666666666666674,
+        "mixed-02": 0.28787878787878796,
+        "mixed-04": -0.21666666666666667
+      },
+      "macro_delta": 0.07774849628693468
+    },
+    "answer_correctness": {
+      "paired_cases": 17,
+      "per_case_delta": {
+        "architecture-01": 0.0,
+        "architecture-02": 0.0,
+        "architecture-03": 0.0,
+        "architecture-04": 1.0,
+        "architecture-06": 0.0,
+        "code-01": 1.0,
+        "code-03": 1.0,
+        "code-05": 0.0,
+        "code-06": 1.0,
+        "github-01": 0.0,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.0,
+        "missing-03": 0.0,
+        "mixed-01": 0.0,
+        "mixed-02": 1.0,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.29411764705882354
+    },
+    "fact_completeness": {
+      "paired_cases": 17,
+      "per_case_delta": {
+        "architecture-01": 0.0,
+        "architecture-02": 0.0,
+        "architecture-03": 0.0,
+        "architecture-04": 1.0,
+        "architecture-06": 0.5,
+        "code-01": 1.0,
+        "code-03": 1.0,
+        "code-05": 0.0,
+        "code-06": 1.0,
+        "github-01": 0.0,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.0,
+        "missing-03": 0.0,
+        "mixed-01": 0.3333333333333333,
+        "mixed-02": 0.6666666666666667,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.3235294117647059
+    },
+    "citation_precision": {
+      "paired_cases": 10,
+      "per_case_delta": {
+        "architecture-01": 0.1164835164835164,
+        "architecture-03": 0.875,
+        "code-03": 0.0803571428571429,
+        "github-01": 0.09999999999999998,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.25,
+        "mixed-01": 0.0,
+        "mixed-02": 0.0,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.14218406593406593
+    },
+    "citation_coverage": {
+      "paired_cases": 17,
+      "per_case_delta": {
+        "architecture-01": 0.3344481605351171,
+        "architecture-02": 0.0,
+        "architecture-03": 0.16666666666666666,
+        "architecture-04": 0.0,
+        "architecture-06": 0.9333333333333333,
+        "code-01": 0.0,
+        "code-03": -0.05714285714285705,
+        "code-05": 0.0,
+        "code-06": 0.4166666666666667,
+        "github-01": -0.011111111111111183,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.25,
+        "missing-03": 0.0,
+        "mixed-01": -0.16666666666666669,
+        "mixed-02": 0.1515151515151515,
+        "mixed-04": 0.033333333333333326
+      },
+      "macro_delta": 0.12064956924291961
+    },
+    "citation_validity": {
+      "paired_cases": 12,
+      "per_case_delta": {
+        "architecture-01": 0.0,
+        "architecture-03": 0.0,
+        "architecture-05": 0.5,
+        "code-03": -0.5,
+        "github-01": 0.0,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.0,
+        "mixed-01": 0.0,
+        "mixed-02": 0.0,
+        "mixed-03": 0.0,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.0
+    },
+    "correct_abstention": {
+      "paired_cases": 1,
+      "per_case_delta": {
+        "missing-03": 0.0
+      },
+      "macro_delta": 0.0
+    },
+    "unnecessary_abstention": {
+      "paired_cases": 16,
+      "per_case_delta": {
+        "architecture-01": 0.0,
+        "architecture-02": 0.0,
+        "architecture-03": 0.0,
+        "architecture-04": 0.0,
+        "architecture-06": 0.0,
+        "code-01": 0.0,
+        "code-03": 0.0,
+        "code-05": 0.0,
+        "code-06": 0.0,
+        "github-01": 0.0,
+        "github-02": 0.0,
+        "github-03": 0.0,
+        "github-04": 0.0,
+        "mixed-01": 0.0,
+        "mixed-02": 0.0,
+        "mixed-04": 0.0
+      },
+      "macro_delta": 0.0
+    }
+  }
+}

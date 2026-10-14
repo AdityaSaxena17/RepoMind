@@ -1,0 +1,2663 @@
+{
+  "artifact_kind": "identifier_and_candidate_budget_comparison",
+  "version": "1",
+  "measured_on": "2026-10-14",
+  "note": "Tighter boosts were tested first at 12+12 and improved recall/precision before testing 24+24. Selected production defaults are tighter boosts and 24 candidates per branch, with six final contexts. No Qwen reranker or generation/judge calls in these benchmark runs. Descriptive results on a small reused dataset, not a generalization claim.",
+  "selected_default_matches_explicit_24_contexts": true,
+  "frozen_configuration": {
+    "dataset_version": "1",
+    "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+    "fixture_version": "1",
+    "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+    "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+    "corpus_index_id": "eval_2841872174440f5f65b780f9409d6a869cff480832627fce611d6097a8c06ce0",
+    "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+    "scorer_version": "1",
+    "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+    "model_configurations": {
+      "chat": "gpt-4o-mini",
+      "chat_temperature": "provider_default",
+      "use_responses_api": true,
+      "streaming": true,
+      "embeddings": "text-embedding-3-small",
+      "dimensions": 1536
+    },
+    "judge_configuration": null
+  },
+  "interrupted_attempt": {
+    "artifact": ".eval-artifacts/retrieval-v6-tight-identifiers.json",
+    "artifact_sha256": "816614d320a90952b5024499a7065e8e22968a3aa04ea0a62c3045ad9e87b299",
+    "saved_cases": 22,
+    "note": "The CLI exited with PermissionError while saving a report checkpoint. Retained for diagnosis and excluded from comparisons; the complete rerun is a separate artifact."
+  },
+  "experiments": [
+    {
+      "experiment_name": "retrieval-v5-hybrid",
+      "artifact": ".eval-artifacts/retrieval-v5-hybrid.json",
+      "artifact_sha256": "12426050822e6c978e8606997366fdbb5ddf6404e4cf5eb0a53509017c03c8ca",
+      "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+      "application_sha256": "42484ff974e6a2f5f5627dfb12b2cc461a81a6dbfcd530822274441a847d2876",
+      "retrieval_parameters": {
+        "vector_k": 12,
+        "keyword_k": 12,
+        "final_k": 6,
+        "rrf_k": 60,
+        "parent_expansion": 80,
+        "parent_max_lines": 250,
+        "parent_max_chars": 16000,
+        "chunk_tokens": 800,
+        "chunk_overlap": 100
+      },
+      "completed_cases": 24,
+      "failed_cases": 0,
+      "aggregates": {
+        "recall_at_6": {
+          "macro_average": 0.7647058823529411,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 28,
+          "denominator_sum": 40
+        },
+        "precision_at_6": {
+          "macro_average": 0.33333333333333337,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 34,
+          "denominator_sum": 102
+        }
+      },
+      "by_category": {
+        "architecture": {
+          "recall_at_6": {
+            "macro_average": 0.611111111111111,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 12,
+            "denominator_sum": 20
+          },
+          "precision_at_6": {
+            "macro_average": 0.38888888888888884,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 14,
+            "denominator_sum": 36
+          }
+        },
+        "github": {
+          "recall_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "precision_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "insufficient": {
+          "recall_at_6": {
+            "macro_average": 1.0,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 1
+          },
+          "precision_at_6": {
+            "macro_average": 0.16666666666666666,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 6
+          }
+        },
+        "mixed": {
+          "recall_at_6": {
+            "macro_average": 0.7083333333333334,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 4,
+            "denominator_sum": 7
+          },
+          "precision_at_6": {
+            "macro_average": 0.24999999999999997,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 6,
+            "denominator_sum": 24
+          }
+        },
+        "single_file": {
+          "recall_at_6": {
+            "macro_average": 0.9166666666666666,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 11,
+            "denominator_sum": 12
+          },
+          "precision_at_6": {
+            "macro_average": 0.3611111111111111,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 13,
+            "denominator_sum": 36
+          }
+        }
+      },
+      "cases": [
+        {
+          "case_id": "code-01",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0,
+            "paths": 1.0
+          }
+        },
+        {
+          "case_id": "code-02",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "split": 1.0,
+            "metadata": 1.0
+          }
+        },
+        {
+          "case_id": "code-03",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "fusion": 1.0
+          }
+        },
+        {
+          "case_id": "code-04",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "limits": 1.0,
+            "lines": 1.0,
+            "characters": 1.0
+          }
+        },
+        {
+          "case_id": "code-05",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "search_scope": 1.0,
+            "filter": 1.0
+          }
+        },
+        {
+          "case_id": "code-06",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "ref": 1.0,
+            "url": 0.9090909090909091
+          }
+        },
+        {
+          "case_id": "architecture-01",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "connection": 0.0,
+            "job": 0.0,
+            "enqueue_http": 1.0,
+            "queue": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-02",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.25,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "snapshot": 0.3888888888888889,
+            "embed": 0.0,
+            "promotion": 1.0,
+            "vectors": 0.0
+          }
+        },
+        {
+          "case_id": "architecture-03",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "vector": 1.0,
+            "keyword": 1.0,
+            "parent": 1.0,
+            "agent_input": 0.0
+          }
+        },
+        {
+          "case_id": "architecture-04",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "web_access": 0.5,
+            "api_access": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-05",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "python_stream": 1.0,
+            "proxy": 0.0,
+            "browser": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-06",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "stdio": 1.0,
+            "tool_scope": 1.0,
+            "scope_query": 1.0
+          }
+        },
+        {
+          "case_id": "missing-01",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-02",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-03",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-04",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0
+          }
+        },
+        {
+          "case_id": "github-01",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-02",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-03",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-04",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "mixed-01",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "all_cards": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-02",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "concurrent": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-03",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 0.0,
+            "skip_call": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-04",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "transaction": 0.0,
+            "failed": 0.0,
+            "ready_gate": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "experiment_name": "retrieval-v6-tight-identifiers-final",
+      "artifact": ".eval-artifacts/retrieval-v6-tight-identifiers-final.json",
+      "artifact_sha256": "028d99a173106e8e7805e93731009047c74c398883425380bce3f5cee94a4316",
+      "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+      "application_sha256": "dd210547d2342eb722f7a63e253819c9502f0f15c5327760ed85b132dcba51b9",
+      "retrieval_parameters": {
+        "vector_k": 12,
+        "keyword_k": 12,
+        "final_k": 6,
+        "rrf_k": 60,
+        "parent_expansion": 80,
+        "parent_max_lines": 250,
+        "parent_max_chars": 16000,
+        "chunk_tokens": 800,
+        "chunk_overlap": 100
+      },
+      "completed_cases": 24,
+      "failed_cases": 0,
+      "aggregates": {
+        "recall_at_6": {
+          "macro_average": 0.8088235294117647,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 31,
+          "denominator_sum": 40
+        },
+        "precision_at_6": {
+          "macro_average": 0.36274509803921573,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 37,
+          "denominator_sum": 102
+        }
+      },
+      "by_category": {
+        "architecture": {
+          "recall_at_6": {
+            "macro_average": 0.736111111111111,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 15,
+            "denominator_sum": 20
+          },
+          "precision_at_6": {
+            "macro_average": 0.4444444444444444,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 16,
+            "denominator_sum": 36
+          }
+        },
+        "github": {
+          "recall_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "precision_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "insufficient": {
+          "recall_at_6": {
+            "macro_average": 1.0,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 1
+          },
+          "precision_at_6": {
+            "macro_average": 0.16666666666666666,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 6
+          }
+        },
+        "mixed": {
+          "recall_at_6": {
+            "macro_average": 0.7083333333333334,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 4,
+            "denominator_sum": 7
+          },
+          "precision_at_6": {
+            "macro_average": 0.24999999999999997,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 6,
+            "denominator_sum": 24
+          }
+        },
+        "single_file": {
+          "recall_at_6": {
+            "macro_average": 0.9166666666666666,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 11,
+            "denominator_sum": 12
+          },
+          "precision_at_6": {
+            "macro_average": 0.38888888888888884,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 14,
+            "denominator_sum": 36
+          }
+        }
+      },
+      "cases": [
+        {
+          "case_id": "code-01",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0,
+            "paths": 1.0
+          }
+        },
+        {
+          "case_id": "code-02",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "split": 1.0,
+            "metadata": 1.0
+          }
+        },
+        {
+          "case_id": "code-03",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "fusion": 1.0
+          }
+        },
+        {
+          "case_id": "code-04",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "limits": 1.0,
+            "lines": 1.0,
+            "characters": 1.0
+          }
+        },
+        {
+          "case_id": "code-05",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "search_scope": 1.0,
+            "filter": 1.0
+          }
+        },
+        {
+          "case_id": "code-06",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "ref": 1.0,
+            "url": 0.9090909090909091
+          }
+        },
+        {
+          "case_id": "architecture-01",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "connection": 0.0,
+            "job": 0.0,
+            "enqueue_http": 1.0,
+            "queue": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-02",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "snapshot": 1.0,
+            "embed": 1.0,
+            "promotion": 1.0,
+            "vectors": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-03",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "vector": 1.0,
+            "keyword": 1.0,
+            "parent": 1.0,
+            "agent_input": 0.0
+          }
+        },
+        {
+          "case_id": "architecture-04",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "web_access": 0.5,
+            "api_access": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-05",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "python_stream": 1.0,
+            "proxy": 0.0,
+            "browser": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-06",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "stdio": 1.0,
+            "tool_scope": 1.0,
+            "scope_query": 1.0
+          }
+        },
+        {
+          "case_id": "missing-01",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-02",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-03",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-04",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0
+          }
+        },
+        {
+          "case_id": "github-01",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-02",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-03",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-04",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "mixed-01",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "all_cards": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-02",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "concurrent": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-03",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 0.0,
+            "skip_call": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-04",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "transaction": 0.0,
+            "failed": 0.0,
+            "ready_gate": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "experiment_name": "retrieval-v6-tight-identifiers-24",
+      "artifact": ".eval-artifacts/retrieval-v6-tight-identifiers-24.json",
+      "artifact_sha256": "4958d9e7f1a8ab8d87765c35095fedc6a23087eaddbff2d734b0eee90bc31900",
+      "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+      "application_sha256": "a6f0201b77c134c50f3983d86bab24d1bf569a0af0cd95fb7e3ab23bbf79aad2",
+      "retrieval_parameters": {
+        "vector_k": 24,
+        "keyword_k": 24,
+        "final_k": 6,
+        "rrf_k": 60,
+        "parent_expansion": 80,
+        "parent_max_lines": 250,
+        "parent_max_chars": 16000,
+        "chunk_tokens": 800,
+        "chunk_overlap": 100
+      },
+      "completed_cases": 24,
+      "failed_cases": 0,
+      "aggregates": {
+        "recall_at_6": {
+          "macro_average": 0.8088235294117647,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 31,
+          "denominator_sum": 40
+        },
+        "precision_at_6": {
+          "macro_average": 0.38235294117647056,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 39,
+          "denominator_sum": 102
+        }
+      },
+      "by_category": {
+        "architecture": {
+          "recall_at_6": {
+            "macro_average": 0.736111111111111,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 15,
+            "denominator_sum": 20
+          },
+          "precision_at_6": {
+            "macro_average": 0.49999999999999994,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 18,
+            "denominator_sum": 36
+          }
+        },
+        "github": {
+          "recall_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "precision_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "insufficient": {
+          "recall_at_6": {
+            "macro_average": 1.0,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 1
+          },
+          "precision_at_6": {
+            "macro_average": 0.16666666666666666,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 6
+          }
+        },
+        "mixed": {
+          "recall_at_6": {
+            "macro_average": 0.7083333333333334,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 4,
+            "denominator_sum": 7
+          },
+          "precision_at_6": {
+            "macro_average": 0.24999999999999997,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 6,
+            "denominator_sum": 24
+          }
+        },
+        "single_file": {
+          "recall_at_6": {
+            "macro_average": 0.9166666666666666,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 11,
+            "denominator_sum": 12
+          },
+          "precision_at_6": {
+            "macro_average": 0.38888888888888884,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 14,
+            "denominator_sum": 36
+          }
+        }
+      },
+      "cases": [
+        {
+          "case_id": "code-01",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0,
+            "paths": 1.0
+          }
+        },
+        {
+          "case_id": "code-02",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "split": 1.0,
+            "metadata": 1.0
+          }
+        },
+        {
+          "case_id": "code-03",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "fusion": 1.0
+          }
+        },
+        {
+          "case_id": "code-04",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "limits": 1.0,
+            "lines": 1.0,
+            "characters": 1.0
+          }
+        },
+        {
+          "case_id": "code-05",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "search_scope": 1.0,
+            "filter": 1.0
+          }
+        },
+        {
+          "case_id": "code-06",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "ref": 1.0,
+            "url": 0.0
+          }
+        },
+        {
+          "case_id": "architecture-01",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "connection": 0.0,
+            "job": 0.0,
+            "enqueue_http": 1.0,
+            "queue": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-02",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "snapshot": 1.0,
+            "embed": 1.0,
+            "promotion": 1.0,
+            "vectors": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-03",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "vector": 1.0,
+            "keyword": 1.0,
+            "parent": 1.0,
+            "agent_input": 0.38095238095238093
+          }
+        },
+        {
+          "case_id": "architecture-04",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "web_access": 0.5,
+            "api_access": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-05",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "python_stream": 1.0,
+            "proxy": 0.0,
+            "browser": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-06",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "stdio": 1.0,
+            "tool_scope": 1.0,
+            "scope_query": 1.0
+          }
+        },
+        {
+          "case_id": "missing-01",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-02",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-03",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-04",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0
+          }
+        },
+        {
+          "case_id": "github-01",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-02",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-03",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-04",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "mixed-01",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "all_cards": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-02",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "concurrent": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-03",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 0.0,
+            "skip_call": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-04",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "transaction": 0.0,
+            "failed": 0.0,
+            "ready_gate": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "experiment_name": "retrieval-v6-selected",
+      "artifact": ".eval-artifacts/retrieval-v6-selected.json",
+      "artifact_sha256": "9b0f59c4e6e7ba562e9aa1908d2c88f96d031397e3e4e415635e05754442bb94",
+      "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+      "application_sha256": "960e4af7239c98f15d93aa0a4227fd71bfaefa6160575fdaa791337aa5b67236",
+      "retrieval_parameters": {
+        "vector_k": 24,
+        "keyword_k": 24,
+        "final_k": 6,
+        "rrf_k": 60,
+        "parent_expansion": 80,
+        "parent_max_lines": 250,
+        "parent_max_chars": 16000,
+        "chunk_tokens": 800,
+        "chunk_overlap": 100
+      },
+      "completed_cases": 24,
+      "failed_cases": 0,
+      "aggregates": {
+        "recall_at_6": {
+          "macro_average": 0.8088235294117647,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 31,
+          "denominator_sum": 40
+        },
+        "precision_at_6": {
+          "macro_average": 0.38235294117647056,
+          "scored_cases": 17,
+          "not_applicable": 7,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 39,
+          "denominator_sum": 102
+        }
+      },
+      "by_category": {
+        "architecture": {
+          "recall_at_6": {
+            "macro_average": 0.736111111111111,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 15,
+            "denominator_sum": 20
+          },
+          "precision_at_6": {
+            "macro_average": 0.49999999999999994,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 18,
+            "denominator_sum": 36
+          }
+        },
+        "github": {
+          "recall_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "precision_at_6": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "insufficient": {
+          "recall_at_6": {
+            "macro_average": 1.0,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 1
+          },
+          "precision_at_6": {
+            "macro_average": 0.16666666666666666,
+            "scored_cases": 1,
+            "not_applicable": 3,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 1,
+            "denominator_sum": 6
+          }
+        },
+        "mixed": {
+          "recall_at_6": {
+            "macro_average": 0.7083333333333334,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 4,
+            "denominator_sum": 7
+          },
+          "precision_at_6": {
+            "macro_average": 0.24999999999999997,
+            "scored_cases": 4,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 6,
+            "denominator_sum": 24
+          }
+        },
+        "single_file": {
+          "recall_at_6": {
+            "macro_average": 0.9166666666666666,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 11,
+            "denominator_sum": 12
+          },
+          "precision_at_6": {
+            "macro_average": 0.38888888888888884,
+            "scored_cases": 6,
+            "not_applicable": 0,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 14,
+            "denominator_sum": 36
+          }
+        }
+      },
+      "cases": [
+        {
+          "case_id": "code-01",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0,
+            "paths": 1.0
+          }
+        },
+        {
+          "case_id": "code-02",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "split": 1.0,
+            "metadata": 1.0
+          }
+        },
+        {
+          "case_id": "code-03",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "fusion": 1.0
+          }
+        },
+        {
+          "case_id": "code-04",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "limits": 1.0,
+            "lines": 1.0,
+            "characters": 1.0
+          }
+        },
+        {
+          "case_id": "code-05",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "search_scope": 1.0,
+            "filter": 1.0
+          }
+        },
+        {
+          "case_id": "code-06",
+          "category": "single_file",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "ref": 1.0,
+            "url": 0.0
+          }
+        },
+        {
+          "case_id": "architecture-01",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "connection": 0.0,
+            "job": 0.0,
+            "enqueue_http": 1.0,
+            "queue": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-02",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "snapshot": 1.0,
+            "embed": 1.0,
+            "promotion": 1.0,
+            "vectors": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-03",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "vector": 1.0,
+            "keyword": 1.0,
+            "parent": 1.0,
+            "agent_input": 0.38095238095238093
+          }
+        },
+        {
+          "case_id": "architecture-04",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "web_access": 0.5,
+            "api_access": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-05",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "python_stream": 1.0,
+            "proxy": 0.0,
+            "browser": 1.0
+          }
+        },
+        {
+          "case_id": "architecture-06",
+          "category": "architecture",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "stdio": 1.0,
+            "tool_scope": 1.0,
+            "scope_query": 1.0
+          }
+        },
+        {
+          "case_id": "missing-01",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-02",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-03",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "missing-04",
+          "category": "insufficient",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 1.0
+          }
+        },
+        {
+          "case_id": "github-01",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-02",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-03",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "github-04",
+          "category": "github",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "partial_overlap": {}
+        },
+        {
+          "case_id": "mixed-01",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "all_cards": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-02",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "concurrent": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-03",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "size": 0.0,
+            "skip_call": 1.0
+          }
+        },
+        {
+          "case_id": "mixed-04",
+          "category": "mixed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          },
+          "partial_overlap": {
+            "transaction": 0.0,
+            "failed": 0.0,
+            "ready_gate": 1.0
+          }
+        }
+      ]
+    }
+  ]
+}

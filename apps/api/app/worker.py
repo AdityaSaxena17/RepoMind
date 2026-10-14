@@ -238,19 +238,20 @@ async def fetch_file_content(
 
 
 def chunk_file(path: str, content: str) -> list[Document]:
+    """Split source text and record inclusive line ranges for parent expansion."""
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         encoding_name="cl100k_base",
         chunk_size=CHUNK_TOKENS,
         chunk_overlap=CHUNK_OVERLAP,
         add_start_index=True,
     )
-    lines = content.splitlines()
+    lines = content.splitlines(keepends=True)
     line_offsets: list[int] = []
     offset = 0
 
     for line in lines:
         line_offsets.append(offset)
-        offset += len(line) + 1
+        offset += len(line)
 
     chunks: list[Document] = []
     documents = splitter.create_documents([content])
@@ -259,7 +260,13 @@ def chunk_file(path: str, content: str) -> list[Document]:
         text = document.page_content
         start_index = document.metadata.get("start_index")
         start_char = start_index if isinstance(start_index, int) else content.find(text)
-        end_char = start_char + len(text)
+        # The token splitter's offset search subtracts token overlap as characters
+        # and can return -1. Locate its unchanged text before expanding parent lines.
+        if start_char < 0:
+            start_char = content.find(text)
+        if start_char < 0:
+            raise ValueError(f"Chunk text does not occur in source: {path}.")
+        end_char = start_char + len(text) - 1
         start_line = 1
         end_line = max(1, len(lines))
 

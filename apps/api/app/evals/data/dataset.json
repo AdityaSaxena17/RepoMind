@@ -1,0 +1,1908 @@
+{
+  "version": "1",
+  "repository": "AdityaSaxena17/RepoMind",
+  "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+  "annotation_policy": "Source-reviewed, manually selected evidence units with exact excerpts and file hashes. Required units define complete-span recall; explicit additional relevant units identify useful local evidence for precision. Every span of one alternative must be recovered to complete a unit. Alternative evidence is accepted only when explicitly annotated. GitHub ground truth belongs to the declared synthetic fixture world. No independent human sign-off is asserted. Local relevance units reuse source-reviewed spans that provide question-relevant facts independently of a composite recall unit.",
+  "questions": [
+    {
+      "id": "code-01",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "Which file-size limit does should_skip_path enforce, and what kinds of paths does it exclude?",
+      "required_evidence": [
+        {
+          "id": "size",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 14,
+                "end_line": 14,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "MAX_FILE_BYTES = 1_048_576"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 62,
+                "end_line": 63,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    if size is not None and size > MAX_FILE_BYTES:\n        return True"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "paths",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 20,
+                "end_line": 49,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "SKIPPED_DIR_PARTS = {\n    \".git\",\n    \".next\",\n    \".turbo\",\n    \".venv\",\n    \"build\",\n    \"coverage\",\n    \"dist\",\n    \"node_modules\",\n    \"target\",\n    \"vendor\",\n}\nSKIPPED_SUFFIXES = {\n    \".env\",\n    \".lock\",\n    \".map\",\n    \".min.css\",\n    \".min.js\",\n    \".pem\",\n    \".pfx\",\n    \".p12\",\n}\nSKIPPED_FILENAMES = {\n    \"package-lock.json\",\n    \"pnpm-lock.yaml\",\n    \"yarn.lock\",\n    \"uv.lock\",\n    \"poetry.lock\",\n    \"cargo.lock\",\n    \"gemfile.lock\","
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 58,
+                "end_line": 74,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "def should_skip_path(path: str, size: int | None) -> bool:\n    normalized = path.lower()\n    parts = set(normalized.split(\"/\"))\n\n    if size is not None and size > MAX_FILE_BYTES:\n        return True\n\n    if parts.intersection(SKIPPED_DIR_PARTS):\n        return True\n\n    if normalized in SKIPPED_FILENAMES:\n        return True\n\n    if any(normalized.endswith(suffix) for suffix in SKIPPED_SUFFIXES):\n        return True\n\n    return \"private key\" in normalized or normalized.startswith(\".env\")"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-size-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 14,
+                "end_line": 14,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "MAX_FILE_BYTES = 1_048_576"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-size-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 62,
+                "end_line": 63,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    if size is not None and size > MAX_FILE_BYTES:\n        return True"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-paths-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 20,
+                "end_line": 49,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "SKIPPED_DIR_PARTS = {\n    \".git\",\n    \".next\",\n    \".turbo\",\n    \".venv\",\n    \"build\",\n    \"coverage\",\n    \"dist\",\n    \"node_modules\",\n    \"target\",\n    \"vendor\",\n}\nSKIPPED_SUFFIXES = {\n    \".env\",\n    \".lock\",\n    \".map\",\n    \".min.css\",\n    \".min.js\",\n    \".pem\",\n    \".pfx\",\n    \".p12\",\n}\nSKIPPED_FILENAMES = {\n    \"package-lock.json\",\n    \"pnpm-lock.yaml\",\n    \"yarn.lock\",\n    \"uv.lock\",\n    \"poetry.lock\",\n    \"cargo.lock\",\n    \"gemfile.lock\","
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-paths-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 58,
+                "end_line": 74,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "def should_skip_path(path: str, size: int | None) -> bool:\n    normalized = path.lower()\n    parts = set(normalized.split(\"/\"))\n\n    if size is not None and size > MAX_FILE_BYTES:\n        return True\n\n    if parts.intersection(SKIPPED_DIR_PARTS):\n        return True\n\n    if normalized in SKIPPED_FILENAMES:\n        return True\n\n    if any(normalized.endswith(suffix) for suffix in SKIPPED_SUFFIXES):\n        return True\n\n    return \"private key\" in normalized or normalized.startswith(\".env\")"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Files strictly larger than 1,048,576 bytes are skipped; equality alone does not trigger the size exclusion.",
+          "evidence_units": [
+            "size"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Directory components such as node_modules/build/dist, configured lock filenames and suffixes, private-key-like paths, and root .env prefixes are excluded.",
+          "evidence_units": [
+            "paths"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "code-02",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "How does chunk_file split source code, and what location metadata does it attach?",
+      "required_evidence": [
+        {
+          "id": "split",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 15,
+                "end_line": 16,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "CHUNK_TOKENS = 800\nCHUNK_OVERLAP = 100"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 240,
+                "end_line": 246,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "def chunk_file(path: str, content: str) -> list[Document]:\n    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(\n        encoding_name=\"cl100k_base\",\n        chunk_size=CHUNK_TOKENS,\n        chunk_overlap=CHUNK_OVERLAP,\n        add_start_index=True,\n    )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "metadata",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 266,
+                "end_line": 280,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        for index, line_offset in enumerate(line_offsets):\n            if line_offset <= start_char:\n                start_line = index + 1\n            if line_offset <= end_char:\n                end_line = index + 1\n\n        chunks.append(\n            Document(\n                page_content=text,\n                metadata={\n                    \"path\": path,\n                    \"content_sha\": sha256_text(text),\n                    \"start_line\": start_line,\n                    \"end_line\": end_line,\n                },"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-split-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 15,
+                "end_line": 16,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "CHUNK_TOKENS = 800\nCHUNK_OVERLAP = 100"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-split-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 240,
+                "end_line": 246,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "def chunk_file(path: str, content: str) -> list[Document]:\n    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(\n        encoding_name=\"cl100k_base\",\n        chunk_size=CHUNK_TOKENS,\n        chunk_overlap=CHUNK_OVERLAP,\n        add_start_index=True,\n    )"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The recursive splitter uses cl100k_base token encoding with 800-token chunks, 100-token overlap, and start-index metadata.",
+          "evidence_units": [
+            "split"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Each chunk records path, SHA-256 of chunk content, and calculated start/end source lines.",
+          "evidence_units": [
+            "metadata"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "code-03",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "How does _fuse_candidates combine semantic and keyword matches for the same chunk?",
+      "required_evidence": [
+        {
+          "id": "fusion",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 28,
+                "end_line": 28,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "RRF_K = 60"
+              },
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 336,
+                "end_line": 353,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        fused: dict[str, dict[str, Any]] = {}\n\n        for row in [*vector_rows, *keyword_rows]:\n            chunk_id = str(row[\"id\"])\n            item = fused.setdefault(\n                chunk_id,\n                {\n                    **row,\n                    \"score\": 0.0,\n                    \"sources\": set[str](),\n                },\n            )\n            item[\"score\"] = float(item[\"score\"]) + 1 / (RRF_K + int(row[\"rank\"]))\n            item[\"sources\"].add(str(row[\"source\"]))\n\n        results = list(fused.values())\n        results.sort(key=lambda item: float(item[\"score\"]), reverse=True)\n        return results"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-fusion-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 28,
+                "end_line": 28,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "RRF_K = 60"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-fusion-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 336,
+                "end_line": 353,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        fused: dict[str, dict[str, Any]] = {}\n\n        for row in [*vector_rows, *keyword_rows]:\n            chunk_id = str(row[\"id\"])\n            item = fused.setdefault(\n                chunk_id,\n                {\n                    **row,\n                    \"score\": 0.0,\n                    \"sources\": set[str](),\n                },\n            )\n            item[\"score\"] = float(item[\"score\"]) + 1 / (RRF_K + int(row[\"rank\"]))\n            item[\"sources\"].add(str(row[\"source\"]))\n\n        results = list(fused.values())\n        results.sort(key=lambda item: float(item[\"score\"]), reverse=True)\n        return results"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Candidates are deduplicated by chunk ID, adding 1/(60+rank) for each appearance, collecting source labels and sorting by descending fused score.",
+          "evidence_units": [
+            "fusion"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "code-04",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "What limits does parent-context expansion place on the final source windows?",
+      "required_evidence": [
+        {
+          "id": "limits",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 24,
+                "end_line": 27,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "FINAL_PARENT_CONTEXTS = 6\nPARENT_LINE_EXPANSION = 80\nPARENT_MAX_LINES = 250\nPARENT_MAX_CHARS = 16_000"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "lines",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 381,
+                "end_line": 394,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "            line_count = int(file_row[\"lineCount\"])\n            start_line = max(1, int(candidate[\"start_line\"]) - PARENT_LINE_EXPANSION)\n            end_line = min(\n                line_count,\n                int(candidate[\"end_line\"]) + PARENT_LINE_EXPANSION,\n            )\n\n            if end_line - start_line + 1 > PARENT_MAX_LINES:\n                center = (\n                    int(candidate[\"start_line\"]) + int(candidate[\"end_line\"])\n                ) // 2\n                start_line = max(1, center - (PARENT_MAX_LINES // 2))\n                end_line = min(line_count, start_line + PARENT_MAX_LINES - 1)\n                start_line = max(1, end_line - PARENT_MAX_LINES + 1)"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "characters",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 435,
+                "end_line": 445,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        for index, window in enumerate(windows[: self.final_k]):\n            lines = str(window[\"content\"]).splitlines()\n            start_line = int(window[\"start_line\"])\n            end_line = int(window[\"end_line\"])\n            selected_lines = lines[start_line - 1 : end_line]\n            page_content = \"\\n\".join(selected_lines)\n\n            while len(page_content) > PARENT_MAX_CHARS and selected_lines:\n                selected_lines.pop()\n                end_line -= 1\n                page_content = \"\\n\".join(selected_lines)"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "merge",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 396,
+                "end_line": 415,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "            existing = next(\n                (\n                    window\n                    for window in windows\n                    if window[\"file_id\"] == candidate[\"file_id\"]\n                    and start_line <= int(window[\"end_line\"]) + 20\n                    and end_line >= int(window[\"start_line\"]) - 20\n                    and max(end_line, int(window[\"end_line\"]))\n                    - min(start_line, int(window[\"start_line\"]))\n                    + 1\n                    <= PARENT_MAX_LINES\n                ),\n                None,\n            )\n\n            if existing:\n                existing[\"start_line\"] = min(int(existing[\"start_line\"]), start_line)\n                existing[\"end_line\"] = max(int(existing[\"end_line\"]), end_line)\n                existing[\"score\"] = float(existing[\"score\"]) + float(candidate[\"score\"])\n                existing[\"sources\"].update(candidate[\"sources\"])"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "At most six parent contexts are returned; chunk boundaries expand by 80 lines on each side but each window is limited to 250 lines.",
+          "evidence_units": [
+            "limits",
+            "lines"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Context longer than 16,000 characters loses trailing lines, updating its end line.",
+          "evidence_units": [
+            "limits",
+            "characters"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "code-05",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "How does search_issues keep GitHub search inside the repository and avoid returning pull requests?",
+      "required_evidence": [
+        {
+          "id": "search_scope",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 220,
+                "end_line": 229,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    parts = [f\"repo:{owner}/{repo}\", f\"is:{kind}\"]\n\n    if state != \"all\":\n        parts.append(f\"is:{state}\")\n\n    trimmed = query.strip()\n    if trimmed:\n        parts.append(trimmed)\n\n    return \" \".join(parts)"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "filter",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 246,
+                "end_line": 249,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    scope = await repository_scope()\n    page = validate_page(page, \"page\", 1, 100)\n    per_page = validate_page(per_page, \"per_page\", 1, 30)\n    q = search_query(scope[\"owner\"], scope[\"repo\"], \"issue\", query, state)"
+              },
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 260,
+                "end_line": 272,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    items = [\n        serialized\n        for item in payload.get(\"items\", [])\n        if isinstance(item, dict)\n        and \"pull_request\" not in item\n        if (serialized := serialize_issue(item)) is not None\n    ]\n\n    return {\n        \"repository\": f\"{scope['owner']}/{scope['repo']}\",\n        \"query\": q,\n        \"total_count\": read_number(payload.get(\"total_count\")) or len(items),\n        \"items\": items,"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-filter-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 246,
+                "end_line": 249,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    scope = await repository_scope()\n    page = validate_page(page, \"page\", 1, 100)\n    per_page = validate_page(per_page, \"per_page\", 1, 30)\n    q = search_query(scope[\"owner\"], scope[\"repo\"], \"issue\", query, state)"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-filter-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 260,
+                "end_line": 272,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    items = [\n        serialized\n        for item in payload.get(\"items\", [])\n        if isinstance(item, dict)\n        and \"pull_request\" not in item\n        if (serialized := serialize_issue(item)) is not None\n    ]\n\n    return {\n        \"repository\": f\"{scope['owner']}/{scope['repo']}\",\n        \"query\": q,\n        \"total_count\": read_number(payload.get(\"total_count\")) or len(items),\n        \"items\": items,"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The search query adds repo:owner/repo and is:issue, with a state qualifier unless state is all.",
+          "evidence_units": [
+            "search_scope"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Issue search also filters out items containing pull_request before serialization.",
+          "evidence_units": [
+            "filter"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "code-06",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "How are source citation URLs pinned to the indexed code version?",
+      "required_evidence": [
+        {
+          "id": "ref",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 370,
+                "end_line": 391,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        ref = str(repository[\"indexedCommitSha\"] or repository[\"defaultBranch\"])\n        citations: list[dict[str, Any]] = []\n\n        for index, document in enumerate(documents[:6], start=1):\n            path = document.metadata.get(\"path\")\n            start_line = document.metadata.get(\"start_line\")\n            end_line = document.metadata.get(\"end_line\")\n\n            if (\n                not isinstance(path, str)\n                or not isinstance(start_line, int)\n                or not isinstance(end_line, int)\n            ):\n                continue\n\n            url = github_line_url(\n                str(repository[\"htmlUrl\"]) if repository[\"htmlUrl\"] else None,\n                ref,\n                path,\n                start_line,\n                end_line,\n            )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "url",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 175,
+                "end_line": 185,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "def github_line_url(\n    html_url: str | None,\n    ref: str,\n    path: str,\n    start_line: int,\n    end_line: int,\n) -> str | None:\n    if not html_url:\n        return None\n\n    return f\"{html_url}/blob/{ref}/{path}#L{start_line}-L{end_line}\""
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The indexed commit SHA is chosen, falling back to defaultBranch, and URLs use /blob/ref/path with #Lstart-Lend anchors.",
+          "evidence_units": [
+            "ref",
+            "url"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "architecture-01",
+      "category": "architecture",
+      "evidence_scope": "CODE",
+      "question": "Trace repository connection from the web request through the database job record to the background queue.",
+      "required_evidence": [
+        {
+          "id": "connection",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/lib/github-public.ts",
+                "start_line": 239,
+                "end_line": 269,
+                "file_sha256": "eb78d30ca88ec5499f0482515883a871ef8db884afff832b861ac24209338a26",
+                "excerpt": "  const summary = await fetchPublicRepository(owner, repo);\n  const repository = await prisma.repository.upsert({\n    where: { githubRepositoryId: summary.githubRepositoryId },\n    create: {\n      ...summary,\n      accessStatus: RepositoryAccessStatus.ACTIVE,\n      indexStatus: RepositoryIndexStatus.NOT_INDEXED,\n    },\n    update: {\n      ...summary,\n      accessStatus: RepositoryAccessStatus.ACTIVE,\n      lastIndexError: null,\n    },\n  });\n\n  await prisma.userRepository.upsert({\n    where: {\n      userId_repositoryId: {\n        userId,\n        repositoryId: repository.id,\n      },\n    },\n    create: {\n      userId,\n      repositoryId: repository.id,\n      accessStatus: RepositoryAccessStatus.ACTIVE,\n    },\n    update: {\n      accessStatus: RepositoryAccessStatus.ACTIVE,\n    },\n  });"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "job",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/lib/github-public.ts",
+                "start_line": 297,
+                "end_line": 315,
+                "file_sha256": "eb78d30ca88ec5499f0482515883a871ef8db884afff832b861ac24209338a26",
+                "excerpt": "  const job = await prisma.$transaction(async (tx) => {\n    await tx.repository.update({\n      where: { id: repository.id },\n      data: {\n        indexStatus: nextStatus,\n        targetCommitSha,\n        lastIndexError: null,\n      },\n    });\n\n    return tx.repositoryIndexJob.create({\n      data: {\n        repositoryId: repository.id,\n        trigger,\n        status: RepositoryIndexJobStatus.QUEUED,\n        sourceCommitSha: repository.indexedCommitSha,\n        targetCommitSha,\n      },\n    });"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "enqueue_http",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/connect/route.ts",
+                "start_line": 27,
+                "end_line": 34,
+                "file_sha256": "3b70a780ad491dbe310d978c7cfe72719fb88d81053d835f42322dfcf8264396",
+                "excerpt": "  const response = await fetch(`${apiBaseUrl}/api/v1/repositories/connect`, {\n    method: \"POST\",\n    headers,\n    body: JSON.stringify({\n      repository_id: repositoryId,\n      job_id: jobId,\n    }),\n  });"
+              },
+              {
+                "path": "apps/web/app/api/repositories/connect/route.ts",
+                "start_line": 60,
+                "end_line": 68,
+                "file_sha256": "3b70a780ad491dbe310d978c7cfe72719fb88d81053d835f42322dfcf8264396",
+                "excerpt": "      payload.owner,\n      payload.repo,\n      RepositoryIndexJobTrigger.CONNECT,\n    );\n\n    await enqueueFastApiJob(repository.id, job.id, user.id);\n\n    return Response.json({\n      repository_id: repository.id,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "queue",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/routers/repositories.py",
+                "start_line": 37,
+                "end_line": 49,
+                "file_sha256": "5e62fa550f0bb7aadd2309ad7e586ebd59d511aea9a36d89722e0c1ba2c8af9e",
+                "excerpt": "    job_id = f\"repo-index:{payload.repository_id}:{payload.job_id}\".lower()\n    job_payload = {\n        \"user_id\": user_id,\n        \"repository_id\": payload.repository_id,\n        \"job_id\": payload.job_id,\n    }\n\n    job = await redis.enqueue_job(\n        \"index_repository\",\n        job_payload,\n        _job_id=job_id,\n        _queue_name=settings.arq_queue_name,\n    )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-enqueue_http-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/connect/route.ts",
+                "start_line": 27,
+                "end_line": 34,
+                "file_sha256": "3b70a780ad491dbe310d978c7cfe72719fb88d81053d835f42322dfcf8264396",
+                "excerpt": "  const response = await fetch(`${apiBaseUrl}/api/v1/repositories/connect`, {\n    method: \"POST\",\n    headers,\n    body: JSON.stringify({\n      repository_id: repositoryId,\n      job_id: jobId,\n    }),\n  });"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-enqueue_http-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/connect/route.ts",
+                "start_line": 60,
+                "end_line": 68,
+                "file_sha256": "3b70a780ad491dbe310d978c7cfe72719fb88d81053d835f42322dfcf8264396",
+                "excerpt": "      payload.owner,\n      payload.repo,\n      RepositoryIndexJobTrigger.CONNECT,\n    );\n\n    await enqueueFastApiJob(repository.id, job.id, user.id);\n\n    return Response.json({\n      repository_id: repository.id,"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The web layer upserts repository metadata and the active user-repository relationship, then creates a queued index job transactionally with the repository status update.",
+          "evidence_units": [
+            "connection",
+            "job"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "The connect route sends repository_id and job_id to FastAPI; FastAPI enqueues index_repository with repository, job and user IDs using a deterministic repo-index job key.",
+          "evidence_units": [
+            "enqueue_http",
+            "queue"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "architecture-02",
+      "category": "architecture",
+      "evidence_scope": "CODE",
+      "question": "Trace source ingestion from the resolved GitHub commit through embeddings to promotion of a ready index.",
+      "required_evidence": [
+        {
+          "id": "snapshot",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 394,
+                "end_line": 405,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        async with httpx.AsyncClient() as client:\n            commit_sha = await fetch_default_branch_head(\n                client,\n                str(repository[\"owner\"]),\n                str(repository[\"name\"]),\n                str(repository[\"defaultBranch\"]),\n            )\n            tree = await fetch_tree(\n                client,\n                str(repository[\"owner\"]),\n                str(repository[\"name\"]),\n                commit_sha,"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 423,
+                "end_line": 446,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "                if should_skip_path(path, file_size):\n                    continue\n\n                content = await fetch_file_content(\n                    client,\n                    str(repository[\"owner\"]),\n                    str(repository[\"name\"]),\n                    path,\n                    commit_sha,\n                )\n\n                if content is None or \"-----BEGIN \" in content[:2000]:\n                    continue\n\n                file_record = {\n                    \"path\": path,\n                    \"blob_sha\": blob_sha,\n                    \"content_sha\": sha256_text(content),\n                    \"byte_size\": len(content.encode(\"utf-8\")),\n                    \"line_count\": max(1, len(content.splitlines())),\n                    \"content\": content,\n                }\n                files.append(file_record)\n                chunks.extend(chunk_file(path, content))"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "embed",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 448,
+                "end_line": 465,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        embeddings = (\n            await RepoMindRepositoryVectorStore(\n                connection=connection,\n                embeddings=create_embedding_model(),\n                repository_id=repository_id,\n            ).aembed_documents(chunks)\n            if chunks\n            else []\n        )\n        await promote_index(\n            connection,\n            repository_id,\n            job_id,\n            commit_sha,\n            files,\n            chunks,\n            embeddings,\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "promotion",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 296,
+                "end_line": 300,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    async with connection.transaction():\n        await connection.execute(\n            'DELETE FROM \"RepositoryFile\" WHERE \"repositoryId\" = $1',\n            repository_id,\n        )"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 325,
+                "end_line": 350,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        vector_store = RepoMindRepositoryVectorStore(\n            connection=connection,\n            embeddings=create_embedding_model(),\n            repository_id=repository_id,\n            file_ids_by_path=file_ids,\n        )\n        await vector_store.awrite_embedded_documents(chunks, embeddings)\n\n        await connection.execute(\n            \"\"\"\n            UPDATE \"Repository\"\n            SET \"indexStatus\" = 'READY',\n                \"indexedCommitSha\" = $2,\n                \"targetCommitSha\" = $2,\n                \"indexedFileCount\" = $3,\n                \"indexedChunkCount\" = $4,\n                \"lastIndexedAt\" = now(),\n                \"lastIndexError\" = NULL,\n                \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            repository_id,\n            commit_sha,\n            len(files),\n            len(chunks),\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "vectors",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 150,
+                "end_line": 169,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "            vector = \"[\" + \",\".join(str(value) for value in embeddings[index]) + \"]\"\n\n            await self.connection.execute(\n                \"\"\"\n                INSERT INTO \"RepositoryChunk\"\n                  (\"id\", \"repositoryId\", \"fileId\", \"chunkIndex\", \"path\",\n                   \"startLine\", \"endLine\", \"content\", \"contentSha\", \"embedding\")\n                VALUES\n                  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::vector)\n                \"\"\",\n                document_id,\n                self.repository_id,\n                file_id,\n                index,\n                path,\n                start_line,\n                end_line,\n                document.page_content,\n                content_sha,\n                vector,"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-snapshot-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 394,
+                "end_line": 405,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        async with httpx.AsyncClient() as client:\n            commit_sha = await fetch_default_branch_head(\n                client,\n                str(repository[\"owner\"]),\n                str(repository[\"name\"]),\n                str(repository[\"defaultBranch\"]),\n            )\n            tree = await fetch_tree(\n                client,\n                str(repository[\"owner\"]),\n                str(repository[\"name\"]),\n                commit_sha,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-snapshot-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 423,
+                "end_line": 446,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "                if should_skip_path(path, file_size):\n                    continue\n\n                content = await fetch_file_content(\n                    client,\n                    str(repository[\"owner\"]),\n                    str(repository[\"name\"]),\n                    path,\n                    commit_sha,\n                )\n\n                if content is None or \"-----BEGIN \" in content[:2000]:\n                    continue\n\n                file_record = {\n                    \"path\": path,\n                    \"blob_sha\": blob_sha,\n                    \"content_sha\": sha256_text(content),\n                    \"byte_size\": len(content.encode(\"utf-8\")),\n                    \"line_count\": max(1, len(content.splitlines())),\n                    \"content\": content,\n                }\n                files.append(file_record)\n                chunks.extend(chunk_file(path, content))"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-promotion-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 296,
+                "end_line": 300,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    async with connection.transaction():\n        await connection.execute(\n            'DELETE FROM \"RepositoryFile\" WHERE \"repositoryId\" = $1',\n            repository_id,\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-promotion-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 325,
+                "end_line": 350,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        vector_store = RepoMindRepositoryVectorStore(\n            connection=connection,\n            embeddings=create_embedding_model(),\n            repository_id=repository_id,\n            file_ids_by_path=file_ids,\n        )\n        await vector_store.awrite_embedded_documents(chunks, embeddings)\n\n        await connection.execute(\n            \"\"\"\n            UPDATE \"Repository\"\n            SET \"indexStatus\" = 'READY',\n                \"indexedCommitSha\" = $2,\n                \"targetCommitSha\" = $2,\n                \"indexedFileCount\" = $3,\n                \"indexedChunkCount\" = $4,\n                \"lastIndexedAt\" = now(),\n                \"lastIndexError\" = NULL,\n                \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            repository_id,\n            commit_sha,\n            len(files),\n            len(chunks),\n        )"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The worker resolves the default-branch head, traverses its tree, filters and fetches files at that commit, and builds chunks.",
+          "evidence_units": [
+            "snapshot"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Chunks are embedded before promotion; promotion replaces files/chunks and marks the repository READY with the indexed SHA and counts inside a transaction.",
+          "evidence_units": [
+            "embed",
+            "promotion"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f3",
+          "text": "Embeddings are written to RepositoryChunk as PostgreSQL vector values alongside source path and line metadata.",
+          "evidence_units": [
+            "vectors"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "architecture-03",
+      "category": "architecture",
+      "evidence_scope": "CODE",
+      "question": "How do PostgreSQL vector search, full-text search and parent expansion work together in repository chat?",
+      "required_evidence": [
+        {
+          "id": "vector",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 260,
+                "end_line": 274,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "    async def _vector_candidates(self, query: str) -> list[dict[str, Any]]:\n        query_vector = await self.embeddings.aembed_query(query)\n        vector = \"[\" + \",\".join(str(float(value)) for value in query_vector) + \"]\"\n        rows = await self.connection.fetch(\n            \"\"\"\n            SELECT \"id\", \"fileId\", \"path\", \"startLine\", \"endLine\", \"contentSha\",\n                   \"embedding\" <=> $2::vector AS distance\n            FROM \"RepositoryChunk\"\n            WHERE \"repositoryId\" = $1\n            ORDER BY \"embedding\" <=> $2::vector\n            LIMIT $3\n            \"\"\",\n            self.repository_id,\n            vector,\n            self.vector_k,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "keyword",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 298,
+                "end_line": 313,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "            WITH search_query AS (\n              SELECT websearch_to_tsquery('simple', $2) AS query\n            )\n            SELECT c.\"id\", c.\"fileId\", c.\"path\", c.\"startLine\", c.\"endLine\",\n                   c.\"contentSha\",\n                   ts_rank_cd(to_tsvector('simple', c.\"content\"), search_query.query)\n                     AS rank_score\n            FROM \"RepositoryChunk\" c, search_query\n            WHERE c.\"repositoryId\" = $1\n              AND to_tsvector('simple', c.\"content\") @@ search_query.query\n            ORDER BY rank_score DESC\n            LIMIT $3\n            \"\"\",\n            self.repository_id,\n            query,\n            self.keyword_k,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "parent",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 253,
+                "end_line": 258,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        vector_rows, keyword_rows = await asyncio.gather(\n            self._vector_candidates(query),\n            self._keyword_candidates(query),\n        )\n        fused = self._fuse_candidates(vector_rows, keyword_rows)\n        return await self._parent_documents(fused[: self.final_k * 3])"
+              },
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 362,
+                "end_line": 370,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        file_ids = sorted({str(candidate[\"file_id\"]) for candidate in candidates})\n        rows = await self.connection.fetch(\n            \"\"\"\n            SELECT \"id\", \"path\", \"content\", \"lineCount\"\n            FROM \"RepositoryFile\"\n            WHERE \"repositoryId\" = $1 AND \"id\" = ANY($2::text[])\n            \"\"\",\n            self.repository_id,\n            file_ids,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "agent_input",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 289,
+                "end_line": 296,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        retriever = RepoMindParentHybridRetriever(\n            connection=connection,\n            embeddings=create_embedding_model(),\n            repository_id=repository_id,\n        )\n        documents = await retriever.ainvoke(str(user_message[\"content\"]))\n        history = await load_history(connection, conversation_id, message_id)\n        emitted_tool_calls: set[str] = set()"
+              },
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 135,
+                "end_line": 147,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "def agent_messages(\n    question: str,\n    history: list[BaseMessage],\n    documents: list[Document],\n) -> list[BaseMessage]:\n    \"\"\"Build the message list passed to the repository chat agent.\"\"\"\n    return [\n        *history,\n        HumanMessage(\n            content=(\n                f\"Question:\\n{question}\\n\\n\"\n                f\"Indexed code context:\\n{format_documents(documents)}\"\n            ),"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "rrf_detail",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 338,
+                "end_line": 353,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        for row in [*vector_rows, *keyword_rows]:\n            chunk_id = str(row[\"id\"])\n            item = fused.setdefault(\n                chunk_id,\n                {\n                    **row,\n                    \"score\": 0.0,\n                    \"sources\": set[str](),\n                },\n            )\n            item[\"score\"] = float(item[\"score\"]) + 1 / (RRF_K + int(row[\"rank\"]))\n            item[\"sources\"].add(str(row[\"source\"]))\n\n        results = list(fused.values())\n        results.sort(key=lambda item: float(item[\"score\"]), reverse=True)\n        return results"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-parent-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 253,
+                "end_line": 258,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        vector_rows, keyword_rows = await asyncio.gather(\n            self._vector_candidates(query),\n            self._keyword_candidates(query),\n        )\n        fused = self._fuse_candidates(vector_rows, keyword_rows)\n        return await self._parent_documents(fused[: self.final_k * 3])"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-parent-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 362,
+                "end_line": 370,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "        file_ids = sorted({str(candidate[\"file_id\"]) for candidate in candidates})\n        rows = await self.connection.fetch(\n            \"\"\"\n            SELECT \"id\", \"path\", \"content\", \"lineCount\"\n            FROM \"RepositoryFile\"\n            WHERE \"repositoryId\" = $1 AND \"id\" = ANY($2::text[])\n            \"\"\",\n            self.repository_id,\n            file_ids,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-agent_input-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 289,
+                "end_line": 296,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        retriever = RepoMindParentHybridRetriever(\n            connection=connection,\n            embeddings=create_embedding_model(),\n            repository_id=repository_id,\n        )\n        documents = await retriever.ainvoke(str(user_message[\"content\"]))\n        history = await load_history(connection, conversation_id, message_id)\n        emitted_tool_calls: set[str] = set()"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-agent_input-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 135,
+                "end_line": 147,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "def agent_messages(\n    question: str,\n    history: list[BaseMessage],\n    documents: list[Document],\n) -> list[BaseMessage]:\n    \"\"\"Build the message list passed to the repository chat agent.\"\"\"\n    return [\n        *history,\n        HumanMessage(\n            content=(\n                f\"Question:\\n{question}\\n\\n\"\n                f\"Indexed code context:\\n{format_documents(documents)}\"\n            ),"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Vector candidates use a query embedding and cosine distance; keyword candidates use simple-language websearch_to_tsquery and ts_rank_cd.",
+          "evidence_units": [
+            "vector",
+            "keyword"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Ranks are fused, selected child chunks expand to parent file windows, and the resulting documents are formatted into the agent question context.",
+          "evidence_units": [
+            "parent",
+            "agent_input"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "architecture-04",
+      "category": "architecture",
+      "evidence_scope": "CODE",
+      "question": "Which server-side checks keep a user from accessing another user's repository chat or conversation?",
+      "required_evidence": [
+        {
+          "id": "web_access",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/lib/github-public.ts",
+                "start_line": 328,
+                "end_line": 339,
+                "file_sha256": "eb78d30ca88ec5499f0482515883a871ef8db884afff832b861ac24209338a26",
+                "excerpt": "  return prisma.repository.findFirst({\n    where: {\n      owner,\n      name,\n      accessStatus: RepositoryAccessStatus.ACTIVE,\n      users: {\n        some: {\n          userId,\n          accessStatus: RepositoryAccessStatus.ACTIVE,\n        },\n      },\n    },"
+              },
+              {
+                "path": "apps/web/app/api/repositories/[owner]/[repo]/chat/route.ts",
+                "start_line": 164,
+                "end_line": 175,
+                "file_sha256": "4bb97d66f8441aa39341f753dff015c01868216675ce4d3cbf35de7a2af9e848",
+                "excerpt": "  let conversation = payload.conversationId\n    ? await prisma.chatConversation.findFirst({\n        where: {\n          id: payload.conversationId,\n          userId: scope.user.id,\n          repositoryId: scope.repository.id,\n        },\n      })\n    : null;\n\n  if (payload.conversationId && !conversation) {\n    return Response.json({ error: \"Conversation not found.\" }, { status: 404 });"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "api_access",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 234,
+                "end_line": 245,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "            SELECT r.\"id\", r.\"owner\", r.\"name\", r.\"htmlUrl\", r.\"indexedCommitSha\",\n                   r.\"defaultBranch\", r.\"indexStatus\", r.\"indexedChunkCount\"\n            FROM \"Repository\" r\n            JOIN \"UserRepository\" ur ON ur.\"repositoryId\" = r.\"id\"\n            WHERE r.\"id\" = $1\n              AND ur.\"userId\" = $2\n              AND r.\"accessStatus\" = 'ACTIVE'\n              AND ur.\"accessStatus\" = 'ACTIVE'\n            \"\"\",\n            repository_id,\n            user_id,\n        )"
+              },
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 258,
+                "end_line": 273,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        user_message = await connection.fetchrow(\n            \"\"\"\n            SELECT m.\"content\"\n            FROM \"ChatMessage\" m\n            JOIN \"ChatConversation\" c ON c.\"id\" = m.\"conversationId\"\n            WHERE m.\"id\" = $1\n              AND m.\"conversationId\" = $2\n              AND c.\"userId\" = $3\n              AND c.\"repositoryId\" = $4\n              AND m.\"role\" = 'USER'\n            \"\"\",\n            message_id,\n            conversation_id,\n            user_id,\n            repository_id,\n        )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-web_access-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/lib/github-public.ts",
+                "start_line": 328,
+                "end_line": 339,
+                "file_sha256": "eb78d30ca88ec5499f0482515883a871ef8db884afff832b861ac24209338a26",
+                "excerpt": "  return prisma.repository.findFirst({\n    where: {\n      owner,\n      name,\n      accessStatus: RepositoryAccessStatus.ACTIVE,\n      users: {\n        some: {\n          userId,\n          accessStatus: RepositoryAccessStatus.ACTIVE,\n        },\n      },\n    },"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-web_access-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/[owner]/[repo]/chat/route.ts",
+                "start_line": 164,
+                "end_line": 175,
+                "file_sha256": "4bb97d66f8441aa39341f753dff015c01868216675ce4d3cbf35de7a2af9e848",
+                "excerpt": "  let conversation = payload.conversationId\n    ? await prisma.chatConversation.findFirst({\n        where: {\n          id: payload.conversationId,\n          userId: scope.user.id,\n          repositoryId: scope.repository.id,\n        },\n      })\n    : null;\n\n  if (payload.conversationId && !conversation) {\n    return Response.json({ error: \"Conversation not found.\" }, { status: 404 });"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-api_access-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 234,
+                "end_line": 245,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "            SELECT r.\"id\", r.\"owner\", r.\"name\", r.\"htmlUrl\", r.\"indexedCommitSha\",\n                   r.\"defaultBranch\", r.\"indexStatus\", r.\"indexedChunkCount\"\n            FROM \"Repository\" r\n            JOIN \"UserRepository\" ur ON ur.\"repositoryId\" = r.\"id\"\n            WHERE r.\"id\" = $1\n              AND ur.\"userId\" = $2\n              AND r.\"accessStatus\" = 'ACTIVE'\n              AND ur.\"accessStatus\" = 'ACTIVE'\n            \"\"\",\n            repository_id,\n            user_id,\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-api_access-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 258,
+                "end_line": 273,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        user_message = await connection.fetchrow(\n            \"\"\"\n            SELECT m.\"content\"\n            FROM \"ChatMessage\" m\n            JOIN \"ChatConversation\" c ON c.\"id\" = m.\"conversationId\"\n            WHERE m.\"id\" = $1\n              AND m.\"conversationId\" = $2\n              AND c.\"userId\" = $3\n              AND c.\"repositoryId\" = $4\n              AND m.\"role\" = 'USER'\n            \"\"\",\n            message_id,\n            conversation_id,\n            user_id,\n            repository_id,\n        )"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The web lookup requires an active repository relationship for the authenticated user, and an existing conversation must match that user and repository.",
+          "evidence_units": [
+            "web_access"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "FastAPI independently joins active UserRepository access and verifies that the user message belongs to the supplied conversation, user, and repository.",
+          "evidence_units": [
+            "api_access"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "architecture-05",
+      "category": "architecture",
+      "evidence_scope": "CODE",
+      "question": "How does assistant text travel from the Python agent to the browser over SSE?",
+      "required_evidence": [
+        {
+          "id": "python_stream",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 314,
+                "end_line": 330,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "            async for chunk in agent.astream(\n                agent_input,\n                stream_mode=AGENT_STREAM_MODES,\n                version=AGENT_STREAM_VERSION,\n            ):\n                if not isinstance(chunk, dict):\n                    continue\n\n                if chunk.get(\"type\") == \"messages\":\n                    data = chunk.get(\"data\")\n\n                    if isinstance(data, tuple) and data:\n                        text = message_text(data[0])\n\n                        if text:\n                            answer_parts.append(text)\n                            yield sse_event(\"delta\", {\"text\": text})"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "proxy",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/[owner]/[repo]/chat/route.ts",
+                "start_line": 210,
+                "end_line": 218,
+                "file_sha256": "4bb97d66f8441aa39341f753dff015c01868216675ce4d3cbf35de7a2af9e848",
+                "excerpt": "  const response = await fetch(`${apiBaseUrl}/api/v1/repositories/chat/stream`, {\n    method: \"POST\",\n    headers,\n    body: JSON.stringify({\n      repository_id: scope.repository.id,\n      conversation_id: conversation.id,\n      user_id: scope.user.id,\n      message_id: userMessage.id,\n    }),"
+              },
+              {
+                "path": "apps/web/app/api/repositories/[owner]/[repo]/chat/route.ts",
+                "start_line": 233,
+                "end_line": 238,
+                "file_sha256": "4bb97d66f8441aa39341f753dff015c01868216675ce4d3cbf35de7a2af9e848",
+                "excerpt": "  return new Response(response.body, {\n    headers: {\n      \"Cache-Control\": \"no-store\",\n      \"Content-Type\": \"text/event-stream\",\n      \"X-RepoMind-Conversation-Id\": conversation.id,\n      \"X-RepoMind-User-Message-Id\": userMessage.id,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "browser",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/components/repository-chat.tsx",
+                "start_line": 283,
+                "end_line": 311,
+                "file_sha256": "f3412cfd7ca2fb1a03cfe812d50e2214ed428eb41da29825d52fd899a4eb202b",
+                "excerpt": "        buffer += decoder.decode(value, { stream: true });\n        const blocks = buffer.split(\"\\n\\n\");\n        buffer = blocks.pop() ?? \"\";\n\n        for (const block of blocks) {\n          const parsed = parseSseEvent(block);\n\n          if (!parsed || !parsed.payload) {\n            continue;\n          }\n\n          if (\n            parsed.event === \"assistant_message\" &&\n            typeof parsed.payload.message_id === \"string\"\n          ) {\n            const realAssistantId = parsed.payload.message_id;\n            const previousAssistantId = assistantMessageId;\n            assistantMessageId = realAssistantId;\n            updateAssistantMessage(previousAssistantId, (assistant) => ({\n              ...assistant,\n              id: realAssistantId,\n            }));\n          }\n\n          if (parsed.event === \"delta\" && typeof parsed.payload.text === \"string\") {\n            updateAssistantMessage(assistantMessageId, (assistant) => ({\n              ...assistant,\n              content: assistant.content + parsed.payload?.text,\n            }));"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-proxy-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/[owner]/[repo]/chat/route.ts",
+                "start_line": 210,
+                "end_line": 218,
+                "file_sha256": "4bb97d66f8441aa39341f753dff015c01868216675ce4d3cbf35de7a2af9e848",
+                "excerpt": "  const response = await fetch(`${apiBaseUrl}/api/v1/repositories/chat/stream`, {\n    method: \"POST\",\n    headers,\n    body: JSON.stringify({\n      repository_id: scope.repository.id,\n      conversation_id: conversation.id,\n      user_id: scope.user.id,\n      message_id: userMessage.id,\n    }),"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-proxy-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/web/app/api/repositories/[owner]/[repo]/chat/route.ts",
+                "start_line": 233,
+                "end_line": 238,
+                "file_sha256": "4bb97d66f8441aa39341f753dff015c01868216675ce4d3cbf35de7a2af9e848",
+                "excerpt": "  return new Response(response.body, {\n    headers: {\n      \"Cache-Control\": \"no-store\",\n      \"Content-Type\": \"text/event-stream\",\n      \"X-RepoMind-Conversation-Id\": conversation.id,\n      \"X-RepoMind-User-Message-Id\": userMessage.id,"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Python reads streamed AI text and emits delta SSE events containing text.",
+          "evidence_units": [
+            "python_stream"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "The Next.js route forwards the FastAPI response body as text/event-stream and supplies conversation/message headers.",
+          "evidence_units": [
+            "proxy"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f3",
+          "text": "The browser buffers decoded bytes into SSE blocks, parses events and appends delta.text to the assistant message.",
+          "evidence_units": [
+            "browser"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "architecture-06",
+      "category": "architecture",
+      "evidence_scope": "CODE",
+      "question": "How does chat expose GitHub MCP tools while enforcing repository scope in the MCP server?",
+      "required_evidence": [
+        {
+          "id": "stdio",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 107,
+                "end_line": 132,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "@asynccontextmanager\nasync def scoped_mcp_tools(\n    user_id: str,\n    repository_id: str,\n) -> AsyncIterator[list[Any]]:\n    \"\"\"Load real MCP tools from a repository-scoped stdio server session.\"\"\"\n    env = dict(os.environ)\n    env[\"REPOMIND_MCP_USER_ID\"] = user_id\n    env[\"REPOMIND_MCP_REPOSITORY_ID\"] = repository_id\n    api_root = Path(__file__).resolve().parents[1]\n    client = MultiServerMCPClient(\n        {\n            \"github\": {\n                \"transport\": \"stdio\",\n                \"command\": sys.executable,\n                \"args\": [\"-m\", \"app.github_mcp_server\"],\n                \"cwd\": str(api_root),\n                \"env\": env,\n            },\n        },\n        handle_tool_errors=True,\n    )\n\n    async with client.session(\"github\") as session:\n        tools = await load_mcp_tools(session)\n        yield [tool for tool in tools if tool.name in MCP_TOOL_NAMES]"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "tool_scope",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 122,
+                "end_line": 145,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    \"\"\"Resolve the MCP repository scope and enforce RepoMind user access.\"\"\"\n    user_id = read_string(os.getenv(\"REPOMIND_MCP_USER_ID\"))\n    repository_id = read_string(os.getenv(\"REPOMIND_MCP_REPOSITORY_ID\"))\n\n    if user_id is None or repository_id is None:\n        raise RuntimeError(\"MCP repository scope is missing.\")\n\n    settings = get_settings()\n    connection = await asyncpg.connect(settings.database_url)\n\n    try:\n        row = await connection.fetchrow(\n            \"\"\"\n            SELECT r.\"id\", r.\"owner\", r.\"name\", r.\"htmlUrl\"\n            FROM \"Repository\" r\n            JOIN \"UserRepository\" ur ON ur.\"repositoryId\" = r.\"id\"\n            WHERE r.\"id\" = $1\n              AND ur.\"userId\" = $2\n              AND r.\"accessStatus\" = 'ACTIVE'\n              AND ur.\"accessStatus\" = 'ACTIVE'\n            \"\"\",\n            repository_id,\n            user_id,\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "scope_query",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 220,
+                "end_line": 223,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "    parts = [f\"repo:{owner}/{repo}\", f\"is:{kind}\"]\n\n    if state != \"all\":\n        parts.append(f\"is:{state}\")"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Chat starts the MCP stdio server with locked user and repository IDs in its environment and loads the allowed issue/PR tools.",
+          "evidence_units": [
+            "stdio"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "The MCP server checks active repository and user-repository access in PostgreSQL and constructs GitHub searches with the resolved repository scope.",
+          "evidence_units": [
+            "tool_scope",
+            "scope_query"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "missing-01",
+      "category": "insufficient",
+      "evidence_scope": "CODE",
+      "question": "What exact production uptime SLA and monthly active user count does RepoMind guarantee?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [],
+      "fixture_scenario": "none",
+      "expected_missing": [
+        "The corpus provides no verified production uptime SLA or monthly active user count."
+      ],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "missing-02",
+      "category": "insufficient",
+      "evidence_scope": "CODE",
+      "question": "What are RepoMind's measured production median chat latency and dollar cost per request?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [],
+      "fixture_scenario": "none",
+      "expected_missing": [
+        "No measured production median latency or per-request dollar cost is supplied."
+      ],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "missing-03",
+      "category": "insufficient",
+      "evidence_scope": "GITHUB",
+      "question": "Search issues using query billing and state all. Which matching billing issue contains the payment-failure reproduction steps?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The fixture search returns zero billing matches; no reproduction steps can be identified.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "billing-search"
+          ]
+        }
+      ],
+      "fixture_scenario": "billing-empty",
+      "expected_missing": [
+        "The empty search supplies no billing issue or reproduction steps."
+      ],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "missing-04",
+      "category": "insufficient",
+      "evidence_scope": "MIXED",
+      "question": "Explain the code's oversized-file exclusion, then read PR #9999 and report its measured indexing speedup. State which part cannot be established.",
+      "required_evidence": [
+        {
+          "id": "size",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 14,
+                "end_line": 14,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "MAX_FILE_BYTES = 1_048_576"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 62,
+                "end_line": 63,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    if size is not None and size > MAX_FILE_BYTES:\n        return True"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-size-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 14,
+                "end_line": 14,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "MAX_FILE_BYTES = 1_048_576"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-size-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 62,
+                "end_line": 63,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    if size is not None and size > MAX_FILE_BYTES:\n        return True"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The code skips files strictly larger than 1,048,576 bytes.",
+          "evidence_units": [
+            "size"
+          ],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "unavailable-pr",
+      "expected_missing": [
+        "PR #9999 cannot be read from the fixture, so no measured indexing speedup is available."
+      ],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "github-01",
+      "category": "github",
+      "evidence_scope": "GITHUB",
+      "question": "Search issues with query streaming and state all. Summarize issue #101's status and reported problem.",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Synthetic issue #101 is open and reports that retrieved source cards include files the answer never cites.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "streaming-search",
+            "issue-101"
+          ]
+        }
+      ],
+      "fixture_scenario": "streaming",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "github-02",
+      "category": "github",
+      "evidence_scope": "GITHUB",
+      "question": "Read the comments on issue #101. What did reviewer-b say about the displayed source cards?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "reviewer-b says displayed cards are retrieved candidates, not proof that answer claims are supported, and requests claim-level citation evaluation.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "issue-101-comments"
+          ]
+        }
+      ],
+      "fixture_scenario": "streaming",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "github-03",
+      "category": "github",
+      "evidence_scope": "GITHUB",
+      "question": "Search pull requests with query indexing and state all. What does PR #201 propose, and is it merged?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Synthetic PR #201 is open and unmerged; it proposes running semantic and keyword candidate retrieval concurrently on the same connection.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "indexing-search",
+            "pr-201"
+          ]
+        }
+      ],
+      "fixture_scenario": "parallel-proposal",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "github-04",
+      "category": "github",
+      "evidence_scope": "GITHUB",
+      "question": "Read the files changed by PR #202. Which file does it touch, and how many additions and deletions are reported?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The fixture reports apps/api/app/worker.py modified with 12 additions and 4 deletions.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "pr-202-files"
+          ]
+        }
+      ],
+      "fixture_scenario": "transaction-proposal",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "mixed-01",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read issue #101. Which behavior in the indexed chat code explains its report, and does displaying a source card establish that the answer cited it?",
+      "required_evidence": [
+        {
+          "id": "all_cards",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 370,
+                "end_line": 383,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        ref = str(repository[\"indexedCommitSha\"] or repository[\"defaultBranch\"])\n        citations: list[dict[str, Any]] = []\n\n        for index, document in enumerate(documents[:6], start=1):\n            path = document.metadata.get(\"path\")\n            start_line = document.metadata.get(\"start_line\")\n            end_line = document.metadata.get(\"end_line\")\n\n            if (\n                not isinstance(path, str)\n                or not isinstance(start_line, int)\n                or not isinstance(end_line, int)\n            ):\n                continue"
+              },
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 408,
+                "end_line": 428,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "            citations.append(\n                {\n                    \"id\": citation_id,\n                    \"source_index\": index,\n                    \"path\": path,\n                    \"start_line\": start_line,\n                    \"end_line\": end_line,\n                    \"url\": url,\n                },\n            )\n\n        await connection.execute(\n            \"\"\"\n            UPDATE \"ChatConversation\"\n            SET \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            conversation_id,\n        )\n        yield sse_event(\"citations\", {\"citations\": citations})\n        yield sse_event(\"done\", {\"message_id\": assistant_message_id})"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-all_cards-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 370,
+                "end_line": 383,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        ref = str(repository[\"indexedCommitSha\"] or repository[\"defaultBranch\"])\n        citations: list[dict[str, Any]] = []\n\n        for index, document in enumerate(documents[:6], start=1):\n            path = document.metadata.get(\"path\")\n            start_line = document.metadata.get(\"start_line\")\n            end_line = document.metadata.get(\"end_line\")\n\n            if (\n                not isinstance(path, str)\n                or not isinstance(start_line, int)\n                or not isinstance(end_line, int)\n            ):\n                continue"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-all_cards-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 408,
+                "end_line": 428,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "            citations.append(\n                {\n                    \"id\": citation_id,\n                    \"source_index\": index,\n                    \"path\": path,\n                    \"start_line\": start_line,\n                    \"end_line\": end_line,\n                    \"url\": url,\n                },\n            )\n\n        await connection.execute(\n            \"\"\"\n            UPDATE \"ChatConversation\"\n            SET \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            conversation_id,\n        )\n        yield sse_event(\"citations\", {\"citations\": citations})\n        yield sse_event(\"done\", {\"message_id\": assistant_message_id})"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Issue #101 reports source cards for files the answer never cites.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "issue-101"
+          ]
+        },
+        {
+          "id": "f2",
+          "text": "The code emits cards for each retrieved document, without checking which numeric citations occur in the answer.",
+          "evidence_units": [
+            "all_cards"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f3",
+          "text": "The reported unused cards follow from that iteration; card presence alone does not establish claim support or citation usage.",
+          "evidence_units": [
+            "all_cards"
+          ],
+          "fixture_evidence": [
+            "issue-101"
+          ]
+        }
+      ],
+      "fixture_scenario": "streaming",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "mixed-02",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read PR #201 and compare its proposal with the indexed implementation of _aget_relevant_documents. Is the proposed concurrency already present in this snapshot?",
+      "required_evidence": [
+        {
+          "id": "concurrent",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/retrieval.py",
+                "start_line": 246,
+                "end_line": 258,
+                "file_sha256": "81712ccaf8ee3240070e7e31bb541d712b6530a0a6d20f1d3202d119d4a5a2c6",
+                "excerpt": "    async def _aget_relevant_documents(\n        self,\n        query: str,\n        *,\n        run_manager: AsyncCallbackManagerForRetrieverRun,\n    ) -> list[Document]:\n        del run_manager\n        vector_rows, keyword_rows = await asyncio.gather(\n            self._vector_candidates(query),\n            self._keyword_candidates(query),\n        )\n        fused = self._fuse_candidates(vector_rows, keyword_rows)\n        return await self._parent_documents(fused[: self.final_k * 3])"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "PR #201 proposes concurrent semantic and keyword retrieval on one connection.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "pr-201"
+          ]
+        },
+        {
+          "id": "f2",
+          "text": "The frozen implementation calls both candidate methods through asyncio.gather.",
+          "evidence_units": [
+            "concurrent"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f3",
+          "text": "That concurrency is already present in the indexed snapshot; the proposal alone does not demonstrate a new behavior or merged improvement.",
+          "evidence_units": [
+            "concurrent"
+          ],
+          "fixture_evidence": [
+            "pr-201"
+          ]
+        }
+      ],
+      "fixture_scenario": "parallel-proposal",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "mixed-03",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read issue #103. Explain why the reported 1,800,000-byte source file is absent from the index, using the indexed worker code.",
+      "required_evidence": [
+        {
+          "id": "size",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 14,
+                "end_line": 14,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "MAX_FILE_BYTES = 1_048_576"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 62,
+                "end_line": 63,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    if size is not None and size > MAX_FILE_BYTES:\n        return True"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "skip_call",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 421,
+                "end_line": 424,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "                file_size = int(size) if isinstance(size, int) else None\n\n                if should_skip_path(path, file_size):\n                    continue"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-size-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 14,
+                "end_line": 14,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "MAX_FILE_BYTES = 1_048_576"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-size-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 62,
+                "end_line": 63,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    if size is not None and size > MAX_FILE_BYTES:\n        return True"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Issue #103 reports a 1,800,000-byte source file missing from indexing.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "issue-103"
+          ]
+        },
+        {
+          "id": "f2",
+          "text": "The worker checks file size and skips a file above 1,048,576 bytes before fetching its content.",
+          "evidence_units": [
+            "size",
+            "skip_call"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f3",
+          "text": "The reported file exceeds that limit, explaining its exclusion rather than proving an embedding failure.",
+          "evidence_units": [
+            "size",
+            "skip_call"
+          ],
+          "fixture_evidence": [
+            "issue-103"
+          ]
+        }
+      ],
+      "fixture_scenario": "large-file",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    },
+    {
+      "id": "mixed-04",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read PR #202. Compare its claim about preserving chat availability after failed reindexing with the indexed promotion, failure handling, and chat readiness checks.",
+      "required_evidence": [
+        {
+          "id": "transaction",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 296,
+                "end_line": 300,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    async with connection.transaction():\n        await connection.execute(\n            'DELETE FROM \"RepositoryFile\" WHERE \"repositoryId\" = $1',\n            repository_id,\n        )"
+              },
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 333,
+                "end_line": 350,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        await connection.execute(\n            \"\"\"\n            UPDATE \"Repository\"\n            SET \"indexStatus\" = 'READY',\n                \"indexedCommitSha\" = $2,\n                \"targetCommitSha\" = $2,\n                \"indexedFileCount\" = $3,\n                \"indexedChunkCount\" = $4,\n                \"lastIndexedAt\" = now(),\n                \"lastIndexError\" = NULL,\n                \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            repository_id,\n            commit_sha,\n            len(files),\n            len(chunks),\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "failed",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 472,
+                "end_line": 483,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    except Exception as error:\n        message = redacted_error(error)\n        await connection.execute(\n            \"\"\"\n            UPDATE \"Repository\"\n            SET \"indexStatus\" = 'FAILED',\n                \"lastIndexError\" = $2,\n                \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            repository_id,\n            message,"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "ready_gate",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/chat.py",
+                "start_line": 250,
+                "end_line": 256,
+                "file_sha256": "83732934e4f78922fb7cb71bb7e46129b4bd5a7f016426fd94be6b8affed10a8",
+                "excerpt": "        if (\n            repository[\"indexStatus\"] != \"READY\"\n            or int(repository[\"indexedChunkCount\"]) <= 0\n        ):\n            raise RuntimeError(\n                \"Repository must finish indexing before chat is available.\",\n            )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [
+        {
+          "id": "local-transaction-1-1",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 296,
+                "end_line": 300,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "    async with connection.transaction():\n        await connection.execute(\n            'DELETE FROM \"RepositoryFile\" WHERE \"repositoryId\" = $1',\n            repository_id,\n        )"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "local-transaction-1-2",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/worker.py",
+                "start_line": 333,
+                "end_line": 350,
+                "file_sha256": "56a764155b2ef8242b42b2f3b562f44a555e3e40f1f3e79c1aa6933dacdab57b",
+                "excerpt": "        await connection.execute(\n            \"\"\"\n            UPDATE \"Repository\"\n            SET \"indexStatus\" = 'READY',\n                \"indexedCommitSha\" = $2,\n                \"targetCommitSha\" = $2,\n                \"indexedFileCount\" = $3,\n                \"indexedChunkCount\" = $4,\n                \"lastIndexedAt\" = now(),\n                \"lastIndexError\" = NULL,\n                \"updatedAt\" = now()\n            WHERE \"id\" = $1\n            \"\"\",\n            repository_id,\n            commit_sha,\n            len(files),\n            len(chunks),\n        )"
+              }
+            ]
+          ]
+        }
+      ],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "PR #202 proposes transactional index replacement and claims previous-index chat stays available after a failed reindex.",
+          "evidence_units": [],
+          "fixture_evidence": [
+            "pr-202"
+          ]
+        },
+        {
+          "id": "f2",
+          "text": "Promotion already performs replacement and READY update inside a transaction; a failed transaction can preserve the previous rows.",
+          "evidence_units": [
+            "transaction"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f3",
+          "text": "The worker marks the repository FAILED on indexing errors, while chat requires READY.",
+          "evidence_units": [
+            "failed",
+            "ready_gate"
+          ],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f4",
+          "text": "Therefore preserved old rows do not establish chat availability: the pinned code blocks chat after FAILED, contrary to that part of the PR claim.",
+          "evidence_units": [
+            "transaction",
+            "failed",
+            "ready_gate"
+          ],
+          "fixture_evidence": [
+            "pr-202"
+          ]
+        }
+      ],
+      "fixture_scenario": "transaction-proposal",
+      "expected_missing": [],
+      "review_note": "Reference facts checked against the recorded source excerpts and, where named, the synthetic fixture payloads. No human sign-off is asserted."
+    }
+  ]
+}

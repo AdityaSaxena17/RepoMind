@@ -13,6 +13,7 @@ import asyncpg
 from langchain.agents import create_agent
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
+from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
@@ -216,6 +217,68 @@ async def load_history(
     return messages
 
 
+async def stream_repository_answer(
+    question: str,
+    history: list[BaseMessage],
+    documents: list[Document],
+    tools: Sequence[BaseTool],
+) -> AsyncIterator[tuple[Literal["delta", "tool"], str]]:
+    """Run the production agent; yield text and tool activity without persistence."""
+    emitted_tool_calls: set[str] = set()
+    # LangGraph's compiled agent type is narrower than its documented
+    # dynamic state input, so keep the untyped boundary at construction.
+    agent: Any = create_agent(
+        create_chat_model(),
+        tools=list(tools),
+        system_prompt=CHAT_SYSTEM_PROMPT,
+        name="repomind",
+    )
+    agent_input: dict[str, Any] = {
+        "messages": agent_messages(
+            question,
+            history,
+            documents,
+        ),
+    }
+    async for chunk in agent.astream(
+        agent_input,
+        stream_mode=AGENT_STREAM_MODES,
+        version=AGENT_STREAM_VERSION,
+    ):
+        if not isinstance(chunk, dict):
+            continue
+
+        if chunk.get("type") == "messages":
+            data = chunk.get("data")
+
+            if isinstance(data, tuple) and data:
+                text = message_text(data[0])
+
+                if text:
+                    yield "delta", text
+
+        if chunk.get("type") == "updates":
+            data = chunk.get("data")
+
+            if not isinstance(data, dict):
+                continue
+
+            for update in data.values():
+                if not isinstance(update, dict):
+                    continue
+
+                messages = update.get("messages")
+                if not isinstance(messages, list) or not messages:
+                    continue
+
+                for name, call_id in tool_calls(messages[-1]):
+                    if call_id in emitted_tool_calls:
+                        continue
+
+                    emitted_tool_calls.add(call_id)
+                    yield "tool", name
+
+
 async def stream_repository_chat(
     connection: asyncpg.Connection,
     repository_id: str,
@@ -290,65 +353,20 @@ async def stream_repository_chat(
             connection=connection,
             embeddings=create_embedding_model(),
             repository_id=repository_id,
+            rerank=get_settings().repository_rerank,
         )
         documents = await retriever.ainvoke(str(user_message["content"]))
         history = await load_history(connection, conversation_id, message_id)
-        emitted_tool_calls: set[str] = set()
-
         async with scoped_mcp_tools(user_id, repository_id) as mcp_tools:
-            # LangGraph's compiled agent type is narrower than its documented
-            # dynamic state input, so keep the untyped boundary at construction.
-            agent: Any = create_agent(
-                create_chat_model(),
-                tools=mcp_tools,
-                system_prompt=CHAT_SYSTEM_PROMPT,
-                name="repomind",
-            )
-            agent_input: dict[str, Any] = {
-                "messages": agent_messages(
-                    str(user_message["content"]),
-                    history,
-                    documents,
-                ),
-            }
-            async for chunk in agent.astream(
-                agent_input,
-                stream_mode=AGENT_STREAM_MODES,
-                version=AGENT_STREAM_VERSION,
+            async for event, value in stream_repository_answer(
+                str(user_message["content"]),
+                history,
+                documents,
+                mcp_tools,
             ):
-                if not isinstance(chunk, dict):
-                    continue
-
-                if chunk.get("type") == "messages":
-                    data = chunk.get("data")
-
-                    if isinstance(data, tuple) and data:
-                        text = message_text(data[0])
-
-                        if text:
-                            answer_parts.append(text)
-                            yield sse_event("delta", {"text": text})
-
-                if chunk.get("type") == "updates":
-                    data = chunk.get("data")
-
-                    if not isinstance(data, dict):
-                        continue
-
-                    for update in data.values():
-                        if not isinstance(update, dict):
-                            continue
-
-                        messages = update.get("messages")
-                        if not isinstance(messages, list) or not messages:
-                            continue
-
-                        for name, call_id in tool_calls(messages[-1]):
-                            if call_id in emitted_tool_calls:
-                                continue
-
-                            emitted_tool_calls.add(call_id)
-                            yield sse_event("tool", {"name": name})
+                if event == "delta":
+                    answer_parts.append(value)
+                yield sse_event(event, {"text" if event == "delta" else "name": value})
 
         final_answer = "".join(answer_parts).strip()
 

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "eval": "python scripts/uv_run.py python -m app.evals",
     "build": "python scripts/uv_run.py python -m compileall -q app",
     "check-types": "python scripts/uv_run.py mypy app",
     "dev": "python scripts/uv_run.py uvicorn app.main:app --reload --host 127.0.0.1 --port 8137",

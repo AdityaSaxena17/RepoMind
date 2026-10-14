@@ -1,0 +1,236 @@
+--- a/apps/api/app/retrieval.py
++++ b/apps/api/app/retrieval.py
+@@ -254,7 +254,7 @@
+         vector_rows = await self._vector_candidates(query)
+         keyword_rows = await self._keyword_candidates(query)
+         fused = self._fuse_candidates(vector_rows, keyword_rows)
+-        return await self._parent_documents(fused[: self.final_k * 3])
++        return await self._parent_documents(fused)
+ 
+     async def _vector_candidates(self, query: str) -> list[dict[str, Any]]:
+         query_vector = await self.embeddings.aembed_query(query)
+@@ -449,8 +449,16 @@
+             if existing:
+                 existing["start_line"] = min(int(existing["start_line"]), start_line)
+                 existing["end_line"] = max(int(existing["end_line"]), end_line)
+-                existing["score"] = float(existing["score"]) + float(candidate["score"])
++                if float(candidate["score"]) > float(existing["score"]):
++                    existing["anchor_start"] = int(candidate["start_line"])
++                    existing["anchor_end"] = int(candidate["end_line"])
++                existing["score"] = max(
++                    float(existing["score"]), float(candidate["score"])
++                )
+                 existing["sources"].update(candidate["sources"])
++                existing["children"].append(
++                    (int(candidate["start_line"]), int(candidate["end_line"]))
++                )
+                 continue
+ 
+             windows.append(
+@@ -462,15 +470,15 @@
+                     "end_line": end_line,
+                     "score": float(candidate["score"]),
+                     "sources": set(candidate["sources"]),
++                    "anchor_start": int(candidate["start_line"]),
++                    "anchor_end": int(candidate["end_line"]),
++                    "children": [
++                        (int(candidate["start_line"]), int(candidate["end_line"]))
++                    ],
+                 },
+             )
+ 
+-            if len(windows) >= self.final_k:
+-                break
+-
+-        documents: list[Document] = []
+-
+-        for index, window in enumerate(windows[: self.final_k]):
++        for window in windows:
+             lines = str(window["content"]).splitlines()
+             start_line = int(window["start_line"])
+             end_line = int(window["end_line"])
+@@ -478,16 +486,47 @@
+             page_content = "\n".join(selected_lines)
+ 
+             while len(page_content) > PARENT_MAX_CHARS and selected_lines:
+-                selected_lines.pop()
+-                end_line -= 1
++                # Discard expansion furthest from the strongest child before its text.
++                before = max(0, int(window["anchor_start"]) - start_line)
++                after = max(0, end_line - int(window["anchor_end"]))
++                if before > after:
++                    selected_lines.pop(0)
++                    start_line += 1
++                else:
++                    selected_lines.pop()
++                    end_line -= 1
+                 page_content = "\n".join(selected_lines)
+ 
++            window.update(start_line=start_line, end_line=end_line, text=page_content)
++
++        windows.sort(
++            key=lambda window: (
++                -float(window["score"]),
++                str(window["path"]),
++                int(window["start_line"]),
++                int(window["end_line"]),
++            )
++        )
++        documents: list[Document] = []
++        covered: dict[str, set[int]] = {}
++        for window in windows:
++            start_line, end_line = int(window["start_line"]), int(window["end_line"])
++            if not window["text"]:
++                continue
++            seen = covered.setdefault(str(window["file_id"]), set())
++            matching = {
++                line
++                for first, last in window["children"]
++                for line in range(max(start_line, first), min(end_line, last) + 1)
++            }
++            if matching <= seen:
++                continue
+             documents.append(
+                 Document(
+-                    page_content=page_content,
++                    page_content=str(window["text"]),
+                     metadata={
+                         "repository_id": self.repository_id,
+-                        "source_index": index + 1,
++                        "source_index": len(documents) + 1,
+                         "path": str(window["path"]),
+                         "start_line": start_line,
+                         "end_line": max(start_line, end_line),
+@@ -496,5 +535,8 @@
+                     },
+                 ),
+             )
++            seen.update(range(start_line, end_line + 1))
++            if len(documents) >= self.final_k:
++                break
+ 
+         return documents
+--- a/apps/api/tests/test_retrieval.py
++++ b/apps/api/tests/test_retrieval.py
+@@ -1,8 +1,119 @@
+ import asyncio
+ 
+ import pytest
+-
+-from app.retrieval import RepoMindParentHybridRetriever
++from langchain_core.documents import Document
++
++from app.retrieval import PARENT_MAX_CHARS, RepoMindParentHybridRetriever
++
++
++def candidate(path: str, first: int, last: int, score: float) -> dict[str, object]:
++    return dict(
++        id=f"{path}:{first}:{last}",
++        file_id=path,
++        path=path,
++        start_line=first,
++        end_line=last,
++        score=score,
++        sources={"vector"},
++    )
++
++
++async def parents(
++    candidates: list[dict[str, object]],
++    contents: dict[str, str],
++) -> list[Document]:
++    class Connection:
++        async def fetch(self, _sql: str, *_args: object) -> list[dict[str, object]]:
++            return [
++                dict(
++                    id=path,
++                    path=path,
++                    content=content,
++                    lineCount=len(content.splitlines()),
++                )
++                for path, content in contents.items()
++            ]
++
++    retriever = RepoMindParentHybridRetriever.model_construct(
++        connection=Connection(), embeddings=None, repository_id="test"
++    )
++    return await retriever._parent_documents(candidates)
++
++
++def test_parent_selection_considers_late_matches_and_uses_max_score() -> None:
++    rows = [candidate(f"{name}.py", 10, 10, 7 - i) for i, name in enumerate("abcdef")]
++    rows.extend([candidate("g.py", 10, 10, 9), candidate("a.py", 20, 20, 10)])
++    contents = {f"{name}.py": "line\n" * 300 for name in "abcdefg"}
++    docs = asyncio.run(parents(rows, contents))
++    assert [d.metadata["path"] for d in docs] == [f"{name}.py" for name in "agbcde"]
++    assert docs[0].metadata["score"] == 10
++    assert [d.metadata["source_index"] for d in docs] == list(range(1, 7))
++
++
++def test_parent_selection_skips_seen_children_but_keeps_new_same_file_evidence() -> (
++    None
++):
++    rows = [
++        candidate("a.py", 100, 130, 3),
++        candidate("a.py", 180, 210, 2),
++        candidate("a.py", 360, 380, 1),
++    ]
++    docs = asyncio.run(parents(rows, {"a.py": "line\n" * 600}))
++    assert [(d.metadata["start_line"], d.metadata["end_line"]) for d in docs] == [
++        (20, 210),
++        (280, 460),
++    ]
++
++
++def test_parent_truncation_preserves_child_and_accurate_visible_ranges() -> None:
++    lines = [f"{i}:" + "x" * 220 for i in range(1, 601)]
++    docs = asyncio.run(
++        parents([candidate("a.py", 120, 121, 1)], {"a.py": "\n".join(lines)})
++    )
++    doc = docs[0]
++    first, last = doc.metadata["start_line"], doc.metadata["end_line"]
++    assert first <= 120 <= 121 <= last
++    assert len(doc.page_content) <= PARENT_MAX_CHARS
++    assert doc.page_content == "\n".join(lines[first - 1 : last])
++    docs = asyncio.run(
++        parents([candidate("a.py", 300, 420, 1)], {"a.py": "line\n" * 700})
++    )
++    assert docs[0].metadata["end_line"] - docs[0].metadata["start_line"] + 1 == 250
++    assert not asyncio.run(
++        parents(
++            [candidate("huge.py", 1, 1, 1)], {"huge.py": "x" * (PARENT_MAX_CHARS + 1)}
++        )
++    )
++
++
++def test_full_candidate_pool_can_supply_six_distinct_windows(
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    rows = [candidate("a.py", 1, 1, 1)] * 18 + [
++        candidate(f"{name}.py", 1, 1, 1) for name in "bcdefg"
++    ]
++
++    async def empty(_self: object, _question: str) -> list[dict[str, object]]:
++        return []
++
++    monkeypatch.setattr(RepoMindParentHybridRetriever, "_vector_candidates", empty)
++    monkeypatch.setattr(RepoMindParentHybridRetriever, "_keyword_candidates", empty)
++    monkeypatch.setattr(
++        RepoMindParentHybridRetriever,
++        "_fuse_candidates",
++        staticmethod(lambda *_args: rows),
++    )
++    class Connection:
++        async def fetch(self, *_args: object) -> list[dict[str, object]]:
++            return [
++                dict(id=f"{name}.py", path=f"{name}.py", content="line", lineCount=1)
++                for name in "abcdefg"
++            ]
++
++    retriever = RepoMindParentHybridRetriever.model_construct(
++        connection=Connection(), embeddings=None, repository_id="test"
++    )
++    assert len(asyncio.run(retriever.ainvoke("q"))) == 6
+ 
+ 
+ def test_keyword_references_are_parameterized_and_preserve_code_names() -> None:

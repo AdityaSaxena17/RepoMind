@@ -1,0 +1,3302 @@
+{
+  "artifact_kind": "baseline_summary",
+  "version": "1",
+  "measured_on": "2026-10-14",
+  "note": "Compact versioned record. Full evidence and execution traces are in the local full-run reports; this summary is not a grade/compare input.",
+  "report_file_sha256": {
+    ".eval-artifacts/single-agent-v1-accepted.json": "f097db668d326fe2d205b4992c3c735943ebb74377957dfb2a6a23532bd65c08",
+    ".eval-artifacts/single-agent-v1-accepted.md": "729e2086da90ce3a5842a83024a1ca860deea4d907ffd152a03532ab124b9136",
+    ".eval-artifacts/single-agent-v1-retrieval-accepted.json": "04edc98b072c99d11a65655fa5f11e0fee01727b2394cacea59fc43f21454a9b",
+    ".eval-artifacts/single-agent-v1-retrieval-accepted.md": "337ab3515faa94fcd0bc12c5502c89c1e28fded207980dedf4b2e3573bf9c846"
+  },
+  "metadata": {
+    "experiment_name": "single-agent-v1-final",
+    "mode": "full",
+    "created_at": "2026-10-13T23:08:22.569544+00:00",
+    "architecture": "single_agent",
+    "dataset_version": "1",
+    "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+    "dataset_case_count": 24,
+    "fixture_version": "1",
+    "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+    "fixture_provenance": "Synthetic evaluation scenarios, not snapshots of real GitHub issues or PRs. Payload fields follow RepoMind MCP serialization. All identities, dates, discussions, counts and proposed changes are fixture facts only.",
+    "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+    "corpus_repository": "AdityaSaxena17/RepoMind",
+    "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+    "corpus_file_count": 101,
+    "corpus_chunk_count": 153,
+    "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+    "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+    "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+    "scorer_version": "1",
+    "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+    "model_configurations": {
+      "chat": "gpt-4o-mini",
+      "chat_temperature": "provider_default",
+      "use_responses_api": true,
+      "streaming": true,
+      "embeddings": "text-embedding-3-small",
+      "dimensions": 1536
+    },
+    "retrieval_parameters": {
+      "vector_k": 12,
+      "keyword_k": 12,
+      "final_k": 6,
+      "rrf_k": 60,
+      "parent_expansion": 80,
+      "parent_max_lines": 250,
+      "parent_max_chars": 16000,
+      "chunk_tokens": 800,
+      "chunk_overlap": 100
+    },
+    "dependency_versions": {
+      "langchain": "1.3.14",
+      "langchain-openai": "1.4.1",
+      "asyncpg": "0.31.0",
+      "pydantic": "2.13.4"
+    },
+    "judge_configuration": {
+      "model": "gpt-5.4-2026-03-05",
+      "temperature": null,
+      "reasoning_effort": "low",
+      "timeout_seconds": 120.0,
+      "max_retries": 1,
+      "grounding_validation_retries": 2,
+      "structured_output": "json_schema",
+      "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+      "implementation_sha256": "8ecae43d49ad2dac0e0c3ad497178a237cb30736390f10da54cbd922b40e083e",
+      "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+      "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e"
+    },
+    "judge_calibrated": true,
+    "case_timeout_seconds": 120,
+    "aggregates": {
+      "recall_at_6": {
+        "macro_average": 0.5147058823529412,
+        "scored_cases": 17,
+        "not_applicable": 7,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 21,
+        "denominator_sum": 40
+      },
+      "precision_at_6": {
+        "macro_average": 0.2156862745098039,
+        "scored_cases": 17,
+        "not_applicable": 7,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 22,
+        "denominator_sum": 102
+      },
+      "groundedness": {
+        "macro_average": 0.7477933298071184,
+        "scored_cases": 23,
+        "not_applicable": 1,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 217,
+        "denominator_sum": 280
+      },
+      "answer_correctness": {
+        "macro_average": 0.22727272727272727,
+        "scored_cases": 22,
+        "not_applicable": 2,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 5,
+        "denominator_sum": 22
+      },
+      "fact_completeness": {
+        "macro_average": 0.3674242424242424,
+        "scored_cases": 22,
+        "not_applicable": 2,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 13,
+        "denominator_sum": 43
+      },
+      "citation_precision": {
+        "macro_average": 0.7142857142857143,
+        "scored_cases": 14,
+        "not_applicable": 10,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 18,
+        "denominator_sum": 34
+      },
+      "citation_coverage": {
+        "macro_average": 0.048019452367278455,
+        "scored_cases": 23,
+        "not_applicable": 1,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 16,
+        "denominator_sum": 280
+      },
+      "citation_validity": {
+        "macro_average": 0.8214285714285714,
+        "scored_cases": 14,
+        "not_applicable": 10,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 19,
+        "denominator_sum": 25
+      },
+      "correct_abstention": {
+        "macro_average": 0.75,
+        "scored_cases": 4,
+        "not_applicable": 20,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 3,
+        "denominator_sum": 4
+      },
+      "unnecessary_abstention": {
+        "macro_average": 0.05,
+        "scored_cases": 20,
+        "not_applicable": 4,
+        "unscored": 0,
+        "errors": 0,
+        "numerator_sum": 1,
+        "denominator_sum": 20
+      }
+    },
+    "by_category": {
+      "architecture": {
+        "recall_at_6": {
+          "macro_average": 0.5972222222222222,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 12,
+          "denominator_sum": 20
+        },
+        "precision_at_6": {
+          "macro_average": 0.3055555555555555,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 11,
+          "denominator_sum": 36
+        },
+        "groundedness": {
+          "macro_average": 0.7946997581055553,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 95,
+          "denominator_sum": 118
+        },
+        "answer_correctness": {
+          "macro_average": 0.0,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 6
+        },
+        "fact_completeness": {
+          "macro_average": 0.05555555555555555,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 1,
+          "denominator_sum": 14
+        },
+        "citation_precision": {
+          "macro_average": 0.5,
+          "scored_cases": 4,
+          "not_applicable": 2,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 8,
+          "denominator_sum": 22
+        },
+        "citation_coverage": {
+          "macro_average": 0.05650953984287318,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 7,
+          "denominator_sum": 118
+        },
+        "citation_validity": {
+          "macro_average": 0.625,
+          "scored_cases": 4,
+          "not_applicable": 2,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 9,
+          "denominator_sum": 14
+        },
+        "correct_abstention": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 6,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "unnecessary_abstention": {
+          "macro_average": 0.0,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 6
+        }
+      },
+      "github": {
+        "recall_at_6": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "precision_at_6": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "groundedness": {
+          "macro_average": 0.925,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 24,
+          "denominator_sum": 26
+        },
+        "answer_correctness": {
+          "macro_average": 1.0,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 4,
+          "denominator_sum": 4
+        },
+        "fact_completeness": {
+          "macro_average": 1.0,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 4,
+          "denominator_sum": 4
+        },
+        "citation_precision": {
+          "macro_average": 0.5,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 2,
+          "denominator_sum": 4
+        },
+        "citation_coverage": {
+          "macro_average": 0.060714285714285714,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 2,
+          "denominator_sum": 26
+        },
+        "citation_validity": {
+          "macro_average": 0.75,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 3,
+          "denominator_sum": 4
+        },
+        "correct_abstention": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "unnecessary_abstention": {
+          "macro_average": 0.0,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 4
+        }
+      },
+      "insufficient": {
+        "recall_at_6": {
+          "macro_average": 0.0,
+          "scored_cases": 1,
+          "not_applicable": 3,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 1
+        },
+        "precision_at_6": {
+          "macro_average": 0.0,
+          "scored_cases": 1,
+          "not_applicable": 3,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 6
+        },
+        "groundedness": {
+          "macro_average": 0.4444444444444444,
+          "scored_cases": 3,
+          "not_applicable": 1,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 4,
+          "denominator_sum": 9
+        },
+        "answer_correctness": {
+          "macro_average": 0.5,
+          "scored_cases": 2,
+          "not_applicable": 2,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 1,
+          "denominator_sum": 2
+        },
+        "fact_completeness": {
+          "macro_average": 0.5,
+          "scored_cases": 2,
+          "not_applicable": 2,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 1,
+          "denominator_sum": 2
+        },
+        "citation_precision": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "citation_coverage": {
+          "macro_average": 0.0,
+          "scored_cases": 3,
+          "not_applicable": 1,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 9
+        },
+        "citation_validity": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "correct_abstention": {
+          "macro_average": 0.75,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 3,
+          "denominator_sum": 4
+        },
+        "unnecessary_abstention": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        }
+      },
+      "mixed": {
+        "recall_at_6": {
+          "macro_average": 0.4583333333333333,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 3,
+          "denominator_sum": 7
+        },
+        "precision_at_6": {
+          "macro_average": 0.16666666666666666,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 4,
+          "denominator_sum": 24
+        },
+        "groundedness": {
+          "macro_average": 0.6894910644910645,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 38,
+          "denominator_sum": 54
+        },
+        "answer_correctness": {
+          "macro_average": 0.0,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 4
+        },
+        "fact_completeness": {
+          "macro_average": 0.3125,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 4,
+          "denominator_sum": 13
+        },
+        "citation_precision": {
+          "macro_average": 1.0,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 5,
+          "denominator_sum": 5
+        },
+        "citation_coverage": {
+          "macro_average": 0.09056915306915307,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 5,
+          "denominator_sum": 54
+        },
+        "citation_validity": {
+          "macro_average": 1.0,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 4,
+          "denominator_sum": 4
+        },
+        "correct_abstention": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "unnecessary_abstention": {
+          "macro_average": 0.25,
+          "scored_cases": 4,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 1,
+          "denominator_sum": 4
+        }
+      },
+      "single_file": {
+        "recall_at_6": {
+          "macro_average": 0.5555555555555556,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 6,
+          "denominator_sum": 12
+        },
+        "precision_at_6": {
+          "macro_average": 0.19444444444444442,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 7,
+          "denominator_sum": 36
+        },
+        "groundedness": {
+          "macro_average": 0.7732917409387997,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 56,
+          "denominator_sum": 73
+        },
+        "answer_correctness": {
+          "macro_average": 0.0,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 6
+        },
+        "fact_completeness": {
+          "macro_average": 0.25,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 3,
+          "denominator_sum": 10
+        },
+        "citation_precision": {
+          "macro_average": 1.0,
+          "scored_cases": 2,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 3,
+          "denominator_sum": 3
+        },
+        "citation_coverage": {
+          "macro_average": 0.026709401709401708,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 2,
+          "denominator_sum": 73
+        },
+        "citation_validity": {
+          "macro_average": 1.0,
+          "scored_cases": 2,
+          "not_applicable": 4,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 3,
+          "denominator_sum": 3
+        },
+        "correct_abstention": {
+          "macro_average": null,
+          "scored_cases": 0,
+          "not_applicable": 6,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 0
+        },
+        "unnecessary_abstention": {
+          "macro_average": 0.0,
+          "scored_cases": 6,
+          "not_applicable": 0,
+          "unscored": 0,
+          "errors": 0,
+          "numerator_sum": 0,
+          "denominator_sum": 6
+        }
+      }
+    },
+    "completed_cases": 24,
+    "failed_cases": 0,
+    "complete_quality_baseline": true,
+    "judge_calibration": [
+      {
+        "id": "correct",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 1.0,
+          "citation_precision": 1.0,
+          "citation_coverage": 1.0,
+          "citation_validity": 1.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 1048576. [1]",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": true
+                }
+              ],
+              "citations_fully_support": true,
+              "reason": "The evidence explicitly shows `MAX_FILE_BYTES = 1048576`, and the attached citation points to that code."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states that MAX_FILE_BYTES equals 1048576, which fully matches the reference fact that it is assigned the integer 1048576."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer directly provides the requested numeric value and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "incorrect",
+        "passed": true,
+        "actual": {
+          "groundedness": 0.0,
+          "answer_correctness": 0.0,
+          "citation_precision": 0.0,
+          "citation_coverage": 0.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 2048.",
+              "supported": false,
+              "evidence_ids": [],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": false
+                }
+              ],
+              "citations_fully_support": false,
+              "reason": "The cited evidence defines `MAX_FILE_BYTES = 1048576`, not 2048."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "contradicted",
+              "reason": "The answer assigns MAX_FILE_BYTES the value 2048, which conflicts with the reference value 1048576."
+            }
+          ],
+          "material_errors": [
+            "The answer falsely states that MAX_FILE_BYTES equals 2048; the correct assigned integer is 1048576."
+          ],
+          "abstention": "none",
+          "reason": "The answer does not abstain or refuse; it gives a direct factual answer, but that answer is incorrect."
+        }
+      },
+      {
+        "id": "uncited",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 1.0,
+          "citation_coverage": 0.0,
+          "citation_precision": null
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 1048576.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [],
+              "citations_fully_support": false,
+              "reason": "The evidence explicitly shows `MAX_FILE_BYTES = 1048576`, which fully establishes the claim. The answer contains no citations."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states that MAX_FILE_BYTES equals 1048576, which conveys the assigned integer value exactly."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer directly provides the supported fact and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "fabricated-citation",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 1.0,
+          "citation_validity": 0.0,
+          "citation_precision": 0.0,
+          "citation_coverage": 0.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 1048576.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": false
+                }
+              ],
+              "citations_fully_support": false,
+              "reason": "The evidence explicitly states `MAX_FILE_BYTES = 1048576`. The attached citation `[99]` is invalid and does not resolve to supplied evidence."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states that MAX_FILE_BYTES equals 1048576, which conveys the same numeric assignment as the reference fact."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer directly provides the supported value and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "unsupported-correct",
+        "passed": true,
+        "actual": {
+          "groundedness": 0.0,
+          "answer_correctness": 1.0,
+          "citation_coverage": 0.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 1048576.",
+              "supported": false,
+              "evidence_ids": [],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": false
+                }
+              ],
+              "citations_fully_support": false,
+              "reason": "The supplied evidence only states \"# No file-size limit is provided.\" and does not establish any numeric value for MAX_FILE_BYTES."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states that MAX_FILE_BYTES equals 1048576, which matches the reference fact that it is assigned the integer 1048576."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer directly provides the supported value and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "correct-abstention",
+        "passed": true,
+        "actual": {
+          "correct_abstention": 1.0,
+          "groundedness": null
+        },
+        "grounding": {
+          "claims": [],
+          "limitations": [
+            "The available evidence does not specify a value of MAX_FILE_BYTES."
+          ]
+        },
+        "correctness": {
+          "facts": [],
+          "material_errors": [],
+          "abstention": "correct",
+          "reason": "The answer explicitly acknowledges that the value of MAX_FILE_BYTES is not available, which matches the annotated expected missing information. There are no reference facts to evaluate for factual matching."
+        }
+      },
+      {
+        "id": "unnecessary-abstention",
+        "passed": true,
+        "actual": {
+          "unnecessary_abstention": 1.0,
+          "answer_correctness": 0.0
+        },
+        "grounding": {
+          "claims": [],
+          "limitations": [
+            "I cannot determine the value of MAX_FILE_BYTES from the available evidence."
+          ]
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer does not provide the assigned numeric value 1048576 for MAX_FILE_BYTES; it instead says the value cannot be determined."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "unnecessary",
+          "reason": "Expected_missing is empty, so the answer should have stated the answerable fact. Instead, it unnecessarily refuses to determine the value."
+        }
+      },
+      {
+        "id": "false-extra-claim",
+        "passed": true,
+        "actual": {
+          "answer_correctness": 0.0,
+          "groundedness": 0.5
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 1048576.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": true
+                }
+              ],
+              "citations_fully_support": true,
+              "reason": "The evidence states `MAX_FILE_BYTES = 1048576`, which directly matches the claim, and [1] points to that evidence."
+            },
+            {
+              "id": "claim:2",
+              "quote": "MAX_FILE_BYTES equals 2048.",
+              "supported": false,
+              "evidence_ids": [],
+              "citations": [],
+              "citations_fully_support": false,
+              "reason": "The supplied evidence shows `MAX_FILE_BYTES = 1048576`, not 2048, and no citation supports this claim."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "contradicted",
+              "reason": "The answer states the correct value '1048576' but also asserts 'MAX_FILE_BYTES equals 2048,' which conflicts with the reference fact. Because it includes a contradictory numeric assignment, the fact is contradicted overall."
+            }
+          ],
+          "material_errors": [
+            "The answer falsely claims that MAX_FILE_BYTES equals 2048."
+          ],
+          "abstention": "none",
+          "reason": "No abstention occurred: the answer attempts to provide the value. However, it is factually inconsistent because it gives two different values, one of which contradicts the reference."
+        }
+      },
+      {
+        "id": "valid-irrelevant-citation",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 1.0,
+          "citation_validity": 1.0,
+          "citation_precision": 0.0,
+          "citation_coverage": 0.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "MAX_FILE_BYTES equals 1048576.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": false
+                }
+              ],
+              "citations_fully_support": false,
+              "reason": "The evidence shows `MAX_FILE_BYTES = 1048576` in `calibration.py`. The attached citation points to line 2 and its cited excerpt is `OTHER = 7`, so the citation does not support this claim."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states 'MAX_FILE_BYTES equals 1048576,' which conveys the full referenced assignment value."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer directly provides the referenced numeric value and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "partial-citation",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 1.0,
+          "citation_validity": 1.0,
+          "citation_precision": 1.0,
+          "citation_coverage": 0.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "ALPHA is assigned before BETA.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": true
+                }
+              ],
+              "citations_fully_support": false,
+              "reason": "The evidence shows `ALPHA = 1` on line 1 and `BETA = 2` on line 2, establishing the assignment order. The attached citation's cited excerpt includes only `ALPHA = 1`, so it supports only part of the claim and does not fully establish the full ordering by itself."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer explicitly states that ALPHA is assigned before BETA, which conveys that the ALPHA assignment precedes the BETA assignment."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer provides the supported fact directly and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "joint-citations",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 1.0,
+          "citation_validity": 1.0,
+          "citation_precision": 1.0,
+          "citation_coverage": 1.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "ALPHA is assigned before BETA.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": true
+                },
+                {
+                  "citation_id": "citation:2",
+                  "contributes": true
+                }
+              ],
+              "citations_fully_support": true,
+              "reason": "The evidence shows `ALPHA = 1` on line 1 and `BETA = 2` on line 2, establishing that ALPHA is assigned before BETA; both cited excerpts jointly support the ordering."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states that ALPHA is assigned before BETA, which conveys that the ALPHA assignment precedes the BETA assignment."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer directly provides the supported ordering and does not refuse or claim inability to determine it."
+        }
+      },
+      {
+        "id": "incomplete-reference-fact",
+        "passed": true,
+        "actual": {
+          "groundedness": 1.0,
+          "answer_correctness": 0.0,
+          "fact_completeness": 0.0,
+          "citation_precision": 1.0,
+          "citation_coverage": 1.0,
+          "citation_validity": 1.0
+        },
+        "grounding": {
+          "claims": [
+            {
+              "id": "claim:1",
+              "quote": "LIMIT is 100.",
+              "supported": true,
+              "evidence_ids": [
+                "calibration:code"
+              ],
+              "citations": [
+                {
+                  "citation_id": "citation:1",
+                  "contributes": true
+                }
+              ],
+              "citations_fully_support": true,
+              "reason": "The evidence explicitly shows `LIMIT = 100`, and citation [1] points to that code."
+            }
+          ],
+          "limitations": []
+        },
+        "correctness": {
+          "facts": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer states LIMIT is 100, but it omits the required component that CHUNK is 800. A reference fact matches only if all essential components are conveyed."
+            }
+          ],
+          "material_errors": [],
+          "abstention": "none",
+          "reason": "The answer provides a factual response rather than refusing or claiming the information cannot be determined, so this is not an abstention. However, it is incomplete because it omits CHUNK = 800."
+        }
+      }
+    ],
+    "grading_case_concurrency": 3
+  },
+  "cases": [
+    {
+      "case_id": "code-01",
+      "category": "single_file",
+      "question": "Which file-size limit does should_skip_path enforce, and what kinds of paths does it exclude?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "precision_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.6,
+          "status": "scored",
+          "numerator": 6,
+          "denominator": 10
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 10
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "size": 0.0,
+        "paths": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "contradicted",
+            "reason": "The answer says the limit is 1 MB = 1,000,000 bytes, but the reference fact requires skipping only when size is strictly greater than 1,048,576 bytes; it also omits the strict 'greater than, not equal to' condition."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer mentions some skipped directory parts (for example node_modules, .venv, build, dist, coverage) but does not convey all essential excluded path categories required by the reference: configured lock filenames, skipped suffixes, private-key-like paths, and root .env-prefixed paths. It also adds unsupported examples like logs/error files."
+          }
+        ],
+        "material_errors": [
+          "States the size limit as 1,000,000 bytes instead of 1,048,576 bytes.",
+          "Fails to state that only files strictly larger than the limit are skipped; equality does not trigger skipping.",
+          "Adds unsupported exclusions for logs/error files such as npm-debug.log*.",
+          "Claims these exclusions are 'not subject to the size limit checks,' which mischaracterizes the logic: path patterns themselves trigger skipping independently of size."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts a factual response and does not refuse or claim inability to answer. However, it contains a material numeric error and an incomplete/inaccurate description of the excluded path kinds."
+      },
+      "judge_validation_errors": [],
+      "answer": "The `should_skip_path` functionality enforces a file size limit of **1 MB (1,000,000 bytes)**. It excludes paths that fall into specific categories:\n\n1. **Dependencies:** Paths containing `node_modules`, `.venv`, and similar directories.\n2. **Build Outputs:** Directories like `.next`, `out`, `build`, and `dist`.\n3. **Testing Artifacts:** Folders like `coverage`.\n4. **Debug Files:** Any logs or error files generated during execution (e.g., `npm-debug.log*`).\n5. **Miscellaneous System Files:** Such as `.DS_Store`.\n\nThese exclusions ensure that certain file types, which are typically large or generated, are not subject to the size limit checks."
+    },
+    {
+      "case_id": "code-02",
+      "category": "single_file",
+      "question": "How does chunk_file split source code, and what location metadata does it attach?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.8333333333333334,
+          "status": "scored",
+          "numerator": 10,
+          "denominator": 12
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.08333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 12
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "split": 1.0,
+        "metadata": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer mentions a RecursiveCharacterTextSplitter with configurable chunk size and overlap, but it omits the essential specifics: cl100k_base encoding, 800-token chunk size, 100-token overlap, and add_start_index/start-index metadata."
+          },
+          {
+            "fact_id": "f2",
+            "status": "matched",
+            "reason": "The answer states that each chunk includes the file path, SHA-256 of the chunk content, and calculated start_line/end_line metadata, which matches the reference fact."
+          }
+        ],
+        "material_errors": [
+          "The answer claims the function calculates byte offsets for each line; the reference evidence supports line/source-character offset handling for determining line numbers, not specifically byte offsets."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts to answer the question and does not refuse or claim inability to determine answerable facts. It correctly covers the chunk metadata but misses key splitter configuration details."
+      },
+      "judge_validation_errors": [],
+      "answer": "The `chunk_file` function splits source code into smaller chunks using a `RecursiveCharacterTextSplitter`, which allows for controlled splitting based on token size and overlap. The details and procedure of this splitting process can be summarized as follows:\n\n1. **Chunking Mechanism**:\n   - The function first initializes a `RecursiveCharacterTextSplitter` with specific parameters: `chunk_size` (determines the maximum size of each chunk in tokens) and `chunk_overlap` (specifies how many tokens overlap between chunks).\n   - It takes the entire content of the file, splits it into lines, and calculates the byte offsets for each line.\n   \n2. **Creating Chunks**:\n   - The content is then processed to create documents that represent the chunks. For each document created, the function gathers several pieces of metadata.\n\n3. **Attached Metadata**:\n   - The metadata attached to each chunk includes:\n     - **`path`**: The path of the file from which the content was extracted.\n     - **`content_sha`**: A SHA-256 hash of the chunked content to ensure data integrity.\n     - **`start_line`**: The line number in the source code where the chunk starts.\n     - **`end_line`**: The line number in the source code where the chunk ends.\n\nThe resulting chunks are collected in a list, with each chunk represented as a `Document` object containing the relevant content and metadata [1]."
+    },
+    {
+      "case_id": "code-03",
+      "category": "single_file",
+      "question": "How does _fuse_candidates combine semantic and keyword matches for the same chunk?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "precision_at_6": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 3,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 13,
+          "denominator": 13
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "citation_coverage": {
+          "value": 0.07692307692307693,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 13
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "fusion": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer states deduplication by chunk ID, accumulation of a reciprocal-rank-style score for each appearance, collection of source labels, and sorting by descending score. However, it omits the required specific constant value 60 in the formula, giving only `RRF_K`/\"a predefined constant\" instead of `1/(60+rank)`."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer addresses the question and does not refuse or claim inability to determine anything. It is mostly correct in structure, but incomplete relative to the reference fact because it does not provide the specific constant value 60."
+      },
+      "judge_validation_errors": [],
+      "answer": "The `_fuse_candidates` method in the `RepoMindParentHybridRetriever` class combines results from vector and keyword searches by processing the two lists of candidates (one from each search type) and merging them based on a unique identifier (the `id` for each chunk). Here\u2019s how it works:\n\n1. **Initialize a Fused Dictionary**: It creates an empty dictionary `fused` to hold the merged results.\n\n2. **Iterate Over Results**: The method iterates through both the `vector_rows` and `keyword_rows`. For each candidate (chunk), it checks if the chunk's ID already exists in the `fused` dictionary.\n\n3. **Merge Candidates**:\n   - If the ID is found, it updates the existing entry by combining the scores and merging the sources.\n   - Specifically, it calculates a new score using a rank-based formula:\n     \\[\n     \\text{new score} = \\text{existing score} + \\frac{1}{RRF\\_K + \\text{rank}}\n     \\]\n     where `RRF_K` is a predefined constant (likely related to rank fusion).\n   - For the sources, it adds the current candidate's source (either \"vector\" or \"keyword\") to a set, ensuring uniqueness.\n\n4. **Collect and Sort Results**: After processing all candidates, it converts the values of the `fused` dictionary back to a list and sorts them by their scores in descending order.\n\n5. **Final Output**: The method returns a list of merged candidates, each enriched with the combined sources and a calculated score.\n\nThis approach effectively utilizes both semantic (vector) matches and exact keyword matches, providing a ranked list of candidates that reflects contributions from both search types [1][2]."
+    },
+    {
+      "case_id": "code-04",
+      "category": "single_file",
+      "question": "What limits does parent-context expansion place on the final source windows?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 3
+        },
+        "precision_at_6": {
+          "value": 0.16666666666666666,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.8,
+          "status": "scored",
+          "numerator": 8,
+          "denominator": 10
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 10
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "limits": 1.0,
+        "lines": 0.35714285714285715,
+        "characters": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer states at most 6 parent documents and 80-line expansion on each side, but it omits the essential limit that each final window is capped at 250 lines."
+          },
+          {
+            "fact_id": "f2",
+            "status": "matched",
+            "reason": "The answer mentions character constraints via PARENT_MAX_CHARS and says they can affect output indirectly, but it does not state the essential behavior that when content exceeds 16,000 characters, trailing lines are removed and the end line is updated. Therefore this fact is not fully conveyed."
+          }
+        ],
+        "material_errors": [
+          "The answer implies the 16,000-character limit is only an indirect/module-level constraint and 'not directly tied to parent-context expansion,' but the implementation directly trims overlong final windows by removing trailing lines and decrementing end_line.",
+          "The answer omits the 250-line cap on each expanded window, which is a key limit asked about."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts a factual response rather than refusing. It partially captures the limits but misses the 250-line cap and mischaracterizes the direct effect of the 16,000-character trimming behavior."
+      },
+      "judge_validation_errors": [],
+      "answer": "In the context of the `RepoMindParentHybridRetriever` class, parent-context expansion imposes several limits on the final source windows when retrieving parent documents based on child chunks. Here are the relevant constraints:\n\n1. **Final Parent Contexts**: The variable `FINAL_PARENT_CONTEXTS` is set to 6. This indicates that a maximum of 6 parent documents are to be retrieved after the initial candidate selection.\n\n2. **Line Expansion**: The `PARENT_LINE_EXPANSION` is set to 80 lines. This means that when determining the range of lines to include in the final context for each parent document, the algorithm will expand each child chunk's start and end lines by up to 80 lines.\n\n3. **Character and Line Limits**: While specific character limits are not detailed in the retrieval logic itself, there are constraints on total lines and characters declared in other parts of the module (`PARENT_MAX_LINES` and `PARENT_MAX_CHARS`). These values can indirectly affect the output of the retrieved documents but are not directly tied to parent-context expansion.\n\n4. **Bounding by File Limits**: When retrieving parent document content, the line boundaries are constrained by the total line count of the file from which the chunks originate. The `start_line` cannot be less than 1 and the `end_line` cannot exceed the total line count of the file.\n\nThese constraints together dictate how much content can be pulled in when the context is expanded, ensuring that the system operates within reasonable limits and avoids excessive data retrieval from repositories."
+    },
+    {
+      "case_id": "code-05",
+      "category": "single_file",
+      "question": "How does search_issues keep GitHub search inside the repository and avoid returning pull requests?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "precision_at_6": {
+          "value": 0.16666666666666666,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.8181818181818182,
+          "status": "scored",
+          "numerator": 9,
+          "denominator": 11
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 11
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "search_scope": 1.0,
+        "filter": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer states the query includes `repo:{owner}/{repo}` and `is:issue`, but it omits the essential detail that a state qualifier is also added unless `state` is `all`."
+          },
+          {
+            "fact_id": "f2",
+            "status": "matched",
+            "reason": "It correctly says results are filtered to exclude items containing `pull_request` before serialization."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer is partially correct: it captures repository scoping and pull-request filtering, but misses the state-qualifier behavior in the query construction. It does not abstain or refuse to answer."
+      },
+      "judge_validation_errors": [],
+      "answer": "The `search_issues` function keeps the GitHub search limited to the repository and avoids returning pull requests by constructing a specific search query that includes the repository identifier and filters for issues only.\n\n### How It Works:\n\n1. **Repository Identification**: The `repository_scope` function retrieves the owner and repository name, which is then used to build the search query specifically for that repository.\n\n2. **Search Query Construction**:\n   - The `search_query` function is called to create a query string. It constructs the query using the format:\n     ```\n     repo:{owner}/{repo} is:issue\n     ```\n     Here, `is:issue` ensures that only issues are returned, and not pull requests. This is crucial for scoping the search to the intended resource type.\n\n3. **Request to GitHub API**: The constructed query is passed to the GitHub API via the `github_json` function, which handles the request and processes the response.\n\n4. **Filtering Results**: After receiving the results, the function checks for the presence of the `\"pull_request\"` key in each item. If an item contains this key, it's considered a pull request and is filtered out from the results before being serialized and returned.\n\n### Example in Code:\n\nThe relevant code snippet in `search_issues` looks like this:\n\n```python\nq = search_query(scope[\"owner\"], scope[\"repo\"], \"issue\", query, state)\n# The constructed query ensures only issues are searched for\npayload = await github_json(f\"/search/issues?{params}\")\n\nitems = [\n    serialized\n    for item in payload.get(\"items\", [])\n    if isinstance(item, dict) and \"pull_request\" not in item\n    if (serialized := serialize_issue(item)) is not None\n]\n```\n\n### Summary:\nBy constructing the search query with the `is:issue` filter and explicitly checking for the `\"pull_request\"` key in the results, `search_issues` effectively limits searches to issues within the specified repository, excluding pull requests entirely."
+    },
+    {
+      "case_id": "code-06",
+      "category": "single_file",
+      "question": "How are source citation URLs pinned to the indexed code version?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "precision_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.5882352941176471,
+          "status": "scored",
+          "numerator": 10,
+          "denominator": 17
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 17
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "ref": 0.0,
+        "url": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer does not convey the essential mechanism that the URL ref is `indexedCommitSha` with fallback to `defaultBranch`, and it does not state the actual URL format `/blob/{ref}/{path}#L{start}-L{end}`. It instead gives broader schema/indexing discussion without those required details."
+          }
+        ],
+        "material_errors": [
+          "The answer claims `source_index` associates a citation with a specific source version; the reference fact ties version pinning to the `ref` used in the GitHub URL (`indexedCommitSha` or fallback `defaultBranch`), not to `source_index`.",
+          "The answer says citation URLs are pinned through database models and indexing operations generally, but the reference shows the pinning is specifically done when constructing the GitHub URL with `/blob/{ref}/{path}#L{start}-L{end}`."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts a factual explanation rather than refusing, so there is no abstention. However, it misses the key verified details about fallback to `defaultBranch` and the exact blob URL with line anchors, and it adds unsupported claims about `source_index` and database-level pinning."
+      },
+      "judge_validation_errors": [],
+      "answer": "Source citation URLs are pinned to the indexed code version through a combination of structures defined in the codebase and their handling within database operations.\n\n1. **Citations Structure**: The `Citation` interface in the code specifies a `url` property that can store a link associated with a specific range of code in a particular file. Each citation not only holds the file path but also the start and end lines of the relevant code section, as well as an identifier (`source_index`), which associates it with a specific source version.\n\n   ```typescript\n   interface Citation {\n     id: string;\n     source_index: number;\n     path: string;\n     start_line: number;\n     end_line: number;\n     url: string | null;\n   }\n   ```\n\n2. **Database Model**: The database schema includes models that keep track of repositories, files, and related citations. Every repository's state, including its visibility, indexing status, and associated files, is defined in the `Repository` model which contains critical fields like `indexedCommitSha` and `lastIndexedAt`, necessary for linking the state of the repository to its indexed version.\n\n   ```prisma\n   model Repository {\n     id                   String                @id @default(cuid())\n     indexedCommitSha     String?\n     lastIndexedAt        DateTime?\n     // other fields...\n   }\n   ```\n\n3. **Indexing Process**: The `index_repository` function performs the actual indexing operation, processing files and storing their content in the `RepositoryFile` table. This function captures the commit SHA at the time of the indexing, ensuring that the citations can be accurately linked to the specific version of the code indexed.\n\n   ```python\n   await connection.execute(\n       \"\"\"\n       UPDATE \"Repository\"\n       SET \"indexStatus\" = 'READY',\n           \"indexedCommitSha\" = $2,\n           \"targetCommitSha\" = $2,\n           // other updates...\n       WHERE \"id\" = $1\n       \"\"\",\n       repository_id,\n       commit_sha,\n   )\n   ```\n\n4. **Interlinking Citations**: Citations in messages are included in the `ChatMessageCitation` model, which relates back to the `ChatMessage` model. This structure allows messages containing citations to reference the state of the repository at the time of indexing, using the `sourceIndex` to correlate citations back to specific versions of the code.\n\n   ```prisma\n   model ChatMessageCitation {\n     id          String      @id @default(cuid())\n     messageId   String\n     sourceIndex Int\n     // other fields...\n   }\n   ```\n\nIn summary, the citation URLs are bound to the indexed code version through the structured representation of citations in the code, the repository models in the database, and the way these components interact during the repository indexing process."
+    },
+    {
+      "case_id": "architecture-01",
+      "category": "architecture",
+      "question": "Trace repository connection from the web request through the database job record to the background queue.",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 4
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.8518518518518519,
+          "status": "scored",
+          "numerator": 23,
+          "denominator": 27
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 4,
+          "denominator": 8
+        },
+        "citation_coverage": {
+          "value": 0.14814814814814814,
+          "status": "scored",
+          "numerator": 4,
+          "denominator": 27
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 5,
+          "denominator": 5
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "connection": 0.0,
+        "job": 0.0,
+        "enqueue_http": 1.0,
+        "queue": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "contradicted",
+            "reason": "The answer does not state that the web layer upserts repository metadata and the active user-repository relationship. It also does not state that the queued RepositoryIndexJob is created transactionally together with the repository status update. Instead, it says the database job record is created only after FastAPI successfully enqueues the job, which conflicts with the reference flow."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer only partially covers this. It does not clearly state that the connect route sends both repository_id and job_id to FastAPI, and it omits the essential detail that FastAPI uses a deterministic repo-index job key of the form repo-index:{repository_id}:{job_id}. While it mentions enqueuing index_repository with repository/user/job data, the required route payload and deterministic key details are incomplete."
+          }
+        ],
+        "material_errors": [
+          "The answer says the RepositoryIndexJob database record is created after the job is successfully enqueued in FastAPI. The reference says the web layer creates the queued job record transactionally with the repository status update before the FastAPI queue enqueue step.",
+          "The answer starts the flow with POST /api/v1/repositories/connect as the web request handler. In the reference flow, the web route is apps/web/app/api/repositories/connect/route.ts, which then calls the FastAPI /api/v1/repositories/connect endpoint internally."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts a substantive trace and does not refuse or claim inability to determine answerable facts. However, it misses key required details and includes a material flow error about when and where the database job record is created."
+      },
+      "judge_validation_errors": [],
+      "answer": "To trace the repository connection from the web request through the database job record to the background queue, here's how the flow works:\n\n1. **Web Request**: \n   - The process begins with a POST request to `/api/v1/repositories/connect`. This is handled in `apps/web/app/api/repositories/connect/route.ts` [2].\n   - In this function, the `enqueueFastApiJob` function is called, which sends a request to the FastAPI backend to connect the repository by calling the endpoint defined in the FastAPI application.\n\n2. **Enqueue Job**:\n   - In the FastAPI application, specifically in `apps/api/app/routers/repositories.py`, the `connect_repository` function is executed [1].\n   - This function validates the internal credential, constructs a job ID, and prepares the job payload with the user ID, repository ID, and job ID.\n   - The job is then enqueued using `redis.enqueue_job`, where the job type is `index_repository`, and it is added to the queue specified by `settings.arq_queue_name`.\n\n3. **Job Record in Database**:\n   - Once the job is successfully enqueued, a new record is created in the `RepositoryIndexJob` table in the database, reflecting the job's status, associated repository ID, and other relevant details. The table structure is defined in the migration SQL file [5].\n   - The initial status of the job is set to 'QUEUED'.\n\n4. **Processing the Job**:\n   - The background worker retrieves this job from the queue and begins processing it using the `index_repository` function in `apps/api/app/worker.py`. This function handles fetching repository data and updating the indexing status in the database [4].\n   - It updates the job's status to 'RUNNING' and eventually to 'SUCCEEDED' or 'FAILED' based on the processing outcome.\n\n5. **Database Updates**:\n   - During the indexing process, the `promote_index` function is called, which updates multiple tables such as `Repository` and `RepositoryIndexJob`. These updates include setting the indexing status to 'READY' and capturing any error message if the indexing fails [4].\n\n### Summary:\n- A web request initializes the process, enqueuing a job to the FastAPI backend.\n- The FastAPI function processes the job and records it in the database `[2][1][5]`.\n- Background worker processes the job and updates its status in the database, reflecting success or failure."
+    },
+    {
+      "case_id": "architecture-02",
+      "category": "architecture",
+      "question": "Trace source ingestion from the resolved GitHub commit through embeddings to promotion of a ready index.",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 4
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.7857142857142857,
+          "status": "scored",
+          "numerator": 22,
+          "denominator": 28
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 3
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 28
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "snapshot": 0.3888888888888889,
+        "embed": 0.0,
+        "promotion": 1.0,
+        "vectors": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer says the worker fetches the default-branch head commit SHA, retrieves the tree at that commit, filters files, fetches file contents at that commit, and chunks the content."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "It states chunks are embedded before promotion and that the repository is marked READY with counts, but it omits essential components that promotion replaces existing files/chunks, records the indexed SHA, and does so inside a transaction."
+          },
+          {
+            "fact_id": "f3",
+            "status": "missing",
+            "reason": "The answer mentions embeddings in general, but does not convey that embeddings are written into RepositoryChunk as PostgreSQL vector values, nor that path and start/end line metadata are stored alongside them."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer provides a substantive trace rather than refusing or claiming inability. It correctly covers the ingestion flow at a high level, but misses key promotion details and the specific RepositoryChunk vector/metadata storage behavior."
+      },
+      "judge_validation_errors": [],
+      "answer": "The source ingestion process in the provided code involves fetching data from a GitHub repository, processing it, and then promoting that data to an indexed state. Here\u2019s a detailed trace:\n\n### 1. **Fetching the GitHub Commit**\nThe process begins with the `index_repository` function, which fetches the commit SHA of the default branch of a specified repository using the `fetch_default_branch_head` function. This commit SHA is pivotal as it represents the state of the repository from which data will be ingested.\n\n### 2. **Retrieving the Repository Tree**\nNext, the `fetch_tree` function is called using the fetched commit SHA. This function retrieves the file structure (tree) of the repository at that specific commit using the GitHub API. It recursively obtains all the files and directories.\n\n### 3. **Filtering and Processing Files**\nThe `index_repository` function processes each entry in the fetched tree. It specifically looks for entries of type \"blob\" (which represent files). For each file, it retrieves details such as the file's path, SHA, and size, using an internal check to skip paths that are deemed unnecessary (like files greater than a specified size or certain extensions).\n\n### 4. **Fetching File Content**\nFor each valid file, the code calls `fetch_file_content` to retrieve the actual file content encoded in base64. It decodes the content into a usable string format.\n\n### 5. **Chunking the File Content**\nOnce the file content is retrieved, it\u2019s passed to the `chunk_file` function, which splits the content into manageable chunks. This is where the content is prepared for embedding, structured into `Document` objects, which include metadata about the file, such as path and content SHA.\n\n### 6. **Embedding the Chunks**\nThe code utilizes `RepoMindRepositoryVectorStore` and its `awrite_embedded_documents` method to handle the embedding of these chunks. During this process, the code first generates embeddings using the `create_embedding_model()` function, which provides the model used to convert the textual chunks into vector representations.\n\n### 7. **Promoting to Index**\nThe `promote_index` function is invoked to insert the processed data into the database. It inserts the file details into the `RepositoryFile` table and the corresponding chunks into the `RepositoryChunk` table. After that, it updates the repository's index status to \"READY\" along with relevant metrics (like the count of files and chunks that were processed).\n\n### 8. **Updating Index Job Status**\nFinally, the indexing job status in the `RepositoryIndexJob` table is updated to \"SUCCEEDED\", recording the job's completion time.\n\n### Summary\nThe ingestion process includes:\n- Fetching the repository commit.\n- Retrieving the repository tree.\n- Processing each file and its content.\n- Chunking the content.\n- Embedding the chunks.\n- Inserting into the database and updating statuses accordingly.\n\nThe overall flow ensures that from the initial commit fetch to the promotion of the indexed data, each step is carefully logged and data is handled efficiently for future retrieval tasks."
+    },
+    {
+      "case_id": "architecture-03",
+      "category": "architecture",
+      "question": "How do PostgreSQL vector search, full-text search and parent expansion work together in repository chat?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.75,
+          "status": "scored",
+          "numerator": 3,
+          "denominator": 4
+        },
+        "precision_at_6": {
+          "value": 0.16666666666666666,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.45454545454545453,
+          "status": "scored",
+          "numerator": 5,
+          "denominator": 11
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "citation_coverage": {
+          "value": 0.09090909090909091,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 11
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "vector": 1.0,
+        "keyword": 1.0,
+        "parent": 1.0,
+        "agent_input": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer says vector search uses query embeddings and compares vectors, and that full-text search ranks keyword matches, but it omits essential specifics: cosine distance for vector candidates, and the use of simple-language websearch_to_tsquery plus ts_rank_cd for keyword candidates."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer mentions expanding matched chunks to larger context windows, but it omits essential components that the vector and keyword ranks are fused before selection, and that the resulting documents are formatted into the agent's question context."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer attempts a substantive explanation rather than refusing or claiming the facts cannot be determined, so there is no abstention. However, it misses multiple required implementation details from both reference facts."
+      },
+      "judge_validation_errors": [],
+      "answer": "In the repository chat, PostgreSQL vector search, full-text search, and parent expansion work together to enhance information retrieval from code repositories, allowing users to interact effectively with the system. Here's how they collaborate:\n\n1. **PostgreSQL Vector Search**:\n   - The system utilizes vector embeddings stored in the `RepositoryChunk` table, allowing for similarity search based on a user's query. This involves transforming the query into a vector and comparing it against existing vectors in the database to find the closest matches. The process is handled asynchronously, optimizing performance and responsiveness.\n\n   ```python\n   rows = await self.connection.fetch(\n       \"\"\"\n       SELECT \"path\", \"startLine\", \"endLine\", \"content\", \"contentSha\",\n              \"embedding\" <=> $2::vector AS distance\n       FROM \"RepositoryChunk\"\n       WHERE \"repositoryId\" = $1\n       ORDER BY \"embedding\" <=> $2::vector\n       LIMIT $3\n       \"\"\",\n       self.repository_id,\n       vector,\n       k,\n   )\n   ```\n\n2. **Full-Text Search**:\n   - The system employs PostgreSQL's full-text search capabilities to perform keyword-based searches through the `content` of the repository chunks. It uses a specific query format to rank documents according to how well they match the search terms, enabling efficient retrieval of relevant code segments.\n\n   ```sql\n   SELECT c.\"id\", c.\"fileId\", c.\"path\", ...\n   WHERE c.\"repositoryId\" = $1\n     AND to_tsvector('simple', c.\"content\") @@ search_query.query\n   ORDER BY rank_score DESC\n   LIMIT $3\n   ```\n\n3. **Parent Expansion**:\n   - After identifying relevant chunks through vector and keyword searches, the system expands the context to include parent documents. This is done to provide a broader view of the code context, which is crucial when working with code. The parent document retrieval uses the identified chunks and retrieves additional lines around them to give users a complete context, enhancing comprehension.\n\n   ```python\n   async def _parent_documents(self, candidates: list[dict[str, Any]]) -> list[Document]:\n       ...\n       for candidate in candidates:\n           ...\n           start_line = max(1, int(candidate[\"start_line\"]) - PARENT_LINE_EXPANSION)\n           end_line = min(\n               line_count,\n               int(candidate[\"end_line\"]) + PARENT_LINE_EXPANSION,\n           )\n   ```\n\nIn summary, the interplay among vector search, full-text search, and parent expansion allows the repository chat system to deliver highly relevant results, making it easier for users to locate and understand code snippets within the larger context of their repository. For more detailed implementation specifics, you can refer to the code snippets in [2] and [4]."
+    },
+    {
+      "case_id": "architecture-04",
+      "category": "architecture",
+      "question": "Which server-side checks keep a user from accessing another user's repository chat or conversation?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 2
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 9,
+          "denominator": 9
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 8
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 9
+        },
+        "citation_validity": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 3
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "web_access": 0.5,
+        "api_access": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer matches the active repository relationship requirement, but it omits the essential additional check that an existing conversation must match both the authenticated user and the repository."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer mentions active UserRepository/Repository access checks, but it omits the essential FastAPI check that the user message must belong to the supplied conversation, user, and repository."
+          }
+        ],
+        "material_errors": [
+          "The answer adds an indexing/READY-state check as if it were part of preventing cross-user chat/conversation access, but the reference facts only support authorization checks based on repository/conversation/message ownership and active access."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts to answer the question and does not refuse. However, it is incomplete because it omits the conversation-ownership and message-to-conversation/user/repository validation checks required by the reference facts."
+      },
+      "judge_validation_errors": [],
+      "answer": "To prevent users from accessing another user's repository chat or conversations, the following server-side checks are implemented:\n\n1. **User Association with Repository**: The system verifies that the user attempting to access the chat is associated with the repository. This is done through the `requireRepository` function, which retrieves the repository for the user and checks if it exists. If the user is not associated with the repository or if the repository is not found, the system denies access ([source 2](https://github.com/example/repo-url)).\n\n2. **Access Status Check**: The repository and user\u2019s access status are checked to ensure both are active. If either one has an access status that is not active, access is denied. This is enforced in the SQL queries where a join is made between the `UserRepository` and `Repository` models, ensuring both are active before granting access ([source 6](https://github.com/example/repo-url)).\n\n3. **Indexing Status Check**: The repository must be in a \"READY\" state with indexed content for the chat to be accessible. If the repository is still indexing or has no indexed content, the chat is not available ([source 6](https://github.com/example/repo-url)).\n\nThese measures ensure that only authorized users can view and interact with their respective chat conversations within a repository."
+    },
+    {
+      "case_id": "architecture-05",
+      "category": "architecture",
+      "question": "How does assistant text travel from the Python agent to the browser over SSE?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.6666666666666666,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 3
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.85,
+          "status": "scored",
+          "numerator": 17,
+          "denominator": 20
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 3
+        },
+        "citation_precision": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 4
+        },
+        "citation_coverage": {
+          "value": 0.1,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 20
+        },
+        "citation_validity": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 4
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "python_stream": 1.0,
+        "proxy": 0.0,
+        "browser": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer says the server emits `delta` updates, but it does not convey the essential upstream step that Python reads streamed AI text from the agent and then emits `delta` SSE events containing that text."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer does not state that the Next.js route forwards the FastAPI response body directly as `text/event-stream`, nor that it supplies conversation/message headers."
+          },
+          {
+            "fact_id": "f3",
+            "status": "missing",
+            "reason": "The answer mentions the client reads the stream and updates state, but omits the essential details that the browser buffers decoded bytes into SSE blocks, parses events, and appends `delta.text` to the assistant message."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer addresses the question and does not refuse or claim inability to determine anything, so there is no abstention. However, it misses all three reference facts' required implementation details."
+      },
+      "judge_validation_errors": [],
+      "answer": "The assistant text travels from the Python agent to the browser using Server-Sent Events (SSE). Here's a breakdown of the process based on the indexed code:\n\n1. **Sending the User Message**:\n   - The user sends a message through the `sendMessage` function. This triggers a request to the server containing the conversation and the user message.\n\n2. **Handling the Request in the Server**:\n   - The server handles the request within the `stream_repository_chat` function. It prepares to stream the response by creating an assistant message ID and inserting a placeholder message into the database with a \"STREAMING\" status.\n\n3. **Streaming the Response**:\n   - Using `yield` statements, the server sends events back to the client. It sends various types of events using the `sse_event` function, such as:\n     - `assistant_message`: When a new assistant message is generated.\n     - `delta`: Continuous updates with pieces of the assistant's output.\n     - `citations`: Any references that the assistant might include.\n     - `done`: Indicates that the assistant has finished sending its content.\n\n4. **Reading the Stream on the Client Side**:\n   - The client retrieves the streamed data in the `sendMessage` function via the `reader.read()` method, which reads data from the response stream.\n   - The data is processed and updated in the conversation state, thereby allowing the assistant's messages to be displayed in real-time.\n\n5. **Error Handling**:\n   - If an error occurs during the streaming process, the server sends an `error` SSE event to notify the client of the failure, which can then update the UI accordingly.\n\nThis entire interaction allows for a fluid communication flow where the assistant's responses can be streamed and displayed progressively in the browser, creating a dynamic chat experience. \n\nFor further details, you can reference the relevant portions of the code:\n- [Client-side handling in `apps/web/components/repository-chat.tsx`](https://github.com/your-repo) [1]\n- [Server-side streaming in `apps/api/app/chat.py`](https://github.com/your-repo) [2]."
+    },
+    {
+      "case_id": "architecture-06",
+      "category": "architecture",
+      "question": "How does chat expose GitHub MCP tools while enforcing repository scope in the MCP server?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.6666666666666666,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 3
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.8260869565217391,
+          "status": "scored",
+          "numerator": 19,
+          "denominator": 23
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 23
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "stdio": 1.0,
+        "tool_scope": 1.0,
+        "scope_query": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer mentions environment variables for user/repository IDs and lists issue/PR tools, but it does not state the essential component that chat starts the GitHub MCP server via stdio, nor clearly ties the tool loading to chat filtering the allowed tools from that stdio session."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer conveys PostgreSQL/database validation of user-repository access, but it omits essential details that the server checks both active Repository and active UserRepository access, and it does not specifically describe GitHub search query construction using the resolved repository scope (e.g., adding repo:owner/repo to searches)."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer provides a substantive explanation rather than refusing to answer, so there is no abstention. However, it misses key verified details about stdio startup/tool loading and the precise active-scope/search construction behavior."
+      },
+      "judge_validation_errors": [],
+      "answer": "The GitHub MCP tools expose functionality while ensuring that operations remain within the scope of a specific repository through a combination of access controls and repository-specific context handling.\n\n### Key Mechanisms\n\n1. **Repository Scope Enforced by the Server**:\n   - The server enforces the repository scope using the `repository_scope` function, which checks the user's access to the specified repository. The user ID and repository ID are extracted from environment variables:\n     ```python\n     user_id = read_string(os.getenv(\"REPOMIND_MCP_USER_ID\"))\n     repository_id = read_string(os.getenv(\"REPOMIND_MCP_REPOSITORY_ID\"))\n     ```\n   - This function queries the database to ensure that the user has active access to the repository, only returning scope details if valid access is confirmed. If access is denied, it raises a `RuntimeError`.\n\n2. **Scoped API Calls**:\n   - The API calls made to GitHub are constructed using the repository owner and name derived from the scoped data. The path to the GitHub endpoints uses this scoped information, ensuring that all requests are specific to the connected repository:\n     ```python\n     payload = await github_json(\n         f\"/repos/{scope['owner']}/{scope['repo']}/pulls/{pull_number}\",\n     )\n     ```\n   - This ensures that even if multiple repositories are connected to different users, the tools only interact with the repository for which the user has access.\n\n3. **Tool Listings**:\n   - The tools exposed include `search_issues`, `issue_read`, `search_pull_requests`, and `pull_request_read`. Tests reveal that these tools do not require repository information to be included in their parameters, as the server infers the repository context from the scoped environment variables:\n     ```python\n     assert {tool.name for tool in tools} == {\n        \"search_issues\",\n        \"issue_read\",\n        \"search_pull_requests\",\n        \"pull_request_read\",\n     }\n     ```\n\n4. **Database Validation**:\n   - A database connection checks the `UserRepository` table to confirm that the user has active access to the repository, which reinforces the repository-scoping integrity before any MCP tool functions are invoked.\n\n### Summary\nThe chat exposes GitHub MCP tools while enforcing repository scope by securely managing user access through environmental context, validating each request against the user's permissions in the database, and ensuring that all operations are limited to the specific repository linked to that user. This design not only enhances security but also simplifies the user experience by abstracting repository management from the tool invocations."
+    },
+    {
+      "case_id": "missing-01",
+      "category": "insufficient",
+      "question": "What exact production uptime SLA and monthly active user count does RepoMind guarantee?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "answer_correctness": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "fact_completeness": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "unnecessary_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [],
+        "material_errors": [],
+        "abstention": "correct",
+        "reason": "The answer explicitly states that the indexed corpus does not provide the production uptime SLA or monthly active user count, which matches the annotated missing information. There are no reference facts to evaluate for factual match, and the response appropriately acknowledges the absence of verified data rather than asserting unsupported values."
+      },
+      "judge_validation_errors": [],
+      "answer": "The information about production uptime SLA (Service Level Agreement) and monthly active user count that RepoMind guarantees is not present in the indexed code context. There are no specific references to uptime guarantees or user metrics in the provided documents.\n\nTo obtain this information, you might need to check the project's documentation, official website, or any service contracts associated with RepoMind. If this information is crucial, reviewing these sources or contacting the developers directly would be necessary."
+    },
+    {
+      "case_id": "missing-02",
+      "category": "insufficient",
+      "question": "What are RepoMind's measured production median chat latency and dollar cost per request?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "answer_correctness": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "fact_completeness": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "unnecessary_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [],
+        "material_errors": [],
+        "abstention": "correct",
+        "reason": "There are no reference facts to match. The expected missing information is that no measured production median latency or per-request dollar cost is supplied, and the answer explicitly acknowledges that these specific measurements are not available in the provided context. It does not falsely claim the missing values."
+      },
+      "judge_validation_errors": [],
+      "answer": "The provided code context does not include specific information about RepoMind's measured production median chat latency or dollar cost per request. This performance and cost measurement typically comes from metrics or logging systems rather than the codebase itself.\n\n### Missing Information\nTo provide the desired details, the following information would be necessary:\n1. **Metrics Collection**: Data on response times from the chat interactions.\n2. **Cost Analysis**: Insights regarding the cost structure, including API usage costs or infrastructure costs related to chat requests.\n\nIf you have access to logs or monitoring tools that track performance metrics and costs, you could find the required information there."
+    },
+    {
+      "case_id": "missing-03",
+      "category": "insufficient",
+      "question": "Search issues using query billing and state all. Which matching billing issue contains the payment-failure reproduction steps?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "answer_correctness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 2
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "unnecessary_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states there are no issues matching \"billing\" and therefore no issue with payment-failure reproduction steps, which conveys both essential components of the reference fact."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "correct",
+        "reason": "expected_missing is nonempty, and the answer explicitly acknowledges the missing portion (empty search results, so no billing issue or reproduction steps can be identified) while correctly answering the supported fact."
+      },
+      "judge_validation_errors": [],
+      "answer": "There are currently no issues matching the query \"billing\" in the repository. Consequently, there are no issues that contain payment-failure reproduction steps. If you need assistance with something else or a different query, please let me know!"
+    },
+    {
+      "case_id": "missing-04",
+      "category": "insufficient",
+      "question": "Explain the code's oversized-file exclusion, then read PR #9999 and report its measured indexing speedup. State which part cannot be established.",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "precision_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 6
+        },
+        "citation_validity": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "correct_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "unnecessary_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        }
+      },
+      "partial_overlap": {
+        "size": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "missing",
+            "reason": "The answer says oversized files are skipped above an unspecified threshold, but it does not state the essential details that files are skipped only when they are strictly larger than 1,048,576 bytes."
+          }
+        ],
+        "material_errors": [
+          "The answer introduces unsupported specifics about the logic being in an `index_repository` function and a `should_skip_path(path, file_size)` function; these details are not established by the provided reference/evidence.",
+          "It claims the specific implementation is unavailable, even though the fixture provides the decisive implementation detail for the size check (`size > MAX_FILE_BYTES` with `MAX_FILE_BYTES = 1_048_576`)."
+        ],
+        "abstention": "incorrect",
+        "reason": "Expected missing is nonempty, so the answer must both acknowledge the unavailable PR #9999 speedup information and still correctly report the supported reference fact. It correctly says the PR speedup cannot be established, but it fails to provide the established oversized-file threshold and strict comparison."
+      },
+      "judge_validation_errors": [],
+      "answer": "### Oversized-file Exclusion\n\nThe codebase includes a check for file sizes in the `index_repository` function when indexing repositories. If a file's size exceeds a certain threshold, it will be skipped during indexing. This is likely designed to improve performance and manage resource usage, ensuring that only manageable files are processed.\n\nThe critical aspect of the oversized-file exclusion logic is encapsulated in the `should_skip_path(path, file_size)` function, which determines if a file should be excluded based on its size. Unfortunately, the specific implementation of this function is not currently available in the provided code snippets.\n\n### Pull Request #9999 and Indexing Speedup\n\nI was unable to retrieve information about PR #9999, as it appears to either be non-existent or not accessible. Additionally, there were no results found for any closed pull requests related to \"indexing speedup.\" Therefore, the specific measured speedup from PR #9999 cannot be established.\n\nIn summary, while the oversized-file exclusion is accounted for in the indexing logic, the details of the presumed PR and the indexing speedup metrics are not verifiable based on the available information."
+    },
+    {
+      "case_id": "github-01",
+      "category": "github",
+      "question": "Search issues with query streaming and state all. Summarize issue #101's status and reported problem.",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": 0.9,
+          "status": "scored",
+          "numerator": 9,
+          "denominator": 10
+        },
+        "answer_correctness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.1,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 10
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states that issue #101 is open and that it reports retrieved source cards include files the assistant's answer never cites, which conveys all essential components of the reference fact."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer provides an affirmative summary and does not refuse or claim inability to determine any answerable fact."
+      },
+      "judge_validation_errors": [],
+      "answer": "### Issue Summary\n\n**Issue Title**: [Unused streaming source cards](https://github.com/AdityaSaxena17/RepoMind/issues/101)  \n**Status**: Open  \n**Author**: fixture-author  \n**Labels**: evaluation-fixture  \n**Created At**: July 1, 2026  \n**Updated At**: July 2, 2026  \n\n**Reported Problem**: The issue reports that retrieved source cards include files that the assistant's answer never cites. The user requests a distinction between candidate sources and support for individual claims. \n\nThis issue is currently open and awaiting further action."
+    },
+    {
+      "case_id": "github-02",
+      "category": "github",
+      "question": "Read the comments on issue #101. What did reviewer-b say about the displayed source cards?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 4,
+          "denominator": 4
+        },
+        "answer_correctness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 4
+        },
+        "citation_validity": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states that reviewer-b said the displayed cards are retrieved candidates, not proof that answer claims are supported, and that citations should be evaluated at the claim level."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer directly provides the supported comment content and does not refuse or claim inability to determine it."
+      },
+      "judge_validation_errors": [],
+      "answer": "Reviewer-b commented on issue [#101](https://github.com/AdityaSaxena17/RepoMind/issues/101) stating:\n\n> \"Displayed cards are retrieved candidates, not proof that answer claims are supported. Please evaluate citations at the claim level.\""
+    },
+    {
+      "case_id": "github-03",
+      "category": "github",
+      "question": "Search pull requests with query indexing and state all. What does PR #201 propose, and is it merged?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 7,
+          "denominator": 7
+        },
+        "answer_correctness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.14285714285714285,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 7
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states that PR #201 is open and not merged, and that it proposes running semantic and keyword candidate retrieval concurrently on the existing shared database connection. These are the essential components of the reference fact."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer provides the supported fact directly and does not refuse or claim inability to determine it."
+      },
+      "judge_validation_errors": [],
+      "answer": "PR #201 proposes \"Parallel indexing retrieval\" and is currently open. It suggests running semantic and keyword candidate retrieval concurrently using `asyncio.gather` on their existing shared database connection. \n\nYou can view the pull request [here](https://github.com/AdityaSaxena17/RepoMind/pull/201). It has not yet been merged."
+    },
+    {
+      "case_id": "github-04",
+      "category": "github",
+      "question": "Read the files changed by PR #202. Which file does it touch, and how many additions and deletions are reported?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "precision_at_6": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "groundedness": {
+          "value": 0.8,
+          "status": "scored",
+          "numerator": 4,
+          "denominator": 5
+        },
+        "answer_correctness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_precision": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 5
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {},
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states that PR #202 modifies `apps/api/app/worker.py` with 12 additions and 4 deletions, matching all essential components of the reference fact."
+          }
+        ],
+        "material_errors": [],
+        "abstention": "none",
+        "reason": "The answer provides the requested file and the reported additions and deletions without refusing or claiming inability to determine them."
+      },
+      "judge_validation_errors": [],
+      "answer": "PR #202 modifies the following file:\n\n- **Filename**: `apps/api/app/worker.py`\n- **Additions**: 12\n- **Deletions**: 4\n\nYou can view the changes [here](https://github.com/AdityaSaxena17/RepoMind/blob/678cd4ef010ef31f9293aa8ff0c92dafd255d002/apps/api/app/worker.py)."
+    },
+    {
+      "case_id": "mixed-01",
+      "category": "mixed",
+      "question": "Read issue #101. Which behavior in the indexed chat code explains its report, and does displaying a source card establish that the answer cited it?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "precision_at_6": {
+          "value": 0.16666666666666666,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.8333333333333334,
+          "status": "scored",
+          "numerator": 10,
+          "denominator": 12
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 3
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.08333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 12
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "all_cards": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states that issue #101 reports source cards/files that are never cited in the assistant's answers, which conveys the reported behavior."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "The answer does not convey the essential code behavior that cards are emitted for each retrieved document via iteration over retrieved documents, without checking which numeric citations actually appear in the answer. Instead it discusses handling incoming streamed citations in UI/update code, which is a different mechanism."
+          },
+          {
+            "fact_id": "f3",
+            "status": "missing",
+            "reason": "The answer does state that a displayed source card alone does not prove actual citation/support, but it does not connect this to the specific cause: the unused cards follow from iterating over retrieved documents regardless of which citations are used in the answer."
+          }
+        ],
+        "material_errors": [
+          "The answer identifies the wrong explanatory code path: it points to client-side/update handling of a streamed \"citations\" event rather than the server-side logic that builds cards for each retrieved document.",
+          "It claims the problem could arise because the assistant 'includes citations that do not correspond to the actual sources used in those answers,' but the reference facts instead attribute the report to emitting cards for retrieved documents without checking whether their numeric citations occur in the answer."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts a factual response and does not refuse or claim inability. It matches the issue report itself, but misses the key verified implementation detail explaining the behavior and misidentifies the responsible code path."
+      },
+      "judge_validation_errors": [],
+      "answer": "The issue #101, titled [\"Unused streaming source cards\"](https://github.com/AdityaSaxena17/RepoMind/issues/101), points out that the assistant retrieves source cards that include files that are never cited in its answers. The author of the issue requests a distinction between candidate sources and actual support for individual claims.\n\n### Behavior Explaining the Report\n\nWithin the indexed chat code, when the assistant retrieves chat messages, it can include citations in its responses. In this context, if the assistant generates answers and includes citations that do not correspond to the actual sources used in those answers, it can lead to the situation described in the issue. Specifically, the code that updates the assistant messages has a section where it processes \"citations\" based on the assistant's output:\n\n```typescript\nif (parsed.event === \"citations\" && Array.isArray(parsed.payload.citations)) {\n    updateAssistantMessage(assistantMessageId, (assistant) => ({\n        ...assistant,\n        citations: parsed.payload?.citations ?? [],\n    }));\n}\n```\n\nThis segment handles incoming citations from the assistant's streaming response, which could potentially include sources that are not used in the answer, thus leading to confusion as described in the issue.\n\n### Source Card Displaying\n\nAs for the source card behavior, since the report mentions the need to differentiate between sources that are simply retrieved and those that provide actual support for claims, the displayed source card does not sufficiently validate that the citations cited in the answer are relevant. Thus, the existence of a source card alone does not establish that it has been appropriately cited in the assistant's answers.\n\nThe suggestion from the issue implies that there should be a clearer distinction or system that appropriately marks which sources were actually used versus those that are just available but not cited."
+    },
+    {
+      "case_id": "mixed-02",
+      "category": "mixed",
+      "question": "Read PR #201 and compare its proposal with the indexed implementation of _aget_relevant_documents. Is the proposed concurrency already present in this snapshot?",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "precision_at_6": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.45454545454545453,
+          "status": "scored",
+          "numerator": 5,
+          "denominator": 11
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 3
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.09090909090909091,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 11
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "concurrent": 0.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer states that PR #201 proposes running semantic and keyword candidate retrieval concurrently using asyncio.gather on a shared database connection, which matches the reference fact."
+          },
+          {
+            "fact_id": "f2",
+            "status": "contradicted",
+            "reason": "The reference fact says the frozen implementation already calls both candidate methods through asyncio.gather. The answer says the current snapshot does not directly use such concurrency and implies no direct concurrent retrieval is present."
+          },
+          {
+            "fact_id": "f3",
+            "status": "contradicted",
+            "reason": "The reference fact says the concurrency is already present in the indexed snapshot, so the proposal does not show a new behavior or merged improvement. The answer concludes the concurrency is not present and represents an enhancement, which is the opposite."
+          }
+        ],
+        "material_errors": [
+          "The answer falsely claims the indexed implementation of _aget_relevant_documents does not already use asyncio.gather for concurrent semantic and keyword candidate retrieval.",
+          "The answer falsely concludes the PR's proposed concurrency is not present in the snapshot and would be a new enhancement/improvement.",
+          "The answer incorrectly characterizes the current implementation as sequential for the relevant retrieval step."
+        ],
+        "abstention": "none",
+        "reason": "The answer does not refuse or claim inability to determine the answerable facts. It answers directly, but key factual claims contradict the reference facts about the existing asyncio.gather concurrency in _aget_relevant_documents."
+      },
+      "judge_validation_errors": [],
+      "answer": "The pull request [#201](https://github.com/AdityaSaxena17/RepoMind/pull/201) proposes to run semantic and keyword candidate retrieval concurrently using `asyncio.gather` on their existing shared database connection.\n\n**Comparison with the Indexed Implementation of `_aget_relevant_documents`:**\n\n1. **Current Implementation**:\n   - In the current snapshot, the `_aget_relevant_documents` function appears to be using an iterative approach for handling document retrieval within its processes, as evidenced by the asynchronous calls seen in the `index_repository` function, which manages file content retrieval and chunk processing. There does not seem to be a direct use of concurrency for these tasks.\n\n2. **Proposed Changes**:\n   - The PR suggests integrating `asyncio.gather` to fetch both semantic and keyword candidate retrieval in parallel. This indicates a move towards more efficient document retrieval by potentially speeding up the overall throughput of the indexing process via concurrent execution.\n\n**Conclusion**:\nThe proposed concurrency using `asyncio.gather` is **not present** in the current implementation of `_aget_relevant_documents` and represents an enhancement that could significantly improve the performance of the indexing process. The current implementation follows a sequential pattern for data fetching and processing, which could be optimized by introducing the proposed changes from the pull request."
+    },
+    {
+      "case_id": "mixed-03",
+      "category": "mixed",
+      "question": "Read issue #103. Explain why the reported 1,800,000-byte source file is absent from the index, using the indexed worker code.",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.5,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 2
+        },
+        "precision_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.6923076923076923,
+          "status": "scored",
+          "numerator": 9,
+          "denominator": 13
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 3
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "citation_coverage": {
+          "value": 0.07692307692307693,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 13
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "size": 0.0,
+        "skip_call": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer acknowledges issue #103 and the reported absence of a 1,800,000-byte source file from the index."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "It mentions a size-based skip via should_skip_path, but omits the essential specific limit of 1,048,576 bytes and does not clearly state that the skip happens before fetching file content."
+          },
+          {
+            "fact_id": "f3",
+            "status": "contradicted",
+            "reason": "Instead of stating that the 1,800,000-byte file exceeds the worker's size limit and is therefore excluded, the answer says there could be multiple causes, including content-fetch/decoding problems, which conflicts with the reference explanation that size exclusion explains the absence rather than an embedding/content-fetch failure."
+          }
+        ],
+        "material_errors": [
+          "The answer introduces an unsupported alternative cause: that fetch_file_content/decoding issues may explain why the file was not indexed.",
+          "The answer frames the cause as uncertain ('could be', 'multiple factors') rather than the supported explanation that the 1,800,000-byte file exceeds the worker's size cutoff."
+        ],
+        "abstention": "unnecessary",
+        "reason": "expected_missing is empty, and the answer unnecessarily hedges/claims uncertainty about an answerable fact instead of giving the supported size-limit explanation from the worker code."
+      },
+      "judge_validation_errors": [
+        "Judge quote does not occur in the answer."
+      ],
+      "answer": "The reported issue regarding the absence of a 1,800,000-byte source file from the index, as stated in [issue #103](https://github.com/AdityaSaxena17/RepoMind/issues/103), could be due to the logic implemented in the `index_repository` function in the worker code.\n\nIn this function, before fetching the file content and adding it to the index, there is a call to `should_skip_path(path, file_size)`, which checks if the file should be excluded based on its path and size. If the file size exceeds a certain threshold or if the path matches specific conditions (though the exact details of this function are not provided in the indexed code), the file may be skipped.\n\nAdditionally, the contents of the file are fetched via `fetch_file_content`, which could also return `None` if the content encoding is not base64 or if there is another issue when decoding it. If any of these checks fail\u2014or if it was deemed unindexable for other reasons\u2014the file would not be included in the index.\n\nThus, there could be multiple factors causing the 1,800,000-byte file to be absent from the index, primarily related to the conditions set in the `should_skip_path` function and the content fetching logic."
+    },
+    {
+      "case_id": "mixed-04",
+      "category": "mixed",
+      "question": "Read PR #202. Compare its claim about preserving chat availability after failed reindexing with the indexed promotion, failure handling, and chat readiness checks.",
+      "status": "completed",
+      "metrics": {
+        "recall_at_6": {
+          "value": 0.3333333333333333,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 3
+        },
+        "precision_at_6": {
+          "value": 0.16666666666666666,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 6
+        },
+        "groundedness": {
+          "value": 0.7777777777777778,
+          "status": "scored",
+          "numerator": 14,
+          "denominator": 18
+        },
+        "answer_correctness": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        },
+        "fact_completeness": {
+          "value": 0.25,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 4
+        },
+        "citation_precision": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 2
+        },
+        "citation_coverage": {
+          "value": 0.1111111111111111,
+          "status": "scored",
+          "numerator": 2,
+          "denominator": 18
+        },
+        "citation_validity": {
+          "value": 1.0,
+          "status": "scored",
+          "numerator": 1,
+          "denominator": 1
+        },
+        "correct_abstention": {
+          "value": null,
+          "status": "not_applicable",
+          "numerator": 0,
+          "denominator": 0
+        },
+        "unnecessary_abstention": {
+          "value": 0.0,
+          "status": "scored",
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "partial_overlap": {
+        "transaction": 0.0,
+        "failed": 0.0,
+        "ready_gate": 1.0
+      },
+      "correctness": {
+        "facts": [
+          {
+            "fact_id": "f1",
+            "status": "matched",
+            "reason": "The answer correctly states that PR #202 claims the previous-index chat stays available after a failed reindex."
+          },
+          {
+            "fact_id": "f2",
+            "status": "missing",
+            "reason": "It does not state that promotion already replaces rows and sets READY inside a single transaction, nor that a failed transaction can leave the previous rows intact."
+          },
+          {
+            "fact_id": "f3",
+            "status": "missing",
+            "reason": "It conveys that chat depends on READY, but it does not identify the worker behavior that marks the repository itself FAILED on indexing errors. Instead it discusses a separate chat-message error path."
+          },
+          {
+            "fact_id": "f4",
+            "status": "missing",
+            "reason": "It argues the PR claim may not hold because chat requires READY, but it does not explicitly connect this to preserved old rows being insufficient for availability because the repository is marked FAILED and the pinned code blocks chat in that state."
+          }
+        ],
+        "material_errors": [
+          "The answer cites a chat messaging catch block that marks an assistant message as FAILED as if it were the relevant indexing-failure handling; the reference facts concern the worker marking the repository indexStatus to FAILED, which is a different mechanism.",
+          "The answer grounds chat readiness in a UI/component check in apps/web/components/repository-chat.tsx, whereas the verified readiness gate provided in the reference facts is the server-side check in apps/api/app/chat.py."
+        ],
+        "abstention": "none",
+        "reason": "The answer attempts a substantive comparison rather than refusing or claiming the facts cannot be established, so there is no abstention."
+      },
+      "judge_validation_errors": [],
+      "answer": "The claim made in PR #202 states that \"the previous-index chat stays available after any failed reindex.\" You can find the PR [here](https://github.com/AdityaSaxena17/RepoMind/pull/202). \n\n**Comparison with the Indexed Code Context:**\n\n1. **Promoting Chat Availability:**\n   - The chat availability is connected to the status of the repository's indexing, specifically stated in the component found at `apps/web/components/repository-chat.tsx`. The code checks if the repository status is \"READY\" for chat functionality. If the repository status is not \"READY\" or if the indexed chunk count is zero, the chat will not be available:\n     ```javascript\n     const chatReady = repository.status === \"READY\" && repository.embeddings > 0;\n     ```\n\n2. **Failure Handling:**\n   - The `catch` block in the chat messaging logic manages errors. When an error occurs during message sending, the assistant message is updated to reflect a \"FAILED\" status, which clearly indicates that the chat can handle errors:\n     ```javascript\n     updateAssistantMessage(assistantMessageId, (assistant) => ({\n       ...assistant,\n       status: \"FAILED\",\n       error_message: messageText,\n     }));\n     ```\n\n3. **Chat Readiness Checks:**\n   - The chat component includes a specific message regarding the chat's availability based on the index status:\n     ```javascript\n     {!chatReady ? (\n       <div className=\"max-w-2xl rounded-lg border border-amber-400/20\"> \n         Repository chat is available after indexing succeeds. Current status: {repository.status};\n       </div>\n     ) : null}\n     ```\n   - This code snippet indicates that when the index status is not \"READY,\" users are informed that the chat is not available until the indexing completes.\n\nIn summary, the indexed code highlights that chat availability is contingent on the successful completion of indexing. If the reindexing fails, the previous-index chat's availability is not guaranteed as it relies on being in the \"READY\" state. Thus, the claim in PR #202 requires verification against the actual error handling and state management in the code which suggests that chat will only be available if the indexing process has successfully completed. The intended safety net for chat availability may not hold in practice if the repository state does not transition to \"READY\" post-reindex failure."
+    }
+  ]
+}

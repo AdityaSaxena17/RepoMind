@@ -18,6 +18,7 @@ class Settings:
     openai_api_key: str | None
     openai_embeddings_model: str
     openai_chat_model: str | None
+    repository_rerank: bool
 
     @property
     def redis_settings(self) -> RedisSettings:
@@ -86,6 +87,9 @@ def read_optional_token(value: str | None) -> str | None:
 
 @lru_cache
 def get_settings() -> Settings:
+    reranker = os.getenv("REPOSITORY_RERANKER", "none")
+    if reranker not in {"none", "qwen3"}:
+        raise ValueError("REPOSITORY_RERANKER must be none or qwen3.")
     database_url = (
         os.getenv("API_DATABASE_URL")
         or os.getenv("DATABASE_URL")
@@ -108,4 +112,5 @@ def get_settings() -> Settings:
             "text-embedding-3-small",
         ),
         openai_chat_model=normalize_openai_chat_model(os.getenv("OPENAI_CHAT_MODEL")),
+        repository_rerank=reranker == "qwen3",
     )

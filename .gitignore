@@ -9,6 +9,7 @@ node_modules
 .python-cache
 .ruff-cache
 .uv-cache
+.model-cache/
 .pnp
 .pnp.js
 
@@ -21,6 +22,7 @@ node_modules
 
 # Testing
 coverage
+.eval-artifacts/
 
 # Turbo
 .turbo

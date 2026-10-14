@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from typing import Any
 
@@ -17,10 +18,11 @@ from langchain_openai import OpenAIEmbeddings
 from pydantic import ConfigDict
 
 from .config import get_settings
+from .reranking import score_passages
 
 EMBEDDING_DIMENSIONS = 1536
-VECTOR_CANDIDATES = 12
-KEYWORD_CANDIDATES = 12
+VECTOR_CANDIDATES = 24
+KEYWORD_CANDIDATES = 24
 FINAL_PARENT_CONTEXTS = 6
 PARENT_LINE_EXPANSION = 80
 PARENT_MAX_LINES = 250
@@ -190,7 +192,7 @@ class RepoMindRepositoryVectorStore(VectorStore):
     ) -> list[Document]:
         """Return similar repository chunks as LangChain documents."""
         del kwargs
-        query_vector = (await self.embeddings.aembed_query(query))
+        query_vector = await self.embeddings.aembed_query(query)
         vector = "[" + ",".join(str(float(value)) for value in query_vector) + "]"
         rows = await self.connection.fetch(
             """
@@ -233,6 +235,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
     vector_k: int = VECTOR_CANDIDATES
     keyword_k: int = KEYWORD_CANDIDATES
     final_k: int = FINAL_PARENT_CONTEXTS
+    rerank: bool = False
 
     def _get_relevant_documents(
         self,
@@ -250,11 +253,23 @@ class RepoMindParentHybridRetriever(BaseRetriever):
         run_manager: AsyncCallbackManagerForRetrieverRun,
     ) -> list[Document]:
         del run_manager
-        vector_rows, keyword_rows = await asyncio.gather(
-            self._vector_candidates(query),
-            self._keyword_candidates(query),
+        # asyncpg permits only one operation at a time on this shared connection.
+        vector_rows = await self._vector_candidates(query) if self.vector_k > 0 else []
+        keyword_rows = (
+            await self._keyword_candidates(query) if self.keyword_k > 0 else []
         )
         fused = self._fuse_candidates(vector_rows, keyword_rows)
+        if self.rerank and fused:
+            scores = await asyncio.to_thread(
+                score_passages,
+                query,
+                [f"{row['path']}\n{row['content']}" for row in fused],
+            )
+            for row, score in zip(fused, scores, strict=True):
+                row["rerank_score"] = score
+            # Stable ties retain the deterministic RRF order. Score every fused
+            # candidate before the existing parent-selection bound is applied.
+            fused.sort(key=lambda row: -float(row["rerank_score"]))
         return await self._parent_documents(fused[: self.final_k * 3])
 
     async def _vector_candidates(self, query: str) -> list[dict[str, Any]]:
@@ -262,7 +277,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
         vector = "[" + ",".join(str(float(value)) for value in query_vector) + "]"
         rows = await self.connection.fetch(
             """
-            SELECT "id", "fileId", "path", "startLine", "endLine", "contentSha",
+            SELECT "id", "fileId", "path", "startLine", "endLine", "contentSha", "content",
                    "embedding" <=> $2::vector AS distance
             FROM "RepositoryChunk"
             WHERE "repositoryId" = $1
@@ -282,6 +297,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
                 "start_line": int(row["startLine"]),
                 "end_line": int(row["endLine"]),
                 "content_sha": str(row["contentSha"]),
+                "content": str(row["content"]),
                 "distance": float(row["distance"]),
                 "source": "vector",
                 "rank": index + 1,
@@ -293,24 +309,64 @@ class RepoMindParentHybridRetriever(BaseRetriever):
         if not query.strip():
             return []
 
+        # CamelCase also occurs in prose (GitHub, RepoMind); a boost requires
+        # backticks, snake_case, or explicit call syntax instead.
+        identifiers = sorted(
+            {
+                word
+                for word in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", query)
+                if "_" in word
+            }
+            | set(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", query))
+            | set(re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\(", query))
+        )
+        identifier_patterns = [
+            f"(^|[^[:alnum:]_]){word}([^[:alnum:]_]|$)" for word in identifiers
+        ]
+        paths = sorted(set(re.findall(r"[\w@./\[\]-]+\.[A-Za-z][A-Za-z0-9]*", query)))
         rows = await self.connection.fetch(
             """
-            WITH search_query AS (
-              SELECT websearch_to_tsquery('simple', $2) AS query
+            WITH terms AS (
+              -- Use English only to recognize stopwords; the index is unstemmed.
+              SELECT DISTINCT token FROM ts_debug('english', $2)
+              WHERE cardinality(lexemes) > 0
+              UNION SELECT unnest($6::text[])
+            ), search_query AS (
+              SELECT string_agg(plainto_tsquery('simple', token)::text,
+                                ' | ' ORDER BY token)::tsquery AS query
+              FROM terms WHERE numnode(plainto_tsquery('simple', token)) > 0
             )
             SELECT c."id", c."fileId", c."path", c."startLine", c."endLine",
-                   c."contentSha",
-                   ts_rank_cd(to_tsvector('simple', c."content"), search_query.query)
-                     AS rank_score
+                   c."contentSha", c."content",
+                   COALESCE(ts_rank_cd(to_tsvector('simple', c."content"),
+                                       search_query.query), 0) AS rank_score,
+                   (SELECT count(DISTINCT plainto_tsquery('simple', token)::text)
+                    FROM terms WHERE to_tsvector('simple', c."content")
+                                     @@ plainto_tsquery('simple', token))
+                     AS matched_terms,
+                   (EXISTS (SELECT 1 FROM unnest($4::text[]) pattern
+                            WHERE c."content" ~ pattern)
+                    OR EXISTS (SELECT 1 FROM unnest($5::text[]) path
+                               WHERE c."path" = path
+                                  OR right(c."path", length(path) + 1) = '/' || path))
+                     AS exact_match
             FROM "RepositoryChunk" c, search_query
             WHERE c."repositoryId" = $1
-              AND to_tsvector('simple', c."content") @@ search_query.query
-            ORDER BY rank_score DESC
+              AND (to_tsvector('simple', c."content") @@ search_query.query
+                   OR EXISTS (SELECT 1 FROM unnest($5::text[]) path
+                              WHERE c."path" = path
+                                 OR right(c."path", length(path) + 1) = '/' || path))
+            -- Broad term coverage outranks repetition of a single generic word.
+            ORDER BY exact_match DESC, matched_terms DESC, rank_score DESC,
+                     c."path" COLLATE "C", c."chunkIndex", c."id"
             LIMIT $3
             """,
             self.repository_id,
             query,
             self.keyword_k,
+            identifier_patterns,
+            paths,
+            identifiers,
         )
 
         return [
@@ -322,6 +378,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
                 "end_line": int(row["endLine"]),
                 "content_sha": str(row["contentSha"]),
                 "keyword_score": float(row["rank_score"]),
+                "content": str(row["content"]),
                 "source": "keyword",
                 "rank": index + 1,
             }
@@ -349,7 +406,14 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             item["sources"].add(str(row["source"]))
 
         results = list(fused.values())
-        results.sort(key=lambda item: float(item["score"]), reverse=True)
+        results.sort(
+            key=lambda item: (
+                -float(item["score"]),
+                str(item["path"]),
+                int(item["start_line"]),
+                str(item["id"]),
+            )
+        )
         return results
 
     async def _parent_documents(
