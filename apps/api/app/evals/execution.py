@@ -15,13 +15,17 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import unquote, urlsplit
 
+import anyio
 import asyncpg
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
+from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
+from ..agents import AgentFindings, AgentLimits, investigate_code, investigate_github
 from ..chat import stream_repository_answer
+from ..code_tools import CodeTools
 from ..config import get_settings, normalize_asyncpg_database_url
 from ..github_mcp_server import mcp, search_query, validate_page
 from ..retrieval import (
@@ -30,7 +34,7 @@ from ..retrieval import (
     RepoMindParentHybridRetriever,
     create_embedding_model,
 )
-from ..tool_registry import parse_tool_policy
+from ..tool_registry import RequestScope, ToolRegistry, parse_tool_policy
 from ..worker import (
     CHUNK_OVERLAP,
     CHUNK_TOKENS,
@@ -38,8 +42,16 @@ from ..worker import (
     promote_index,
     should_skip_path,
 )
-from .models import CodeContext, Dataset, EvaluationResult, Fixtures, ToolExecution
-from .scoring import build_catalog
+from .models import (
+    CodeContext,
+    Dataset,
+    EvaluationResult,
+    Fixtures,
+    Metric,
+    Question,
+    ToolExecution,
+)
+from .scoring import build_catalog, ratio, unit_overlap, visible_lines
 
 ROOT = Path(__file__).resolve().parents[4]
 DATA = Path(__file__).parent / "data"
@@ -631,3 +643,164 @@ class SingleAgentRunner:
         result.tool_executions = list(self.tool_records)
         result.citation_catalog = build_catalog(result, self.repository)
         return result
+
+
+def score_final_evidence_coverage(
+    question: Question,
+    result: EvaluationResult,
+    corpus: dict[str, str],
+    commit_sha: str,
+) -> tuple[Metric, dict[str, float]]:
+    """Measure required evidence covered by all observed windows, without a @6 label."""
+    observed = set().union(
+        *(
+            visible_lines(context, corpus, commit_sha)
+            for context in result.evidence_seen
+        )
+    )
+    overlaps = {
+        unit.id: unit_overlap(unit, observed) for unit in question.required_evidence
+    }
+    return ratio(
+        sum(value == 1 for value in overlaps.values()), len(overlaps)
+    ), overlaps
+
+
+class SpecializedAgentRunner:
+    """Evaluate one specialist through Runner in the isolated database."""
+
+    def __init__(
+        self,
+        connection: asyncpg.Connection,
+        embeddings: Embeddings,
+        repository_id: str,
+        commit_sha: str,
+        repository: str,
+        role: Literal["CODE", "GITHUB"],
+        model: BaseChatModel,
+        tools: list[BaseTool],
+        tool_records: list[ToolExecution],
+        *,
+        limits: AgentLimits | None = None,
+        rerank: bool = False,
+    ) -> None:
+        self.connection, self.embeddings = connection, embeddings
+        self.repository_id, self.commit_sha, self.repository = (
+            repository_id,
+            commit_sha,
+            repository,
+        )
+        self.role, self.model, self.tools = role, model, tools
+        self.tool_records, self.rerank = tool_records, rerank
+        self.limits = limits or AgentLimits()
+        self.last_findings: AgentFindings | None = None
+        self.last_result = EvaluationResult()
+        self.first_query: str | None = None
+
+    async def run(self, question: str) -> EvaluationResult:
+        """Seed temporary eval access, run the specialist, then remove access."""
+        connection = self.connection
+        if not await connection.fetchval(
+            "SELECT current_database() = 'repomind_eval' "
+            "AND current_user = 'repomind_eval'"
+        ):
+            raise ValueError(
+                "Specialist evaluation requires the dedicated eval database and role."
+            )
+        user_id = f"eval_agent_{uuid.uuid4().hex}"
+        try:
+            async with connection.transaction():
+                await connection.execute(
+                    'INSERT INTO "User" ("id", "clerkId", "updatedAt") '
+                    "VALUES ($1,$1,now())",
+                    user_id,
+                )
+                await connection.execute(
+                    'INSERT INTO "UserRepository" '
+                    '("id", "userId", "repositoryId", "updatedAt") '
+                    "VALUES ($1,$2,$3,now())",
+                    user_id + "_access",
+                    user_id,
+                    self.repository_id,
+                )
+            registry = ToolRegistry(
+                RequestScope(
+                    user_id=user_id,
+                    repository_id=self.repository_id,
+                    capabilities=frozenset({"code.read", "github.read"}),
+                )
+            )
+            code_tools = CodeTools(
+                registry,
+                self.embeddings,
+                self.commit_sha,
+                connection=connection,
+                rerank=self.rerank,
+            )
+            if self.role == "CODE":
+                findings = await investigate_code(
+                    self.model,
+                    registry,
+                    code_tools,
+                    question,
+                    limits=self.limits,
+                )
+            else:
+                for tool in self.tools:
+                    metadata = tool.metadata or {}
+                    policy = parse_tool_policy(metadata.get("_meta"), metadata)
+                    if policy is None or policy.capability != "github.read":
+                        raise ValueError("GitHub fixture tool has an invalid policy.")
+                    registry.register_local(tool, policy, code_tools.authorize)
+                findings = await investigate_github(
+                    self.model,
+                    registry,
+                    question,
+                    limits=self.limits,
+                )
+            self.last_findings, self.first_query = findings, code_tools.first_query
+            contexts = [
+                CodeContext.model_validate(source.model_dump(exclude={"url"}))
+                for source in findings.evidence
+            ]
+            visible_ids = {context.id for context in contexts}
+            self.last_result = EvaluationResult(
+                answer=findings.answer,
+                final_contexts=[
+                    CodeContext.model_validate(source.model_dump(exclude={"url"}))
+                    for source in code_tools.first_pass
+                    if source.id in visible_ids
+                ],
+                evidence_seen=contexts,
+                tool_executions=(
+                    list(self.tool_records)
+                    if self.role == "GITHUB"
+                    else [
+                        ToolExecution(
+                            id=record.id,
+                            name=record.name,
+                            arguments=record.arguments,
+                            result=record.result,
+                            error=record.message.text
+                            if record.message.status == "error"
+                            else None,
+                        )
+                        for record in findings.tool_executions
+                    ]
+                ),
+            )
+            self.last_result.citation_catalog = build_catalog(
+                self.last_result, self.repository
+            )
+            if self.role == "CODE":
+                self.last_result.citation_catalog.update(findings.citation_catalog)
+            if findings.status == "failed":
+                raise RuntimeError(
+                    "Specialized investigation failed; inspect its structured findings."
+                )
+            return self.last_result
+        finally:
+            # All agent/tool scopes have unwound before eval-only writes resume.
+            # UserRepository cascades on delete, including cancellation paths.
+            with anyio.CancelScope(shield=True):
+                await connection.execute('DELETE FROM "User" WHERE "id"=$1', user_id)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
@@ -96,7 +95,6 @@ class _GuardedTool(BaseTool):
     delegate: BaseTool = Field(exclude=True, repr=False)
     descriptor: ToolDescriptor = Field(exclude=True)
     scope: _ToolScope = Field(exclude=True, repr=False)
-    local_lock: asyncio.Lock = Field(exclude=True, repr=False)
     authorize: Callable[[RequestScope], Awaitable[None]] | None = Field(
         default=None, exclude=True, repr=False
     )
@@ -136,26 +134,21 @@ class _GuardedTool(BaseTool):
     ) -> Any:
         try:
             with anyio.fail_after(INVOCATION_TIMEOUT_SECONDS):
-                async with AsyncExitStack() as stack:
-                    if self.authorize is not None:
-                        await stack.enter_async_context(self.local_lock)
+                if not self.scope.active:
+                    raise ToolException("Tool scope is closed.")
+                capability = self.descriptor.policy.capability
+                if (
+                    capability not in self.scope.capabilities
+                    or capability not in self.scope.request.capabilities
+                ):
+                    raise PermissionError("Tool capability is not authorized.")
+                if self.authorize is not None:
+                    await self.authorize(self.scope.request)
                     if not self.scope.active:
-                        raise ToolException("Tool scope is closed.")
-                    capability = self.descriptor.policy.capability
-                    if (
-                        capability not in self.scope.capabilities
-                        or capability not in self.scope.request.capabilities
-                    ):
-                        raise PermissionError("Tool capability is not authorized.")
-                    if self.authorize is not None:
-                        await self.authorize(self.scope.request)
-                        if not self.scope.active:
-                            raise ToolException(
-                                "Tool scope closed during authorization."
-                            )
-                    # Delegate the complete native invocation, including ToolCall and
-                    # config, so LangChain retains artifacts and callback semantics.
-                    return await invoke()
+                        raise ToolException("Tool scope closed during authorization.")
+                # Database ownership and concurrency belong to the local tool.
+                # Delegate the full native invocation to retain callbacks/artifacts.
+                return await invoke()
         except Exception as error:
             context = f"Tool '{self.name}' from '{self.descriptor.provider}'"
             if isinstance(error, TimeoutError):
@@ -164,6 +157,8 @@ class _GuardedTool(BaseTool):
                 message = f"{context} is not authorized."
             elif not self.scope.active:
                 message = f"{context} cannot run after its scope closes."
+            elif isinstance(error, ToolException) and self.authorize is not None:
+                message = f"{context}: {error}"
             else:
                 message = f"{context} failed."
             if call_id is not None:
@@ -193,7 +188,6 @@ class ToolRegistry:
             tuple[BaseTool, ToolDescriptor, Callable[[RequestScope], Awaitable[None]]]
         ] = []
         self._names: dict[str, str] = {}
-        self._local_lock = asyncio.Lock()
 
     def register_local(
         self,
@@ -300,7 +294,6 @@ class ToolRegistry:
                             delegate=tool,
                             descriptor=descriptor,
                             scope=state,
-                            local_lock=self._local_lock,
                             authorize=authorize,
                         )
                         for tool, descriptor, authorize in selected

@@ -15,7 +15,8 @@ from pathlib import Path
 from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from .. import retrieval
-from ..chat import CHAT_SYSTEM_PROMPT, agent_messages
+from ..agents import CODE_AGENT_PROMPT, GITHUB_AGENT_PROMPT, AgentLimits
+from ..chat import CHAT_SYSTEM_PROMPT, agent_messages, create_chat_model
 from ..config import get_settings
 from ..reranking import (
     RERANKER_BATCH_SIZE,
@@ -29,15 +30,18 @@ from ..worker import CHUNK_OVERLAP, CHUNK_TOKENS
 from .execution import (
     ARTIFACTS,
     DATA,
+    JSON_OBJECT,
     ROOT,
     CachedEmbeddings,
     SingleAgentRunner,
+    SpecializedAgentRunner,
     connect_evaluation_database,
     corpus_documents,
     digest,
     fixture_tools,
     load_benchmark,
     prepare_index,
+    score_final_evidence_coverage,
     verify_index,
 )
 from .judge import SemanticJudge
@@ -56,7 +60,10 @@ def aggregate(report: RunReport, category: str | None = None) -> dict[str, JsonV
     """Macro-average metrics with applicability and missing-score counts."""
     cases = [c for c in report.cases if category is None or c.category == category]
     output: dict[str, JsonValue] = {}
-    for name in METRIC_NAMES:
+    names = list(METRIC_NAMES)
+    if any("final_evidence_coverage" in case.metrics for case in cases):
+        names.append("final_evidence_coverage")
+    for name in names:
         metrics = [c.metrics.get(name, Metric()) for c in cases]
         values = [
             m.value for m in metrics if m.status == "scored" and m.value is not None
@@ -608,6 +615,15 @@ async def run(args: argparse.Namespace) -> int:
         ]
         if selected - {q.id for q in benchmark.dataset.questions}:
             raise ValueError("Unknown selected case ID.")
+        specialist = getattr(args, "agent", "single")
+        if specialist != "single":
+            expected_scope = "CODE" if specialist == "code" else "GITHUB"
+            if selected and any(q.evidence_scope != expected_scope for q in questions):
+                raise ValueError(
+                    "Selected cases must match the requested specialist; "
+                    "MIXED is not implemented."
+                )
+            questions = [q for q in questions if q.evidence_scope == expected_scope]
         retrieval_mode = (
             args.retrieval_mode if args.command == "retrieval" else "hybrid"
         )
@@ -733,6 +749,19 @@ async def run(args: argparse.Namespace) -> int:
             if isinstance(versions, dict):
                 for name in ("sentence-transformers", "transformers", "torch"):
                     versions[name] = importlib.metadata.version(name)
+        if specialist != "single":
+            metadata["architecture"] = f"{specialist}_agent"
+            metadata["prompt_sha256"] = digest(
+                CODE_AGENT_PROMPT if specialist == "code" else GITHUB_AGENT_PROMPT
+            )
+            metadata["agent_limits"] = AgentLimits(
+                tool_calls=args.tool_call_limit,
+                model_calls=args.model_call_limit,
+                timeout_seconds=args.timeout,
+            ).model_dump(mode="json")
+            metadata["retrieval_evaluation_policy"] = "first_search_batch_at_6"
+            metadata["final_evidence_policy"] = "all_observed_searches_and_file_reads"
+            metadata["investigations"] = {}
         report = RunReport(metadata=metadata)
         write_report(report, output)
         for question in questions:
@@ -743,6 +772,7 @@ async def run(args: argparse.Namespace) -> int:
                 metrics={name: Metric() for name in METRIC_NAMES},
             )
             records: list[ToolExecution] = []
+            runner: Runner | None = None
             try:
                 tools = (
                     await fixture_tools(
@@ -750,26 +780,51 @@ async def run(args: argparse.Namespace) -> int:
                         question.fixture_scenario,
                         records,
                     )
-                    if args.command == "full"
+                    if args.command == "full" and specialist != "code"
                     else []
                 )
-                runner: Runner = SingleAgentRunner(
-                    connection,
-                    embedding,
-                    repository_id,
-                    benchmark.dataset.corpus_commit_sha,
-                    benchmark.dataset.repository,
-                    tools,
-                    records,
-                    retrieval_only=args.command == "retrieval",
-                    vector_k=vector_k,
-                    keyword_k=keyword_k,
-                    rerank=rerank,
-                )
-                case.result = await asyncio.wait_for(
-                    runner.run(question.question),
-                    timeout=args.timeout,
-                )
+                if specialist == "single":
+                    runner = SingleAgentRunner(
+                        connection,
+                        embedding,
+                        repository_id,
+                        benchmark.dataset.corpus_commit_sha,
+                        benchmark.dataset.repository,
+                        tools,
+                        records,
+                        retrieval_only=args.command == "retrieval",
+                        vector_k=vector_k,
+                        keyword_k=keyword_k,
+                        rerank=rerank,
+                    )
+                else:
+                    runner = SpecializedAgentRunner(
+                        connection,
+                        embedding,
+                        repository_id,
+                        benchmark.dataset.corpus_commit_sha,
+                        benchmark.dataset.repository,
+                        "CODE" if specialist == "code" else "GITHUB",
+                        create_chat_model(),
+                        tools,
+                        records,
+                        rerank=rerank,
+                        limits=AgentLimits(
+                            tool_calls=args.tool_call_limit,
+                            model_calls=args.model_call_limit,
+                            timeout_seconds=args.timeout,
+                        ),
+                    )
+                if specialist == "single":
+                    case.result = await asyncio.wait_for(
+                        runner.run(question.question),
+                        timeout=args.timeout,
+                    )
+                else:
+                    # The specialist owns its deadline inside the MCP scope and
+                    # returns partial findings. An outer timeout would cancel it
+                    # before those findings and evidence could be retained.
+                    case.result = await runner.run(question.question)
                 retrieval_metrics, case.partial_overlap = score_retrieval(
                     question,
                     case.result,
@@ -777,6 +832,19 @@ async def run(args: argparse.Namespace) -> int:
                     benchmark.dataset.corpus_commit_sha,
                 )
                 case.metrics.update(retrieval_metrics)
+                if specialist == "code":
+                    coverage, overlaps = score_final_evidence_coverage(
+                        question,
+                        case.result,
+                        benchmark.corpus,
+                        benchmark.dataset.corpus_commit_sha,
+                    )
+                    case.metrics["final_evidence_coverage"] = coverage
+                    investigations = report.metadata.get("investigations")
+                    if isinstance(investigations, dict):
+                        investigations[question.id] = JSON_OBJECT.validate_python(
+                            {"final_evidence_overlap": overlaps}
+                        )
                 if args.command == "full":
                     case.citations = referenced_citations(
                         case.result,
@@ -799,10 +867,40 @@ async def run(args: argparse.Namespace) -> int:
                     )
             except Exception as error:
                 case.status, case.error = "error", f"execution: {type(error).__name__}"
-                case.result.tool_executions = list(records)
+                if isinstance(runner, SpecializedAgentRunner):
+                    case.result = runner.last_result
+                else:
+                    case.result.tool_executions = list(records)
                 for name, metric in case.metrics.items():
                     if metric.status == "unscored":
                         case.metrics[name] = Metric(status="error")
+            if isinstance(runner, SpecializedAgentRunner) and runner.last_findings:
+                findings = runner.last_findings
+                investigations = report.metadata.get("investigations")
+                if isinstance(investigations, dict):
+                    details = investigations.get(question.id, {})
+                    if isinstance(details, dict):
+                        details.update(
+                            JSON_OBJECT.validate_python(
+                                {
+                                    "status": runner.last_findings.status,
+                                    "missing_information": findings.missing_information,
+                                    "errors": [
+                                        e.model_dump(mode="json")
+                                        for e in runner.last_findings.errors
+                                    ],
+                                    "model_calls": runner.last_findings.model_calls,
+                                    "tool_calls": len(
+                                        runner.last_findings.tool_executions
+                                    ),
+                                    "first_search_query": runner.first_query,
+                                    "observed_code_windows": len(
+                                        runner.last_findings.evidence
+                                    ),
+                                }
+                            )
+                        )
+                        investigations[question.id] = details
             report.cases.append(case)
             write_report(report, output)
             print(f"Evaluated {question.id}: {case.status}", flush=True)
@@ -881,6 +979,12 @@ def main() -> int:
                 "--judge-reasoning-effort",
                 choices=("none", "low", "medium", "high", "xhigh"),
             )
+        if name == "full":
+            command.add_argument(
+                "--agent", choices=("single", "code", "github"), default="single"
+            )
+            command.add_argument("--tool-call-limit", type=int, default=6)
+            command.add_argument("--model-call-limit", type=int, default=8)
         if name == "grade":
             command.add_argument("input", type=Path)
     comparison = commands.add_parser("compare")

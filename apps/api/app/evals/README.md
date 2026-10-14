@@ -1,5 +1,39 @@
 # RepoMind quality evaluations
 
+Component 3 adds standalone specialist runs. The default remains the existing
+single-agent baseline; production chat and MIXED orchestration are unchanged.
+
+```powershell
+python scripts/uv_run.py python -m app.evals full --agent code --experiment code-agent-v1
+python scripts/uv_run.py python -m app.evals full --agent github --experiment github-agent-v1
+```
+
+Each specialist runs only its evidence-scope cases. Explicit `--case` selections
+must match that scope; MIXED cases require the subsequent orchestration component.
+Both use the existing model factory. `--tool-call-limit` (default 6),
+`--model-call-limit` (default 8), and `--timeout` (default 120 seconds) bound each
+investigation. Final JSON completion is validated against a strict Pydantic schema
+in the same agent loop and does not consume the repository-tool budget. Malformed
+completion fails with partial evidence retained. This avoids the forced tool choice
+that Hive rejects in LangChain's structured-output tool mode. Intermediate research
+and completion JSON are not forwarded to production SSE.
+
+For Code Agent runs, `final_contexts` contains the first search batch, at most six
+windows, for the unchanged Recall@6/Precision@6 scorers. All successfully returned
+search/file evidence is retained in `evidence_seen`, with stable source IDs and
+numbers across calls. `final_evidence_coverage` separately measures the fraction
+of required evidence units fully covered by that entire observed union. It is
+unbounded coverage, not Recall@6; report metadata records this distinction, the
+first search query, model/tool counts, missing information, errors, and per-unit
+final overlap. Additional retrieval therefore cannot inflate first-pass @6 scores.
+
+Specialist adapters use temporary user/access rows in the verified evaluation-only
+database so production code-tool authorization is exercised without a bypass.
+Those rows are removed on success, failure, and cancellation. GitHub fixture
+matching, schemas, normalized defaults, and execution records remain unchanged.
+No frozen datasets, corpus references, scorer definitions, or baseline artifacts
+are modified. These standalone component runs are not a full multi-agent baseline.
+
 This package benchmarks the production hybrid retriever and shared single-agent
 generation function. Cases start with empty conversation history. Results separate
 retrieval, groundedness, correctness, citation support, and abstention; there is no

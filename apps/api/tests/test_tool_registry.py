@@ -515,7 +515,7 @@ def test_invocation_failure_deadlines_and_cancellation(
     asyncio.run(run())
 
 
-def test_local_calls_serialize_across_scopes_and_requests_are_isolated() -> None:
+def test_local_calls_can_overlap_and_requests_are_isolated() -> None:
     async def run() -> None:
         active = 0
         maximum = 0
@@ -542,7 +542,7 @@ def test_local_calls_serialize_across_scopes_and_requests_are_isolated() -> None
             registry.scoped_tools(CODE) as second,
         ):
             await asyncio.gather(first[0].ainvoke({}), second[0].ainvoke({}))
-        assert maximum == 1
+        assert maximum == 2
         assert seen == ["repo", "repo"]
         other = ToolRegistry(request("other"))
         other.register_local(local_tool(coroutine=execute), policy, check)
