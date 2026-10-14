@@ -41,12 +41,15 @@ def load_env_file(env: dict[str, str], path: Path) -> None:
 
 
 def uv_environment() -> dict[str, str]:
-    env = os.environ.copy()
+    """Load local defaults, preserving explicitly supplied process variables."""
+    env: dict[str, str] = {}
     root = repo_root()
     api = api_root()
     load_env_file(env, root / ".env")
     load_env_file(env, root / "apps" / "web" / ".env")
     load_env_file(env, api / ".env")
+    # Shell/CI overrides win; API-local defaults win over shared web/root files.
+    env.update(os.environ)
     env.setdefault("UV_CACHE_DIR", str(root / ".uv-cache"))
     env.setdefault("UV_PROJECT_ENVIRONMENT", str(root / ".venv-api"))
     env.setdefault("MYPY_CACHE_DIR", str(root / ".mypy-cache"))

@@ -43,6 +43,55 @@ from app.evals.scoring import (
 )
 
 SHA = "a" * 40
+
+
+@pytest.mark.parametrize("eligible", [False, True])
+def test_fixture_catalog_uses_metadata_and_preserves_defaults_and_records(
+    monkeypatch: pytest.MonkeyPatch, eligible: bool
+) -> None:
+    from mcp.server.fastmcp import FastMCP
+    from mcp.types import ToolAnnotations
+
+    server = FastMCP("fixture-policy")
+
+    @server.tool(
+        meta={
+            "repomind": {
+                "capability": "github.read" if eligible else "github.write",
+                "repository_scoped": True,
+            }
+        },
+        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False),
+    )
+    async def dynamic_reader(
+        issue_number: int, page: int = 1, per_page: int = 20
+    ) -> dict[str, int]:
+        """New repository-scoped reader."""
+        pytest.fail("The fixture adapter must not execute the real provider.")
+
+    monkeypatch.setattr(execution, "mcp", server)
+
+    async def run() -> None:
+        records: list[ToolExecution] = []
+        tools = await fixture_tools(load_benchmark().fixtures, "streaming", records)
+        assert [tool.name for tool in tools] == (["dynamic_reader"] if eligible else [])
+        if eligible:
+            assert tools[0].args_schema == (await server.list_tools())[0].inputSchema
+            await tools[0].ainvoke({"issue_number": 1})
+            assert len(records) == 1
+            assert records[0].name == "dynamic_reader"
+            assert records[0].arguments == {
+                "issue_number": 1,
+                "page": 1,
+                "per_page": 20,
+            }
+            assert records[0].fixture_miss is True
+        else:
+            assert records == []
+
+    asyncio.run(run())
+
+
 CORPUS = {
     "app.py": "alpha = 1\nbeta = 2\ngamma = 3\ndelta = 4\n",
     "other.py": "alpha = 1\n",
@@ -769,10 +818,13 @@ def test_judge_agreement_uses_fixed_inputs_and_separate_adoption_gates(
         compare_reports(report, candidate)
 
 
+@pytest.mark.parametrize("name", ["issue_read", "new_eligible_reader"])
 def test_shared_stream_preserves_text_tool_order_and_deduplication(
     monkeypatch: pytest.MonkeyPatch,
+    name: str,
 ) -> None:
     from langchain_core.messages import AIMessage, AIMessageChunk
+    from langchain_core.tools import StructuredTool
 
     class FakeAgent:
         async def astream(self, *_args: object, **_kwargs: object):
@@ -781,10 +833,11 @@ def test_shared_stream_preserves_text_tool_order_and_deduplication(
                 content="",
                 tool_calls=[
                     {
-                        "name": "issue_read",
+                        "name": name,
                         "args": {"issue_number": 101},
                         "id": "one",
-                    }
+                    },
+                    {"name": "not_supplied", "args": {}, "id": "forged"},
                 ],
             )
             for _ in range(2):
@@ -795,11 +848,16 @@ def test_shared_stream_preserves_text_tool_order_and_deduplication(
     monkeypatch.setattr(chat, "create_chat_model", lambda: object())
 
     async def collect() -> list[tuple[str, str]]:
-        return [event async for event in chat.stream_repository_answer("q", [], [], [])]
+        tools = [
+            StructuredTool(name=name, description="Read an issue.", args_schema={})
+        ]
+        return [
+            event async for event in chat.stream_repository_answer("q", [], [], tools)
+        ]
 
     assert asyncio.run(collect()) == [
         ("delta", "hello"),
-        ("tool", "issue_read"),
+        ("tool", name),
         ("delta", " world"),
     ]
 

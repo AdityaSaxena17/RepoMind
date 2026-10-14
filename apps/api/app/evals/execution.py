@@ -21,7 +21,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
-from ..chat import MCP_TOOL_NAMES, stream_repository_answer
+from ..chat import stream_repository_answer
 from ..config import get_settings, normalize_asyncpg_database_url
 from ..github_mcp_server import mcp, search_query, validate_page
 from ..retrieval import (
@@ -30,6 +30,7 @@ from ..retrieval import (
     RepoMindParentHybridRetriever,
     create_embedding_model,
 )
+from ..tool_registry import parse_tool_policy
 from ..worker import (
     CHUNK_OVERLAP,
     CHUNK_TOKENS,
@@ -526,7 +527,9 @@ async def fixture_tools(
         return invoke
 
     for tool in await mcp.list_tools():
-        if tool.name not in MCP_TOOL_NAMES:
+        annotations = tool.annotations.model_dump() if tool.annotations else {}
+        policy = parse_tool_policy(tool.meta, annotations)
+        if policy is None or policy.capability != "github.read":
             continue
         registration = mcp._tool_manager.get_tool(tool.name)
         if registration is None:
@@ -545,6 +548,7 @@ async def fixture_tools(
                 args_schema=schema,
                 coroutine=bind(tool.name, defaults, registration.fn_metadata.arg_model),
                 handle_tool_error=True,
+                metadata={**annotations, "_meta": tool.meta},
             )
         )
     return tools

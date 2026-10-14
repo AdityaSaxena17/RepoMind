@@ -3,7 +3,10 @@
   "ui": "tui",
   "globalEnv": [
     "DATABASE_URL",
+    "API_DATABASE_URL",
+    "EVAL_DATABASE_URL",
     "NODE_ENV",
+    "CLERK_SECRET_KEY",
     "CLERK_WEBHOOK_SIGNING_SECRET",
     "FASTAPI_BASE_URL",
     "REDIS_HOST",
@@ -15,7 +18,12 @@
     "GH_TOKEN",
     "OPENAI_API_KEY",
     "OPENAI_EMBEDDINGS_MODEL",
-    "OPENAI_CHAT_MODEL"
+    "OPENAI_CHAT_MODEL",
+    "HIVE_API_KEY",
+    "HIVE_CHAT_MODEL",
+    "EMBEDDINGS_PROVIDER",
+    "OLLAMA_BASE_URL",
+    "REPOSITORY_RERANKER"
   ],
   "tasks": {
     "build": {
@@ -30,7 +38,8 @@
       "dependsOn": ["^check-types"]
     },
     "test": {
-      "dependsOn": ["^test"]
+      "dependsOn": ["^test"],
+      "env": ["REPOMIND_EVAL_INTEGRATION"]
     },
     "dev": {
       "cache": false,

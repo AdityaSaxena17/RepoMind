@@ -72,6 +72,19 @@ Preparation uses local Qwen embeddings through Ollama by default. Full generatio
 dimensions and finite values. Corpus identities include source hashes, embedding model/dimensions and
 actual chunk metadata; changed settings create a separate evaluation index.
 
+## Environment files
+
+Keep Hive, embedding, reranker, Redis and evaluation-database settings in
+`apps/api/.env`. Keep Clerk, the web database URL, `FASTAPI_BASE_URL` and the web
+GitHub token in `apps/web/.env`. The API also uses a GitHub token for indexing
+and MCP calls; its template documents that setting explicitly.
+
+API environment precedence is: explicit process variables, `apps/api/.env`,
+`apps/web/.env`, then root `.env`. The web/root files remain fallbacks for
+existing setups. Explicit shell or CI variables override file defaults.
+`INTERNAL_API_CREDENTIAL` is optional locally; when configured, the web and API
+values must match. Restart running processes after changing their environment.
+
 ## Commands
 
 ### Local Qwen embeddings

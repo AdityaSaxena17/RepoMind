@@ -7,10 +7,15 @@ from urllib.parse import urlencode
 import asyncpg
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from .config import get_settings
 
 GITHUB_API_BASE_URL = "https://api.github.com"
+GITHUB_TOOL_META = {
+    "repomind": {"capability": "github.read", "repository_scoped": True}
+}
+GITHUB_TOOL_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, destructiveHint=False)
 
 mcp = FastMCP(
     "RepoMind GitHub",
@@ -233,7 +238,7 @@ def query_string(values: dict[str, object]) -> str:
     return urlencode({key: str(value) for key, value in values.items()})
 
 
-@mcp.tool()
+@mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
 async def search_issues(
     query: str = "",
     state: Literal["open", "closed", "all"] = "open",
@@ -260,8 +265,7 @@ async def search_issues(
     items = [
         serialized
         for item in payload.get("items", [])
-        if isinstance(item, dict)
-        and "pull_request" not in item
+        if isinstance(item, dict) and "pull_request" not in item
         if (serialized := serialize_issue(item)) is not None
     ]
 
@@ -273,7 +277,7 @@ async def search_issues(
     }
 
 
-@mcp.tool()
+@mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
 async def issue_read(
     issue_number: int,
     method: Literal["get", "get_comments"] = "get",
@@ -328,7 +332,7 @@ async def issue_read(
     }
 
 
-@mcp.tool()
+@mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
 async def search_pull_requests(
     query: str = "",
     state: Literal["open", "closed", "all"] = "open",
@@ -355,8 +359,7 @@ async def search_pull_requests(
     items = [
         serialized
         for item in payload.get("items", [])
-        if isinstance(item, dict)
-        and "pull_request" in item
+        if isinstance(item, dict) and "pull_request" in item
         if (serialized := serialize_pull_request(item)) is not None
     ]
 
@@ -368,7 +371,7 @@ async def search_pull_requests(
     }
 
 
-@mcp.tool()
+@mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
 async def pull_request_read(
     pull_number: int,
     method: Literal["get", "get_files", "get_diff", "get_comments"] = "get",

@@ -13,21 +13,17 @@ import asyncpg
 from langchain.agents import create_agent
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
+from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain_mcp_adapters.sessions import Connection
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from .config import get_settings
+from .orchestration import ROUTER_TIMEOUT_SECONDS, RouterInput, RouterOutput
 from .retrieval import RepoMindParentHybridRetriever, create_embedding_model
+from .tool_registry import Capability, MCPProvider, RequestScope, ToolRegistry
 
-MCP_TOOL_NAMES = {
-    "search_issues",
-    "issue_read",
-    "search_pull_requests",
-    "pull_request_read",
-}
 AgentStreamMode = Literal[
     "values",
     "updates",
@@ -65,24 +61,27 @@ def redacted_error(error: Exception) -> str:
     return message[:300] if message else error.__class__.__name__
 
 
-def create_chat_model() -> ChatOpenAI:
+def create_chat_model(*, purpose: Literal["answer", "router"] = "answer") -> ChatOpenAI:
     """Use Hive when configured; retain explicit OpenAI configuration otherwise."""
     settings = get_settings()
+    routing = purpose == "router"
 
     if settings.hive_api_key:
         return ChatOpenAI(
             model=settings.hive_chat_model,
             api_key=SecretStr(settings.hive_api_key),
             base_url="https://api.thehive.ai/api/v3",
-            streaming=True,
+            streaming=not routing,
+            disable_streaming=routing,
             # Hive includes usage itself and serves Chat Completions, not Responses.
             stream_usage=False,
             use_responses_api=False,
-            reasoning_effort="high",
-            max_completion_tokens=16384,
-            extra_body={"max_thinking_tokens": 8192},
-            timeout=120,
-            max_retries=1,
+            reasoning_effort="none" if routing else "high",
+            max_completion_tokens=512 if routing else 16384,
+            extra_body=None if routing else {"max_thinking_tokens": 8192},
+            timeout=ROUTER_TIMEOUT_SECONDS if routing else 120,
+            max_retries=0 if routing else 1,
+            temperature=0 if routing else None,
         )
 
     if not settings.openai_api_key:
@@ -92,6 +91,19 @@ def create_chat_model() -> ChatOpenAI:
 
     if not settings.openai_chat_model:
         raise RuntimeError("OPENAI_CHAT_MODEL is required for repository chat.")
+
+    if routing:
+        return ChatOpenAI(
+            model=settings.openai_chat_model,
+            streaming=False,
+            disable_streaming=True,
+            stream_usage=False,
+            use_responses_api=False,
+            max_completion_tokens=512,
+            timeout=ROUTER_TIMEOUT_SECONDS,
+            max_retries=0,
+            temperature=0,
+        )
 
     return ChatOpenAI(
         model=settings.openai_chat_model,
@@ -128,28 +140,31 @@ def format_documents(documents: list[Document]) -> str:
 async def scoped_mcp_tools(
     user_id: str,
     repository_id: str,
-) -> AsyncIterator[list[Any]]:
+) -> AsyncIterator[list[BaseTool]]:
     """Load real MCP tools from a repository-scoped stdio server session."""
     env = dict(os.environ)
     env["REPOMIND_MCP_USER_ID"] = user_id
     env["REPOMIND_MCP_REPOSITORY_ID"] = repository_id
     api_root = Path(__file__).resolve().parents[1]
-    client = MultiServerMCPClient(
-        {
-            "github": {
-                "transport": "stdio",
-                "command": sys.executable,
-                "args": ["-m", "app.github_mcp_server"],
-                "cwd": str(api_root),
-                "env": env,
-            },
-        },
-        handle_tool_errors=True,
+    connection: Connection = {
+        "transport": "stdio",
+        "command": sys.executable,
+        "args": ["-m", "app.github_mcp_server"],
+        "cwd": str(api_root),
+        "env": env,
+    }
+    capabilities: frozenset[Capability] = frozenset({"github.read"})
+    registry = ToolRegistry(
+        RequestScope(
+            user_id=user_id,
+            repository_id=repository_id,
+            capabilities=capabilities,
+        ),
+        (MCPProvider("github", connection, capabilities),),
     )
 
-    async with client.session("github") as session:
-        tools = await load_mcp_tools(session)
-        yield [tool for tool in tools if tool.name in MCP_TOOL_NAMES]
+    async with registry.scoped_tools(capabilities) as tools:
+        yield tools
 
 
 def agent_messages(
@@ -177,7 +192,7 @@ def message_text(token: object) -> str:
     return ""
 
 
-def tool_calls(message: object) -> list[tuple[str, str]]:
+def tool_calls(message: object, supplied_names: set[str]) -> list[tuple[str, str]]:
     if not isinstance(message, AIMessage):
         return []
 
@@ -186,7 +201,7 @@ def tool_calls(message: object) -> list[tuple[str, str]]:
     for tool_call in message.tool_calls:
         name = tool_call.get("name")
         call_id = tool_call.get("id")
-        if isinstance(name, str) and name in MCP_TOOL_NAMES:
+        if isinstance(name, str) and name in supplied_names:
             calls.append((name, str(call_id or name)))
 
     return calls
@@ -210,7 +225,7 @@ async def load_history(
     conversation_id: str,
     current_message_id: str,
 ) -> list[BaseMessage]:
-    """Load persisted chat history, excluding the in-flight user message."""
+    """Load the latest 20 successful messages in chronological order."""
     rows = await connection.fetch(
         """
         SELECT "id", "role", "content"
@@ -218,7 +233,7 @@ async def load_history(
         WHERE "conversationId" = $1
           AND "id" <> $2
           AND "status" = 'SUCCEEDED'
-        ORDER BY "createdAt" ASC
+        ORDER BY "createdAt" DESC, "id" DESC
         LIMIT 20
         """,
         conversation_id,
@@ -226,7 +241,7 @@ async def load_history(
     )
     messages: list[BaseMessage] = []
 
-    for row in rows:
+    for row in reversed(rows):
         content = str(row["content"])
         if row["role"] == "USER":
             messages.append(HumanMessage(content=content))
@@ -244,6 +259,7 @@ async def stream_repository_answer(
 ) -> AsyncIterator[tuple[Literal["delta", "tool"], str]]:
     """Run the production agent; yield text and tool activity without persistence."""
     emitted_tool_calls: set[str] = set()
+    supplied_names = {tool.name for tool in tools}
     # LangGraph's compiled agent type is narrower than its documented
     # dynamic state input, so keep the untyped boundary at construction.
     agent: Any = create_agent(
@@ -271,6 +287,12 @@ async def stream_repository_answer(
             data = chunk.get("data")
 
             if isinstance(data, tuple) and data:
+                metadata = data[1] if len(data) > 1 else {}
+                if isinstance(metadata, dict) and (
+                    metadata.get("langgraph_node") == "query_router"
+                    or "nostream" in metadata.get("tags", [])
+                ):
+                    continue
                 text = message_text(data[0])
 
                 if text:
@@ -290,7 +312,7 @@ async def stream_repository_answer(
                 if not isinstance(messages, list) or not messages:
                     continue
 
-                for name, call_id in tool_calls(messages[-1]):
+                for name, call_id in tool_calls(messages[-1], supplied_names):
                     if call_id in emitted_tool_calls:
                         continue
 
@@ -304,8 +326,10 @@ async def stream_repository_chat(
     conversation_id: str,
     user_id: str,
     message_id: str,
+    *,
+    query_router: Runnable[RouterInput, RouterOutput] | None = None,
 ) -> AsyncIterator[str]:
-    """Stream a repository-grounded chat answer and persist the final response."""
+    """Persist SSE answers; an optional router handles clarification before research."""
     assistant_message_id = uuid.uuid4().hex
     answer_parts: list[str] = []
     documents: list[Document] = []
@@ -368,24 +392,37 @@ async def stream_repository_chat(
         )
         yield sse_event("assistant_message", {"message_id": assistant_message_id})
 
-        retriever = RepoMindParentHybridRetriever(
-            connection=connection,
-            embeddings=create_embedding_model(),
-            repository_id=repository_id,
-            rerank=get_settings().repository_rerank,
-        )
-        documents = await retriever.ainvoke(str(user_message["content"]))
         history = await load_history(connection, conversation_id, message_id)
-        async with scoped_mcp_tools(user_id, repository_id) as mcp_tools:
-            async for event, value in stream_repository_answer(
-                str(user_message["content"]),
-                history,
-                documents,
-                mcp_tools,
-            ):
-                if event == "delta":
-                    answer_parts.append(value)
-                yield sse_event(event, {"text" if event == "delta" else "name": value})
+        clarification: str | None = None
+        if query_router is not None:
+            routed = await query_router.ainvoke(
+                {"question": str(user_message["content"]), "history": history}
+            )
+            clarification = routed["decision"].clarification
+
+        if clarification is not None:
+            answer_parts.append(clarification)
+            yield sse_event("delta", {"text": clarification})
+        else:
+            retriever = RepoMindParentHybridRetriever(
+                connection=connection,
+                embeddings=create_embedding_model(),
+                repository_id=repository_id,
+                rerank=get_settings().repository_rerank,
+            )
+            documents = await retriever.ainvoke(str(user_message["content"]))
+            async with scoped_mcp_tools(user_id, repository_id) as mcp_tools:
+                async for event, value in stream_repository_answer(
+                    str(user_message["content"]),
+                    history,
+                    documents,
+                    mcp_tools,
+                ):
+                    if event == "delta":
+                        answer_parts.append(value)
+                    yield sse_event(
+                        event, {"text" if event == "delta" else "name": value}
+                    )
 
         final_answer = "".join(answer_parts).strip()
 

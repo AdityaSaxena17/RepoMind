@@ -40,6 +40,37 @@ def test_message_text_reads_full_and_chunk_messages() -> None:
     assert message_text(object()) == ""
 
 
+@pytest.mark.parametrize("hive", [False, True])
+def test_router_model_preserves_provider_selection_and_bounds_requests(
+    hive: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+    if hive:
+        monkeypatch.setenv("HIVE_API_KEY", "test-hive-key")
+    else:
+        monkeypatch.delenv("HIVE_API_KEY", raising=False)
+    get_settings.cache_clear()
+    try:
+        model = create_chat_model(purpose="router")
+        assert model.model_name == (
+            get_settings().hive_chat_model if hive else "gpt-4o-mini"
+        )
+        assert model.streaming is False
+        assert model.disable_streaming is True
+        assert model.use_responses_api is False
+        assert model.stream_usage is False
+        assert model.max_tokens == 512
+        assert model.request_timeout == 15
+        assert model.max_retries == 0
+        assert model.extra_body is None
+        assert model.temperature == 0
+        assert model.reasoning_effort == ("none" if hive else None)
+    finally:
+        get_settings.cache_clear()
+
+
 def test_hive_chat_uses_the_shared_key_without_openai_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
