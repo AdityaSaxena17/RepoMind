@@ -632,8 +632,10 @@ async def run(args: argparse.Namespace) -> int:
                 "device": str(model.device),
                 "dtype": str(model.dtype),
                 "score": "yes_minus_no_logit",
-                "input": "file_path_newline_child_content",
-                "placement": "all_fused_children_before_parent_selection",
+                "input": "file_path_newline_visible_parent_content",
+                "placement": "all_expanded_deduplicated_parents_before_final_six",
+                "truncation": "reject_oversize_no_truncation",
+                "use_cache": False,
             }
         app_sources = sorted((ROOT / "apps/api/app").rglob("*.py"))
         metadata: dict[str, JsonValue] = {
@@ -674,12 +676,18 @@ async def run(args: argparse.Namespace) -> int:
                 (Path(__file__).parent / "scoring.py").read_text("utf-8"),
             ),
             "model_configurations": {
-                "chat": settings.openai_chat_model,
+                "chat": (
+                    settings.hive_chat_model
+                    if settings.hive_api_key
+                    else settings.openai_chat_model
+                ),
                 "chat_temperature": "provider_default",
-                "use_responses_api": True,
+                "use_responses_api": not bool(settings.hive_api_key),
                 "streaming": True,
                 "embeddings": embedding.model,
-                "dimensions": retrieval.EMBEDDING_DIMENSIONS,
+                "dimensions": embedding.dimensions,
+                "embedding_provider": settings.embeddings_provider,
+                "embedding_profile": embedding.profile,
                 "reranker": reranker_config,
             },
             "retrieval_parameters": {
@@ -706,6 +714,20 @@ async def run(args: argparse.Namespace) -> int:
             "judge_calibrated": False,
             "case_timeout_seconds": args.timeout,
         }
+        if settings.hive_api_key:
+            model_configurations = metadata["model_configurations"]
+            if isinstance(model_configurations, dict):
+                model_configurations.update(
+                    {
+                        "chat_provider": "hive",
+                        "chat_base_url": "https://api.thehive.ai/api/v3",
+                        "chat_reasoning_effort": "high",
+                        "chat_max_completion_tokens": 16384,
+                        "chat_max_thinking_tokens": 8192,
+                        "chat_timeout_seconds": 120,
+                        "chat_max_retries": 1,
+                    }
+                )
         if rerank:
             versions = metadata["dependency_versions"]
             if isinstance(versions, dict):

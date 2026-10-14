@@ -5,7 +5,7 @@
   "scripts": {
     "eval": "python scripts/uv_run.py python -m app.evals",
     "build": "python scripts/uv_run.py python -m compileall -q app",
-    "check-types": "python scripts/uv_run.py mypy app",
+    "check-types": "python scripts/uv_run.py --extra rerank mypy app",
     "dev": "python scripts/uv_run.py uvicorn app.main:app --reload --host 127.0.0.1 --port 8137",
     "lint": "python scripts/uv_run.py ruff check app tests",
     "lock": "python scripts/uv_lock.py",

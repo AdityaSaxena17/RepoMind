@@ -14,9 +14,10 @@ if TYPE_CHECKING:
 RERANKER_MODEL = "Qwen/Qwen3-Reranker-0.6B"
 RERANKER_REVISION = "e61197ed45024b0ed8a2d74b80b4d909f1255473"
 RERANKER_INSTRUCTION = (
-    "Given a repository question, retrieve relevant code passages that answer the question"
+    "Given a repository question, retrieve relevant code passages "
+    "that answer the question"
 )
-RERANKER_MAX_LENGTH = 8192
+RERANKER_MAX_LENGTH = 32768
 RERANKER_BATCH_SIZE = 4
 _SCORING_LOCK = threading.Lock()
 
@@ -34,18 +35,23 @@ def get_reranker() -> CrossEncoder:
         ) from error
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    return CrossEncoder(
+    model: CrossEncoder = CrossEncoder(
         RERANKER_MODEL,
         revision=RERANKER_REVISION,
         cache_folder=str(Path(__file__).resolve().parents[3] / ".model-cache"),
         trust_remote_code=False,
         device=device,
-        model_kwargs={"torch_dtype": torch.float16 if device == "cuda" else torch.float32},
+        model_kwargs={
+            "torch_dtype": torch.float16 if device == "cuda" else torch.float32,
+        },
+        # Relevance scoring uses one forward pass, so a KV cache wastes VRAM.
+        config_kwargs={"use_cache": False},
         max_length=RERANKER_MAX_LENGTH,
         prompts={"query": RERANKER_INSTRUCTION},
         default_prompt_name="query",
         activation_fn=torch.nn.Identity(),
     )
+    return model
 
 
 def score_passages(question: str, passages: list[str]) -> list[float]:
@@ -55,11 +61,25 @@ def score_passages(question: str, passages: list[str]) -> list[float]:
     # A cancelled async caller can leave inference running in its worker thread.
     # Serialize requests so a later request cannot overlap that GPU operation.
     with _SCORING_LOCK:
-        raw = get_reranker().predict(
-            [(question, passage) for passage in passages],
+        model = get_reranker()
+        pairs = [(question, passage) for passage in passages]
+        processing = {"text": {"truncation": False}}
+        for pair in pairs:
+            features = model.preprocess(
+                [pair],
+                prompt=RERANKER_INSTRUCTION,
+                processing_kwargs=processing,
+            )
+            if features["input_ids"].shape[-1] > RERANKER_MAX_LENGTH:
+                raise ValueError(
+                    "Reranker input exceeds the complete-window token limit."
+                )
+        raw = model.predict(
+            pairs,
             batch_size=RERANKER_BATCH_SIZE,
             show_progress_bar=False,
             convert_to_numpy=True,
+            processing_kwargs=processing,
         )
     scores = [float(value) for value in raw]
     if len(scores) != len(passages) or not all(map(math.isfinite, scores)):

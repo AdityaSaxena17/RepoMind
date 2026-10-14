@@ -7,7 +7,7 @@ import asyncpg
 import pytest
 from test_evals import FakeEmbeddings
 
-from app import worker
+from app import retrieval, worker
 from app.config import get_settings
 from app.evals.execution import (
     Benchmark,
@@ -25,12 +25,22 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.mark.parametrize("provider", ["openai", "ollama"])
 def test_real_pgvector_indexing_retrieval_and_connection_serialization(
     monkeypatch: pytest.MonkeyPatch,
+    provider: str,
 ) -> None:
     monkeypatch.setenv("OPENAI_EMBEDDINGS_MODEL", "eval-test-deterministic-1536")
+    monkeypatch.setenv("EMBEDDINGS_PROVIDER", provider)
     get_settings.cache_clear()
-    embeddings = FakeEmbeddings()
+
+    class DeterministicEmbeddings(FakeEmbeddings):
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return [
+                [1.0] + [0.0] * (get_settings().embedding_dimensions - 1) for _ in texts
+            ]
+
+    embeddings = DeterministicEmbeddings()
     monkeypatch.setattr(worker, "create_embedding_model", lambda: embeddings)
     dataset = Dataset(
         version="integration",
@@ -87,6 +97,14 @@ def test_real_pgvector_indexing_retrieval_and_connection_serialization(
                 await prepare_index(connection, benchmark, embeddings) == repository_id
             )
             assert await verify_index(connection, benchmark, repository_id, documents)
+            assert (
+                await connection.fetchval(
+                    'SELECT DISTINCT vector_dims("embedding") '
+                    'FROM "RepositoryChunk" WHERE "repositoryId"=$1',
+                    repository_id,
+                )
+                == get_settings().embedding_dimensions
+            )
             retriever = RepoMindParentHybridRetriever(
                 connection=connection,
                 embeddings=embeddings,
@@ -121,6 +139,27 @@ def test_real_pgvector_indexing_retrieval_and_connection_serialization(
             assert all(
                 document.metadata["sources"] == ["keyword"] for document in results
             )
+
+            def score_parents(_query: str, passages: list[str]) -> list[float]:
+                assert any(
+                    "app.py\ndef unique_integration_symbol():\n    return 42" in text
+                    for text in passages
+                )
+                assert len(passages) == len(set(passages))
+                return [float("unique_integration_symbol" in text) for text in passages]
+
+            monkeypatch.setattr(retrieval, "score_passages", score_parents)
+            reranked = RepoMindParentHybridRetriever(
+                connection=connection,
+                embeddings=embeddings,
+                repository_id=repository_id,
+                rerank=True,
+            )
+            results = await reranked.ainvoke("unique_integration_symbol")
+            assert results[0].metadata["path"] == "app.py"
+            assert [doc.metadata["source_index"] for doc in results] == list(
+                range(1, len(results) + 1)
+            )
             # Ordinary prose must not turn the keyword branch into an all-words AND.
             rows = await retriever._keyword_candidates(
                 "How does unique_integration_symbol calculate its result?"
@@ -145,6 +184,19 @@ def test_real_pgvector_indexing_retrieval_and_connection_serialization(
             # Covering both terms outranks repetition of only one term.
             rows = await retriever._keyword_candidates("retrieving suffix")
             assert rows[0]["path"] == "a.py"
+            await connection.execute(
+                'UPDATE "RepositoryChunk" SET "embeddingProfile"=NULL '
+                'WHERE "repositoryId"=$1',
+                repository_id,
+            )
+            with pytest.raises(ValueError, match="reindex"):
+                await retriever.ainvoke("unique_integration_symbol")
+            assert not await verify_index(
+                connection, benchmark, repository_id, documents
+            )
+            assert (
+                await prepare_index(connection, benchmark, embeddings) == repository_id
+            )
             await connection.execute(
                 'UPDATE "RepositoryFile" SET "content"=$2 WHERE "repositoryId"=$1',
                 repository_id,

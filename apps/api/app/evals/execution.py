@@ -25,7 +25,6 @@ from ..chat import MCP_TOOL_NAMES, stream_repository_answer
 from ..config import get_settings, normalize_asyncpg_database_url
 from ..github_mcp_server import mcp, search_query, validate_page
 from ..retrieval import (
-    EMBEDDING_DIMENSIONS,
     KEYWORD_CANDIDATES,
     VECTOR_CANDIDATES,
     RepoMindParentHybridRetriever,
@@ -132,7 +131,14 @@ class CachedEmbeddings(Embeddings):
 
     def __init__(self, cache: Path = ARTIFACTS / "embeddings") -> None:
         self.cache = cache
-        self.model = get_settings().openai_embeddings_model
+        settings = get_settings()
+        self.model = settings.embedding_model
+        self.dimensions = settings.embedding_dimensions
+        self.profile = settings.embedding_profile
+        # Preserve historical OpenAI cache entries; Qwen also pins weights and prompt.
+        self.cache_model = (
+            self.model if settings.embeddings_provider == "openai" else self.profile
+        )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Require asynchronous embedding calls in evaluation execution."""
@@ -153,7 +159,7 @@ class CachedEmbeddings(Embeddings):
     async def _embed(self, texts: list[str], kind: str) -> list[list[float]]:
         paths = [
             self.cache
-            / (digest(f"{self.model}:{EMBEDDING_DIMENSIONS}:{kind}:{text}") + ".json")
+            / (digest(f"{self.cache_model}:{self.dimensions}:{kind}:{text}") + ".json")
             for text in texts
         ]
         vectors: dict[int, list[float]] = {}
@@ -185,8 +191,10 @@ class CachedEmbeddings(Embeddings):
             for index, vector in zip(missing, generated, strict=True):
                 vectors[index] = vector
         for vector in vectors.values():
-            if len(vector) != EMBEDDING_DIMENSIONS or not all(
-                map(math.isfinite, vector)
+            if (
+                len(vector) != self.dimensions
+                or not all(map(math.isfinite, vector))
+                or math.hypot(*vector) == 0
             ):
                 raise ValueError("Invalid embedding dimensions or non-finite values.")
         if missing:
@@ -258,16 +266,20 @@ def corpus_documents(benchmark: Benchmark) -> tuple[str, list[Document]]:
         for path, content in sorted(benchmark.corpus.items())
         for document in chunk_file(path, content)
     ]
+    settings = get_settings()
+    configuration = {
+        "commit": benchmark.dataset.corpus_commit_sha,
+        "model": settings.embedding_model,
+        "dimensions": settings.embedding_dimensions,
+        "chunk_tokens": CHUNK_TOKENS,
+        "overlap": CHUNK_OVERLAP,
+        "files": {p: digest(c) for p, c in sorted(benchmark.corpus.items())},
+        "chunks": [d.metadata for d in documents],
+    }
+    if settings.embeddings_provider == "ollama":
+        configuration["embedding_profile"] = settings.embedding_profile
     identity = json.dumps(
-        {
-            "commit": benchmark.dataset.corpus_commit_sha,
-            "model": get_settings().openai_embeddings_model,
-            "dimensions": EMBEDDING_DIMENSIONS,
-            "chunk_tokens": CHUNK_TOKENS,
-            "overlap": CHUNK_OVERLAP,
-            "files": {p: digest(c) for p, c in sorted(benchmark.corpus.items())},
-            "chunks": [d.metadata for d in documents],
-        },
+        configuration,
         sort_keys=True,
     )
     return "eval_" + digest(identity), documents
@@ -299,7 +311,8 @@ async def verify_index(
     ):
         raise ValueError("Persisted source files do not match the frozen corpus.")
     chunks = await connection.fetch(
-        'SELECT "path", "startLine", "endLine", "content", "contentSha" '
+        'SELECT "path", "startLine", "endLine", "content", "contentSha", '
+        '"embeddingProfile", vector_dims("embedding") AS embedding_dimensions '
         'FROM "RepositoryChunk" WHERE "repositoryId"=$1',
         repository_id,
     )
@@ -325,7 +338,11 @@ async def verify_index(
     )
     if actual_chunks != expected_chunks:
         raise ValueError("Persisted chunks do not match the indexing configuration.")
-    return True
+    return not any(
+        row["embeddingProfile"] != get_settings().embedding_profile
+        or row["embedding_dimensions"] != get_settings().embedding_dimensions
+        for row in chunks
+    )
 
 
 async def prepare_index(

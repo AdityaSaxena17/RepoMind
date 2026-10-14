@@ -167,7 +167,8 @@ model RepositoryChunk {
   endLine      Int
   content      String
   contentSha   String
-  embedding    Unsupported("vector(1536)")
+  embedding    Unsupported("vector")
+  embeddingProfile String?
   createdAt    DateTime                @default(now())
   file         RepositoryFile          @relation(fields: [fileId], references: [id], onDelete: Cascade)
   repository   Repository              @relation(fields: [repositoryId], references: [id], onDelete: Cascade)

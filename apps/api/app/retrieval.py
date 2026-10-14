@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import re
 import uuid
 from typing import Any
@@ -14,13 +15,12 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.vectorstores import VectorStore
-from langchain_openai import OpenAIEmbeddings
 from pydantic import ConfigDict
 
 from .config import get_settings
+from .embeddings import create_embedding_model as create_embedding_model
 from .reranking import score_passages
 
-EMBEDDING_DIMENSIONS = 1536
 VECTOR_CANDIDATES = 24
 KEYWORD_CANDIDATES = 24
 FINAL_PARENT_CONTEXTS = 6
@@ -30,18 +30,22 @@ PARENT_MAX_CHARS = 16_000
 RRF_K = 60
 
 
-def create_embedding_model() -> OpenAIEmbeddings:
-    """Create the shared LangChain embeddings model for indexing and retrieval."""
-    settings = get_settings()
-
-    if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is required for repository indexing.")
-
-    return OpenAIEmbeddings(
-        model=settings.openai_embeddings_model,
-        dimensions=EMBEDDING_DIMENSIONS,
-        chunk_size=64,
-    )
+async def verify_embedding_profile(
+    connection: asyncpg.Connection,
+    repository_id: str,
+) -> None:
+    """Reject mixed, legacy or stale vector spaces before embedding a query."""
+    if await connection.fetchval(
+        'SELECT EXISTS (SELECT 1 FROM "RepositoryChunk" '
+        'WHERE "repositoryId"=$1 AND ("embeddingProfile" IS DISTINCT FROM $2 '
+        'OR vector_dims("embedding") <> $3))',
+        repository_id,
+        get_settings().embedding_profile,
+        get_settings().embedding_dimensions,
+    ):
+        raise ValueError(
+            "Repository embedding model changed; reindex this repository before chat."
+        )
 
 
 class RepoMindRepositoryVectorStore(VectorStore):
@@ -119,6 +123,17 @@ class RepoMindRepositoryVectorStore(VectorStore):
         if len(documents) != len(embeddings):
             raise ValueError("documents and embeddings must have matching lengths.")
 
+        settings = get_settings()
+        if any(
+            len(vector) != settings.embedding_dimensions
+            or not all(math.isfinite(value) for value in vector)
+            or math.hypot(*vector) == 0
+            for vector in embeddings
+        ):
+            raise ValueError(
+                "Index embeddings have incompatible dimensions or invalid values."
+            )
+
         inserted_ids: list[str] = []
 
         for index, document in enumerate(documents):
@@ -155,9 +170,10 @@ class RepoMindRepositoryVectorStore(VectorStore):
                 """
                 INSERT INTO "RepositoryChunk"
                   ("id", "repositoryId", "fileId", "chunkIndex", "path",
-                   "startLine", "endLine", "content", "contentSha", "embedding")
+                   "startLine", "endLine", "content", "contentSha", "embedding",
+                   "embeddingProfile")
                 VALUES
-                  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::vector)
+                  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::vector, $11)
                 """,
                 document_id,
                 self.repository_id,
@@ -169,6 +185,7 @@ class RepoMindRepositoryVectorStore(VectorStore):
                 document.page_content,
                 content_sha,
                 vector,
+                settings.embedding_profile,
             )
             inserted_ids.append(document_id)
 
@@ -192,20 +209,27 @@ class RepoMindRepositoryVectorStore(VectorStore):
     ) -> list[Document]:
         """Return similar repository chunks as LangChain documents."""
         del kwargs
+        await verify_embedding_profile(self.connection, self.repository_id)
+        settings = get_settings()
+        dimensions = settings.embedding_dimensions
         query_vector = await self.embeddings.aembed_query(query)
         vector = "[" + ",".join(str(float(value)) for value in query_vector) + "]"
         rows = await self.connection.fetch(
-            """
+            f"""
             SELECT "path", "startLine", "endLine", "content", "contentSha",
-                   "embedding" <=> $2::vector AS distance
+                   "embedding"::vector({dimensions})
+                       <=> $2::vector({dimensions}) AS distance
             FROM "RepositoryChunk"
             WHERE "repositoryId" = $1
-            ORDER BY "embedding" <=> $2::vector
+              AND "embeddingProfile" = $4
+              AND vector_dims("embedding") = {dimensions}
+            ORDER BY "embedding"::vector({dimensions}) <=> $2::vector({dimensions})
             LIMIT $3
             """,
             self.repository_id,
             vector,
             k,
+            settings.embedding_profile,
         )
 
         return [
@@ -259,34 +283,70 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             await self._keyword_candidates(query) if self.keyword_k > 0 else []
         )
         fused = self._fuse_candidates(vector_rows, keyword_rows)
-        if self.rerank and fused:
+        documents = await self._parent_documents(
+            fused if self.rerank else fused[: self.final_k * 3]
+        )
+        if self.rerank and documents:
+            # Deduplicate visible windows, retaining all retrieval provenance.
+            unique: dict[tuple[str, int, int, str], Document] = {}
+            for document in documents:
+                if not document.page_content:
+                    continue
+                key = (
+                    str(document.metadata["path"]),
+                    int(document.metadata["start_line"]),
+                    int(document.metadata["end_line"]),
+                    document.page_content,
+                )
+                existing = unique.get(key)
+                if existing is None:
+                    unique[key] = document
+                else:
+                    existing.metadata["sources"] = sorted(
+                        set(existing.metadata["sources"])
+                        | set(document.metadata["sources"])
+                    )
+                    existing.metadata["score"] += document.metadata["score"]
+            documents = list(unique.values())
+            if not documents:
+                return []
             scores = await asyncio.to_thread(
                 score_passages,
                 query,
-                [f"{row['path']}\n{row['content']}" for row in fused],
+                [f"{doc.metadata['path']}\n{doc.page_content}" for doc in documents],
             )
-            for row, score in zip(fused, scores, strict=True):
-                row["rerank_score"] = score
-            # Stable ties retain the deterministic RRF order. Score every fused
-            # candidate before the existing parent-selection bound is applied.
-            fused.sort(key=lambda row: -float(row["rerank_score"]))
-        return await self._parent_documents(fused[: self.final_k * 3])
+            for document, score in zip(documents, scores, strict=True):
+                document.metadata["rerank_score"] = score
+            # Stable ties retain the parent order derived from RRF child order.
+            documents.sort(key=lambda doc: -float(doc.metadata["rerank_score"]))
+            documents = documents[: self.final_k]
+            for index, document in enumerate(documents, start=1):
+                document.metadata["source_index"] = index
+        return documents
 
     async def _vector_candidates(self, query: str) -> list[dict[str, Any]]:
+        await verify_embedding_profile(self.connection, self.repository_id)
+        settings = get_settings()
+        dimensions = settings.embedding_dimensions
         query_vector = await self.embeddings.aembed_query(query)
         vector = "[" + ",".join(str(float(value)) for value in query_vector) + "]"
         rows = await self.connection.fetch(
-            """
-            SELECT "id", "fileId", "path", "startLine", "endLine", "contentSha", "content",
-                   "embedding" <=> $2::vector AS distance
+            f"""
+            SELECT "id", "fileId", "path", "startLine", "endLine",
+                   "contentSha", "content",
+                   "embedding"::vector({dimensions})
+                       <=> $2::vector({dimensions}) AS distance
             FROM "RepositoryChunk"
             WHERE "repositoryId" = $1
-            ORDER BY "embedding" <=> $2::vector
+              AND "embeddingProfile" = $4
+              AND vector_dims("embedding") = {dimensions}
+            ORDER BY "embedding"::vector({dimensions}) <=> $2::vector({dimensions})
             LIMIT $3
             """,
             self.repository_id,
             vector,
             self.vector_k,
+            settings.embedding_profile,
         )
 
         return [
@@ -491,12 +551,13 @@ class RepoMindParentHybridRetriever(BaseRetriever):
                 },
             )
 
-            if len(windows) >= self.final_k:
+            if not self.rerank and len(windows) >= self.final_k:
                 break
 
         documents: list[Document] = []
 
-        for index, window in enumerate(windows[: self.final_k]):
+        selected = windows if self.rerank else windows[: self.final_k]
+        for index, window in enumerate(selected):
             lines = str(window["content"]).splitlines()
             start_line = int(window["start_line"])
             end_line = int(window["end_line"])

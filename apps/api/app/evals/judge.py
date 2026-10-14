@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.metadata
 import inspect
 import json
+import os
 from pathlib import Path
+from typing import Literal
 
 from langchain_openai import ChatOpenAI
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import JsonValue, TypeAdapter
 
+from ..config import read_optional_token
 from .execution import DATA, digest
 from .models import (
     CaseReport,
@@ -110,22 +116,91 @@ class SemanticJudge:
         self, model: str, *, timeout: float = 60, reasoning_effort: str | None = None
     ) -> None:
         self.model, self.timeout = model, timeout
-        self.reasoning_effort = reasoning_effort
-        self.temperature = 0 if reasoning_effort in {None, "none"} else None
-        self.chat = ChatOpenAI(
-            model=model,
-            streaming=False,
-            use_responses_api=True,
-            timeout=timeout,
-            max_retries=1,
-            temperature=self.temperature,
-            reasoning={"effort": reasoning_effort} if reasoning_effort else None,
+        self.hive = model == "deepseek-ai/deepseek-v4.1-flash"
+        if model.startswith("deepseek") and not self.hive:
+            raise ValueError("Hive judging uses deepseek-ai/deepseek-v4.1-flash.")
+        self.reasoning_effort = reasoning_effort or ("high" if self.hive else None)
+        self.temperature = 0 if self.reasoning_effort in {None, "none"} else None
+        self.hive_key = ""
+        self.chat: ChatOpenAI | None = None
+        if self.hive:
+            key = read_optional_token(os.getenv("HIVE_API_KEY"))
+            if key is None:
+                raise ValueError("Hive judging requires HIVE_API_KEY.")
+            self.hive_key = key
+            self.hive_effort: Literal["none", "low", "high", "max"] = TypeAdapter(
+                Literal["none", "low", "high", "max"],
+            ).validate_python(self.reasoning_effort)
+        else:
+            self.chat = ChatOpenAI(
+                model=model,
+                streaming=False,
+                use_responses_api=True,
+                timeout=timeout,
+                max_retries=1,
+                temperature=self.temperature,
+                reasoning={"effort": reasoning_effort} if reasoning_effort else None,
+            )
+
+    async def _label(
+        self, schema: type[Model], messages: list[tuple[str, str]]
+    ) -> Model:
+        """Use the existing OpenAI path or Hive's verified Chat Completions API."""
+        if self.chat is not None:
+            labeled = await asyncio.wait_for(
+                self.chat.with_structured_output(
+                    schema,
+                    method="json_schema",
+                    strict=True,
+                ).ainvoke(messages),
+                timeout=self.timeout + 5,
+            )
+            return schema.model_validate(labeled)
+
+        payload: list[ChatCompletionMessageParam] = [
+            {
+                "role": "system",
+                "content": messages[0][1]
+                + "\nReturn only a JSON object matching this JSON Schema:\n"
+                + json.dumps(schema.model_json_schema()),
+            }
+        ]
+        payload.extend(
+            {"role": "user", "content": content} for _, content in messages[1:]
         )
+        # A context manager also closes the HTTP client on validation or timeout errors.
+        async with AsyncOpenAI(
+            api_key=self.hive_key,
+            base_url="https://api.thehive.ai/api/v3",
+            timeout=self.timeout,
+            max_retries=1,
+        ) as client:
+            completion = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=self.model,
+                    messages=payload,
+                    reasoning_effort=self.hive_effort,
+                    max_completion_tokens=16384,
+                    # Reserve completion space for the JSON labels after thinking.
+                    extra_body={"max_thinking_tokens": 8192},
+                    response_format={"type": "json_object"},
+                ),
+                timeout=self.timeout + 5,
+            )
+        if len(completion.choices) != 1:
+            raise ValueError("Hive judge returned an unexpected number of choices.")
+        choice = completion.choices[0]
+        if choice.finish_reason != "stop":
+            raise ValueError(f"Hive judge response ended with {choice.finish_reason}.")
+        if not choice.message.content:
+            raise ValueError("Hive judge returned an empty response.")
+        # Parse the complete JSON string; never repair truncated or malformed output.
+        return schema.model_validate_json(choice.message.content)
 
     @property
     def configuration(self) -> dict[str, JsonValue]:
         """Expose reproducibility settings without serializing credentials."""
-        return {
+        configuration: dict[str, JsonValue] = {
             "model": self.model,
             "temperature": self.temperature,
             "reasoning_effort": self.reasoning_effort,
@@ -148,6 +223,26 @@ class SemanticJudge:
                 (DATA / "calibration.json").read_text(encoding="utf-8"),
             ),
         }
+        if self.hive:
+            configuration.update(
+                {
+                    "provider": "hive",
+                    "base_url": "https://api.thehive.ai/api/v3",
+                    "sdk": "openai.AsyncOpenAI",
+                    "sdk_version": importlib.metadata.version("openai"),
+                    "structured_output": "json_object_with_pydantic_validation",
+                    "max_output_tokens": 16384,
+                    "max_thinking_tokens": 8192,
+                    "pricing_policy": (
+                        "Hive rates; no direct-DeepSeek off-peak discount assumed"
+                    ),
+                    "provider_implementation_sha256": digest(
+                        inspect.getsource(SemanticJudge._label)
+                        + inspect.getsource(SemanticJudge.__init__)
+                    ),
+                }
+            )
+        return configuration
 
     async def grade(self, case: CaseReport, question: Question) -> None:
         """Run two isolated judge tasks, keeping hidden gold out of grounding."""
@@ -164,14 +259,7 @@ class SemanticJudge:
         ]
         for attempt in range(3):
             try:
-                labeled = await asyncio.wait_for(
-                    self.chat.with_structured_output(
-                        GroundingJudgment,
-                        method="json_schema",
-                        strict=True,
-                    ).ainvoke(messages),
-                    timeout=self.timeout + 5,
-                )
+                labeled = await self._label(GroundingJudgment, messages)
                 grounding = GroundingJudgment.model_validate(labeled)
                 if any(
                     not quote or quote not in case.result.answer
@@ -200,18 +288,12 @@ class SemanticJudge:
             "verified_gold_units": [u.model_dump() for u in question.required_evidence],
             "expected_missing": question.expected_missing,
         }
-        labeled_correctness = await asyncio.wait_for(
-            self.chat.with_structured_output(
-                CorrectnessJudgment,
-                method="json_schema",
-                strict=True,
-            ).ainvoke(
-                [
-                    ("system", CORRECTNESS_PROMPT),
-                    ("user", json.dumps(correctness_input)),
-                ]
-            ),
-            timeout=self.timeout + 5,
+        labeled_correctness = await self._label(
+            CorrectnessJudgment,
+            [
+                ("system", CORRECTNESS_PROMPT),
+                ("user", json.dumps(correctness_input)),
+            ],
         )
         correctness = CorrectnessJudgment.model_validate(labeled_correctness)
         # Validate both before publishing any semantic scores for this case.

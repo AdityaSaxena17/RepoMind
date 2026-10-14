@@ -14,6 +14,17 @@ The latest selected retrieval configuration uses tighter identifier boosts and
 benchmark. These are retrieval-only measurements; earlier full-run grades remain
 historical artifacts.
 
+The earlier child-chunk Qwen reranker trial scored Recall@6 **75.00%** and Precision@6
+**34.31%**, so it remains opt-in. Its 24-answer full run has **18 accepted semantic
+judgments**, with six failures remaining after API-limited retries. These partial
+semantic results are not a complete quality baseline; see [the experiment](EXPERIMENTS.md).
+
+Reranking the expanded parent windows instead scored Recall@6 **82.35%** and
+Precision@6 **46.08%** across the same 17 applicable questions. All 24 retrieval
+cases completed. This improves both macro scores over child reranking and the
+no-reranker baseline; the latter recovers the same 31/40 evidence units. Parent
+reranking remains opt-in, and its generation/semantic metrics have not been run.
+
 ## Setup
 
 Use the existing PostgreSQL/pgvector service and a separate database and login.
@@ -54,12 +65,163 @@ Git objects at the dataset's pinned commit, reuses production filtering, chunkin
 embedding and index promotion, and preserves an already verified index. It does
 not run the background job that opens the application connection.
 
-Preparation needs `OPENAI_API_KEY` for uncached embeddings. Full generation also
-needs `OPENAI_CHAT_MODEL`. Cached vectors are validated for dimensions and finite
-values. Corpus identities include source hashes, embedding model/dimensions and
+Preparation uses local Qwen embeddings through Ollama by default. Full generation uses
+`HIVE_API_KEY` when configured, with `HIVE_CHAT_MODEL` defaulting to
+`deepseek-ai/deepseek-v4.1-flash`. Otherwise the existing OpenAI chat path requires
+`OPENAI_API_KEY` and `OPENAI_CHAT_MODEL`. Cached vectors are validated for
+dimensions and finite values. Corpus identities include source hashes, embedding model/dimensions and
 actual chunk metadata; changed settings create a separate evaluation index.
 
 ## Commands
+
+### Local Qwen embeddings
+
+The default embedding model is `qwen3-embedding:0.6b` through Ollama, with native
+1,024-dimensional vectors and pinned Q8_0 model digest
+`ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d`.
+No API key or additional Python dependency is needed for embeddings.
+
+```powershell
+ollama pull qwen3-embedding:0.6b
+# In apps/api/.env:
+# EMBEDDINGS_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://127.0.0.1:11434
+pnpm --filter api eval migrate
+pnpm --filter api eval prepare
+pnpm --filter api eval retrieval --no-rerank --experiment qwen-embedding-no-reranker --timeout 300
+```
+
+Queries receive the instruction `Given a question about a code repository,
+retrieve relevant code passages that answer the question.` Source chunks are
+embedded without an instruction. Batches are bounded at 64 texts, inputs are
+never silently truncated, and the configured context limit is 8,192 tokens.
+The model supports 32,768, but reserving that full window caused CPU offloading
+on the local 6 GB GPU. The smaller allocation still exceeds the existing
+512-token code chunks; oversized inputs fail explicitly rather than truncate.
+Requests verify the local model digest and reject invalid counts, dimensions,
+non-finite values and zero vectors. Ollama errors propagate; there is no paid
+embedding fallback.
+
+The migration preserves existing 1,536-dimensional OpenAI vectors and supports
+native 1,024-dimensional vectors in the same pgvector column with separate
+dimension-specific HNSW indexes. Each newly indexed chunk records its embedding
+profile. Vector search rejects missing or mismatched profiles before embedding
+the query, so existing application repositories need reindexing after migration.
+Apply production migrations with the project's normal Prisma deploy command,
+then use the existing repository reindex action. Evaluation migration/seeding
+uses only the dedicated `repomind_eval` database.
+
+Qwen corpus IDs and embedding caches include the provider, model digest,
+dimensions, query instruction and context/truncation settings. Historical OpenAI
+cache entries remain intact. Select `EMBEDDINGS_PROVIDER=openai` for a paired
+comparison; regenerate the index profile with `eval prepare` if needed.
+Dataset annotations, scorer, filtering, chunking, FTS, RRF, parent windows and
+reranking are unchanged by the embedding switch. Embedding settings are recorded
+in every new run. See [Ollama's embedding API](https://docs.ollama.com/api/embed),
+[Qwen's model card](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B), and
+[pgvector's dimension-specific indexing](https://github.com/pgvector/pgvector#can-i-store-vectors-with-different-dimensions-in-the-same-column).
+
+### Optional local Qwen reranker
+
+The `rerank` extra installs Sentence Transformers 6.1.0 and PyTorch 2.10.0.
+On Windows x64, uv uses PyTorch's official CUDA 12.8 wheel so a compatible NVIDIA
+GPU can be used; this is a larger download than the CPU wheel. Other platforms
+use PyPI. Scoring automatically uses CUDA when available, otherwise CPU.
+
+From `apps/api`, run the same production retriever with reranking enabled:
+
+```powershell
+python scripts/uv_run.py --extra rerank python -m app.evals retrieval --rerank --experiment qwen-retrieval --timeout 300
+python scripts/uv_run.py --extra rerank python -m app.evals full --rerank --experiment qwen-hive-full --timeout 300 --judge-model deepseek-ai/deepseek-v4.1-flash --judge-reasoning-effort high --judge-timeout 120
+```
+
+Weights download on the first enabled run into the ignored root `.model-cache/`.
+The official model revision is pinned; no GGUF, Ollama, or remote model code is
+used. Reports record revision, instruction, device, dtype, length limit, batch
+size, input format, scoring placement, and dependency versions. Once cached,
+`HF_HUB_OFFLINE=1` avoids model-download network requests while retaining
+generation/judge access to the configured provider. If Xet transfer stalls during
+initial download, Hugging Face supports `HF_HUB_DISABLE_XET=1` to use HTTP transfer instead.
+
+The reranker now scores expanded parent windows rather than child chunks. The
+unchanged vector/keyword search and RRF produce the full candidate pool; parent
+expansion and merging process that entire pool before deduplicating visible
+windows. Qwen scores each window's path and complete visible text with trained
+yes-minus-no logits, and the highest six become the final contexts. Ties retain
+the parent order derived from RRF. Source indices are assigned after selection.
+
+Parent size limits remain 250 lines and 16,000 characters. Tokenizer truncation
+is disabled; inputs exceeding the model's 32,768-token limit fail explicitly
+instead of silently scoring a different excerpt. KV caching is disabled for
+the single forward pass to reduce GPU memory use. There are no relevance
+thresholds or changed embedding/index requirements. Model errors surface as
+failed cases; they never silently fall back to RRF.
+
+Production remains opt-in through `REPOSITORY_RERANKER=qwen3` and launching the
+API with `python scripts/uv_run.py --extra rerank uvicorn app.main:app --host 127.0.0.1 --port 8137`.
+The active setting is `REPOSITORY_RERANKER=none` to avoid the extra reranking
+latency. Its implementation is retained; a commented `REPOSITORY_RERANKER=qwen3`
+line in the environment template makes the opt-in easy to restore. Evaluation
+`--rerank` and `--no-rerank` override that
+setting for paired experiments. Unit tests never load or download model weights;
+the API type-check command installs the optional package to check its types.
+
+### Existing quality commands
+
+#### Hive-hosted DeepSeek evaluation judge
+
+Set `HIVE_API_KEY` in the ignored `apps/api/.env` to your **Hive** API key,
+matching the working Hive endpoint. Select `deepseek-ai/deepseek-v4.1-flash`:
+
+```powershell
+pnpm --filter api eval calibrate --judge-model deepseek-ai/deepseek-v4.1-flash --reasoning-effort high --timeout 120 --output ../../.eval-artifacts/hive-deepseek-high-calibration-v2.json
+pnpm --filter api eval grade ../../.eval-artifacts/single-agent-v1-accepted.json --judge-model deepseek-ai/deepseek-v4.1-flash --judge-reasoning-effort high --judge-timeout 120 --output ../../.eval-artifacts/single-agent-v1-hive-deepseek-high-v2.json
+```
+
+This judge uses `openai.AsyncOpenAI` with `https://api.thehive.ai/api/v3` and
+defaults to high reasoning. The OpenAI SDK is already installed through
+LangChain and is now declared as a direct dependency; no additional inference
+framework is required. Production answer generation continues through LangChain,
+using the same `HIVE_API_KEY` at the same Hive endpoint. It uses Chat Completions
+streaming, high reasoning, a 16,384-token completion cap, an 8,192-token thinking
+budget, a 120-second request timeout and one provider retry. `HIVE_CHAT_MODEL`
+can select another Hive model; its default is `deepseek-ai/deepseek-v4.1-flash`.
+Hive takes precedence over legacy OpenAI chat settings when its key is present;
+provider errors surface without an automatic OpenAI fallback.
+
+Selecting a GPT judge explicitly retains its existing OpenAI implementation and
+requires OpenAI credits. For Hive judging, pass the model shown above; grading
+remains opt-in. Hive uses only `HIVE_API_KEY`. The old `DEEPSEEK_API_KEY` name is
+no longer read. Restart running API/worker processes after renaming the key.
+
+Embedding calls use local Ollama, independently of the Hive chat credential.
+`EMBEDDINGS_PROVIDER=openai` explicitly selects the historical embedding provider
+and needs `OPENAI_API_KEY` for cache misses.
+
+Hive's non-streaming JSON mode was verified with a live high-reasoning protocol
+probe. The two judge tasks retain the same rubric, gold/evidence separation and
+scorer. The full JSON response is validated against the existing Pydantic schema;
+empty, malformed or truncated responses fail. Exact quotations and evidence IDs
+still need to pass validation. All 12 calibration examples must pass before
+grading. Requests have bounded timeouts, one provider retry, a 16,384-token
+completion cap and an 8,192-token thinking budget. The explicit thinking budget
+reserves room for the JSON labels while retaining high reasoning. HTTP clients
+close on both success and failure.
+
+Reports record Hive's provider/endpoint, SDK version, reasoning effort, output
+format/budget and provider implementation hash. Regrade both compared answer sets
+with matching judge configurations. Original GPT artifacts remain separate.
+The strict `judge-agreement` command also requires matching grader implementation
+hashes. Historical GPT artifacts predate the provider-call extraction, so they
+cannot be used for that command without regrading GPT under the current code.
+The historical GPT baseline is preserved; no cross-implementation agreement is
+claimed.
+
+Hive publishes its own prices; DeepSeek's direct-API peak/off-peak schedule does
+not establish Hive's billing. On 2026-10-14, Hive lists discounted rates of
+$0.12/M input tokens, $0.48/M output and $0.0024/M cache reads. Check
+[Hive pricing](https://thehive.ai/pricing) for future runs. Integration follows
+[Hive's model documentation](https://docs.thehive.ai/docs/deepseek-v41-flash).
 
 ```powershell
 # No generation or judge calls; uncached query embeddings can incur provider calls.
@@ -74,16 +236,16 @@ pnpm --filter api eval retrieval --candidate-budget 12 --experiment hybrid-12
 pnpm --filter api eval retrieval --candidate-budget 24 --experiment hybrid-24
 
 # Check a judge against the known examples before spending on a full run.
-pnpm --filter api eval calibrate --judge-model gpt-5.4-mini-2026-03-17 --reasoning-effort medium --timeout 120
+pnpm --filter api eval calibrate --judge-model deepseek-ai/deepseek-v4.1-flash --reasoning-effort high --timeout 120
 
 # Capture production-equivalent answers and grade with explicit opt-in.
-pnpm --filter api eval full --experiment baseline-full --judge-model gpt-5.4-mini-2026-03-17 --judge-reasoning-effort medium --judge-timeout 120
+pnpm --filter api eval full --experiment hive-full --judge-model deepseek-ai/deepseek-v4.1-flash --judge-reasoning-effort high --judge-timeout 120
 
 # Capture answers without semantic grading.
 pnpm --filter api eval full --experiment capture
 
 # Grade saved answers without regenerating them.
-pnpm --filter api eval grade ../../.eval-artifacts/capture.json --judge-model gpt-5.4-mini-2026-03-17 --judge-reasoning-effort medium --judge-timeout 120 --output ../../.eval-artifacts/capture-graded.json
+pnpm --filter api eval grade ../../.eval-artifacts/capture.json --judge-model deepseek-ai/deepseek-v4.1-flash --judge-reasoning-effort high --judge-timeout 120 --output ../../.eval-artifacts/capture-graded.json
 
 # Compare paired cases with matching gold, corpus, fixtures, scorer and judge settings.
 pnpm --filter api eval compare ../../.eval-artifacts/baseline-full.json ../../.eval-artifacts/candidate-full.json --output ../../.eval-artifacts/comparison.json
@@ -203,6 +365,16 @@ counts are explicit, with category breakdowns and per-case judgments. Reports
 record dataset/fixture/scorer hashes and versions, corpus SHA, application revision
 and source hash, prompt hash, model/dependency settings, retrieval parameters, and
 judge model, rubric, schemas, implementation, calibration and timeout settings.
+
+## Historical maximum scores for reporting
+
+[MAXIMUM_SCORES.md](MAXIMUM_SCORES.md) preserves the user-selected historical
+best-results table: completed reranked retrieval scores and the earlier partial
+semantic readings. [data/maximum-scores-v1.json](data/maximum-scores-v1.json)
+records source hashes, configurations, scored-case contributions and coverage.
+These scores come from separate experiments; the semantic run accepted 18/24
+judgments. The document includes report wording that keeps this coverage clear.
+The current runtime configuration and baseline reports are unchanged.
 
 ## Comparing future architectures
 

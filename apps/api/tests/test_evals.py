@@ -533,6 +533,7 @@ def test_fixture_callables_are_accepted_by_actual_agent_construction(
     from langchain.agents import create_agent
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-offline-test")
+    monkeypatch.delenv("HIVE_API_KEY", raising=False)
     monkeypatch.setenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
     from app.config import get_settings
 
@@ -562,6 +563,10 @@ def test_embedding_cache_validates_and_reuses_vectors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("EMBEDDINGS_PROVIDER", "openai")
+    get_settings.cache_clear()
     calls: list[str] = []
 
     def provider() -> FakeEmbeddings:
@@ -577,6 +582,38 @@ def test_embedding_cache_validates_and_reuses_vectors(
     path.write_text("[[1, 2]]", encoding="utf-8")
     with pytest.raises(ValueError, match="dimensions"):
         asyncio.run(embeddings.aembed_query("query"))
+    get_settings.cache_clear()
+
+
+def test_embedding_cache_keeps_openai_and_qwen_vectors_separate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.config import get_settings
+
+    calls: list[str] = []
+
+    class Provider(FakeEmbeddings):
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            settings = get_settings()
+            calls.append(settings.embeddings_provider)
+            return [[1.0] + [0.0] * (settings.embedding_dimensions - 1) for _ in texts]
+
+    monkeypatch.setattr(execution, "create_embedding_model", Provider)
+    try:
+        for provider, dimensions in [
+            ("openai", 1536),
+            ("ollama", 1024),
+            ("openai", 1536),
+        ]:
+            monkeypatch.setenv("EMBEDDINGS_PROVIDER", provider)
+            get_settings.cache_clear()
+            cached = CachedEmbeddings(tmp_path)
+            assert len(asyncio.run(cached.aembed_query("same query"))) == dimensions
+        assert calls == ["openai", "ollama"]
+        assert len(list(tmp_path.glob("*.json"))) == 2
+    finally:
+        get_settings.cache_clear()
 
 
 @pytest.mark.parametrize(
@@ -767,13 +804,18 @@ def test_shared_stream_preserves_text_tool_order_and_deduplication(
     ]
 
 
+@pytest.mark.parametrize("model", ["offline-test", "deepseek-ai/deepseek-v4.1-flash"])
 @pytest.mark.parametrize("bad_attempts", [0, 1, 3])
 def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
     monkeypatch: pytest.MonkeyPatch,
     bad_attempts: int,
+    model: str,
 ) -> None:
+    from openai.types.chat import ChatCompletion
+
     from app.evals import judge as judge_module
 
+    monkeypatch.setenv("HIVE_API_KEY", "test-hive-key")
     payloads: list[str] = []
     value = result("alpha is 1.")
     q = question()
@@ -822,10 +864,57 @@ def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
         configuration.update(kwargs)
         return FakeChat()
 
+    class FakeHiveClient:
+        def __init__(self, **kwargs: object) -> None:
+            assert kwargs["api_key"] == "test-hive-key"
+            assert kwargs["base_url"] == "https://api.thehive.ai/api/v3"
+            self.chat = self
+            self.completions = self
+
+        async def __aenter__(self) -> "FakeHiveClient":
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def create(self, *, messages: list[dict[str, str]], **_kwargs: object):
+            schema = (
+                GroundingJudgment
+                if "GroundingJudgment" in messages[0]["content"]
+                else CorrectnessJudgment
+            )
+            labeled = await FakeCall(schema).ainvoke(
+                [(message["role"], message["content"]) for message in messages]
+            )
+            return ChatCompletion.model_validate(
+                {
+                    "id": "offline",
+                    "object": "chat.completion",
+                    "created": 0,
+                    "model": model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": "stop",
+                            "message": {
+                                "role": "assistant",
+                                "content": labeled.model_dump_json(),
+                            },
+                        }
+                    ],
+                }
+            )
+
     monkeypatch.setattr(judge_module, "ChatOpenAI", create_chat)
-    judge = judge_module.SemanticJudge("offline-test", reasoning_effort="low")
-    assert configuration["temperature"] is None
-    assert configuration["reasoning"] == {"effort": "low"}
+    monkeypatch.setattr(judge_module, "AsyncOpenAI", FakeHiveClient)
+    judge = judge_module.SemanticJudge(model, reasoning_effort="low")
+    if model == "offline-test":
+        assert configuration["temperature"] is None
+        assert configuration["reasoning"] == {"effort": "low"}
+    else:
+        assert not configuration
+        assert judge.configuration["provider"] == "hive"
+        assert "test-hive-key" not in json.dumps(judge.configuration)
     assert judge.configuration["reasoning_effort"] == "low"
     case = CaseReport(
         case_id=q.id, category=q.category, question=q.question, result=value
@@ -840,6 +929,105 @@ def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
         assert "SECRET_GOLD_FACT_FOR_TEST" in payloads[-1]
     assert len(case.judge_validation_errors) == bad_attempts
     assert "SECRET_GOLD_FACT_FOR_TEST" not in payloads[0]
+
+
+@pytest.mark.parametrize(
+    "failure", [None, "malformed", "truncated", "empty", "choices", "auth", "retry"]
+)
+def test_hive_sdk_transport_validation_and_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str | None,
+) -> None:
+    import httpx
+    from openai import AsyncOpenAI, AuthenticationError
+
+    from app.evals import judge as judge_module
+
+    monkeypatch.setenv("HIVE_API_KEY", "test-hive-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-must-not-be-used")
+    requests: list[dict[str, object]] = []
+    clients: list[httpx.AsyncClient] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.url == "https://api.thehive.ai/api/v3/chat/completions"
+        assert request.headers["authorization"] == "Bearer test-hive-key"
+        payload = json.loads(request.content)
+        assert payload["model"] == "deepseek-ai/deepseek-v4.1-flash"
+        assert payload["reasoning_effort"] == "high"
+        assert payload["max_completion_tokens"] == 16384
+        assert payload["max_thinking_tokens"] == 8192
+        assert payload["response_format"] == {"type": "json_object"}
+        assert "JSON Schema" in payload["messages"][0]["content"]
+        assert "temperature" not in payload
+        requests.append(payload)
+        if failure == "auth":
+            return httpx.Response(401, json={"error": {"message": "offline"}})
+        if failure == "retry" and len(requests) == 1:
+            return httpx.Response(
+                429,
+                json={"error": {"message": "offline"}},
+                headers={"retry-after": "0"},
+            )
+        content = json.dumps({"claims": [], "limitations": []})
+        if failure == "malformed":
+            content = '{"claims": "wrong type"}'
+        elif failure == "empty":
+            content = ""
+        return httpx.Response(
+            200,
+            json={
+                "id": "offline",
+                "object": "chat.completion",
+                "created": 0,
+                "model": payload["model"],
+                "choices": []
+                if failure == "choices"
+                else [
+                    {
+                        "index": 0,
+                        "finish_reason": "length" if failure == "truncated" else "stop",
+                        "message": {"role": "assistant", "content": content},
+                    }
+                ],
+            },
+        )
+
+    def create_client(**kwargs: object) -> AsyncOpenAI:
+        transport = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        clients.append(transport)
+        return AsyncOpenAI(http_client=transport, **kwargs)
+
+    monkeypatch.setattr(judge_module, "AsyncOpenAI", create_client)
+
+    async def run() -> None:
+        judge = judge_module.SemanticJudge("deepseek-ai/deepseek-v4.1-flash")
+        messages = [("system", "Label claims."), ("user", "Answer.")]
+        if failure == "auth":
+            with pytest.raises(AuthenticationError):
+                await judge._label(GroundingJudgment, messages)
+        elif failure not in {None, "retry"}:
+            with pytest.raises(ValueError):
+                await judge._label(GroundingJudgment, messages)
+        else:
+            assert await judge._label(GroundingJudgment, messages) == GroundingJudgment(
+                claims=[], limitations=[]
+            )
+
+    asyncio.run(run())
+    assert len(requests) == (2 if failure == "retry" else 1)
+    assert all(client.is_closed for client in clients)
+
+
+def test_hive_key_is_required_without_openai_credential_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.evals.judge import SemanticJudge
+
+    monkeypatch.delenv("HIVE_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-old-name-must-not-be-used")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-must-not-be-used")
+    with pytest.raises(ValueError, match="HIVE_API_KEY"):
+        SemanticJudge("deepseek-ai/deepseek-v4.1-flash")
 
 
 @pytest.mark.parametrize(
@@ -864,7 +1052,12 @@ def test_timeout_does_not_kill_the_remaining_batch(
 ) -> None:
     import argparse
 
+    from app.config import get_settings
     from app.evals import __main__ as cli
+
+    monkeypatch.setenv("HIVE_API_KEY", "test-hive-key")
+    monkeypatch.setenv("HIVE_CHAT_MODEL", "deepseek-ai/deepseek-v4.1-flash")
+    get_settings.cache_clear()
 
     class FakeConnection:
         async def close(self) -> None:
@@ -911,6 +1104,14 @@ def test_timeout_does_not_kill_the_remaining_batch(
     assert report.metadata["retrieval_mode"] == retrieval_mode
     assert report.metadata["retrieval_parameters"]["vector_k"] == expected_vector_k
     assert report.metadata["retrieval_parameters"]["keyword_k"] == expected_keyword_k
+    models = report.metadata["model_configurations"]
+    assert models["chat"] == "deepseek-ai/deepseek-v4.1-flash"
+    assert models["chat_provider"] == "hive"
+    assert models["use_responses_api"] is False
+    assert models["chat_reasoning_effort"] == "high"
+    assert models["chat_max_thinking_tokens"] == 8192
+    assert "test-hive-key" not in json.dumps(report.metadata)
+    get_settings.cache_clear()
 
 
 def test_grading_bounds_concurrency_and_continues_after_a_case_error(

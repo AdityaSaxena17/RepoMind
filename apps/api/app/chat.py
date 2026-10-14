@@ -17,6 +17,7 @@ from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from .config import get_settings
 from .retrieval import RepoMindParentHybridRetriever, create_embedding_model
@@ -65,11 +66,29 @@ def redacted_error(error: Exception) -> str:
 
 
 def create_chat_model() -> ChatOpenAI:
-    """Create the repository chat model; OPENAI_CHAT_MODEL is intentionally required."""
+    """Use Hive when configured; retain explicit OpenAI configuration otherwise."""
     settings = get_settings()
 
+    if settings.hive_api_key:
+        return ChatOpenAI(
+            model=settings.hive_chat_model,
+            api_key=SecretStr(settings.hive_api_key),
+            base_url="https://api.thehive.ai/api/v3",
+            streaming=True,
+            # Hive includes usage itself and serves Chat Completions, not Responses.
+            stream_usage=False,
+            use_responses_api=False,
+            reasoning_effort="high",
+            max_completion_tokens=16384,
+            extra_body={"max_thinking_tokens": 8192},
+            timeout=120,
+            max_retries=1,
+        )
+
     if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is required for repository chat.")
+        raise RuntimeError(
+            "HIVE_API_KEY or OPENAI_API_KEY is required for repository chat."
+        )
 
     if not settings.openai_chat_model:
         raise RuntimeError("OPENAI_CHAT_MODEL is required for repository chat.")

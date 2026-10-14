@@ -1,0 +1,3349 @@
+{
+  "version": "1",
+  "active_embedding_provider": "ollama",
+  "active_reranker": "none",
+  "semantic_metrics_reexecuted": false,
+  "no_reranker_embedding_calls": 0,
+  "latency_note": "Warm embedding latency not isolated; earlier reranking overhead was approximately seven seconds per query.",
+  "application_reembedding": {
+    "operation": "application_reembedding",
+    "embedding_profile": {
+      "digest": "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d",
+      "dimensions": 1024,
+      "model": "qwen3-embedding:0.6b",
+      "num_ctx": 8192,
+      "provider": "ollama",
+      "query_instruction": "Given a question about a code repository, retrieve relevant code passages that answer the question.",
+      "truncate": false
+    },
+    "repositories": [
+      {
+        "repository_id": "cms4ylx4i0039u2qg7tdqieju",
+        "status": "completed",
+        "chunks": 329,
+        "corpus_commit_sha": "4ba610e1fbd83420101895975fc9752c520ae247",
+        "source_unchanged": true,
+        "dimensions": 1024
+      },
+      {
+        "repository_id": "cms522wfc000eu214bhwnrxp6",
+        "status": "completed",
+        "chunks": 109,
+        "corpus_commit_sha": "1e7ff3c5f748864d9f6a160e36f5c3f43b9d722b",
+        "source_unchanged": true,
+        "dimensions": 1024
+      },
+      {
+        "repository_id": "cms53ui8d000mu26khatisqt7",
+        "status": "completed",
+        "chunks": 236,
+        "corpus_commit_sha": "d8b97bbe55ae7eb29916cb8ddc9fd63d852f2540",
+        "source_unchanged": true,
+        "dimensions": 1024
+      }
+    ],
+    "live_github_calls": 0,
+    "quality_evaluation": false
+  },
+  "runs": [
+    {
+      "artifact": "retrieval-v8-qwen-parents.json",
+      "artifact_sha256": "405042e8a319f14fa5e468a0018d2c4e115f1cc9c6b8ae4dc0198f03017676af",
+      "metadata": {
+        "experiment_name": "retrieval-v8-qwen-parents",
+        "mode": "retrieval",
+        "created_at": "2026-10-14T04:30:50.865324+00:00",
+        "architecture": "single_agent",
+        "retrieval_mode": "hybrid",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "dataset_case_count": 24,
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "fixture_provenance": "Synthetic evaluation scenarios, not snapshots of real GitHub issues or PRs. Payload fields follow RepoMind MCP serialization. All identities, dates, discussions, counts and proposed changes are fixture facts only.",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "corpus_repository": "AdityaSaxena17/RepoMind",
+        "corpus_index_id": "eval_2841872174440f5f65b780f9409d6a869cff480832627fce611d6097a8c06ce0",
+        "corpus_file_count": 101,
+        "corpus_chunk_count": 153,
+        "application_revision": "1f84f5970b6037c02b994158e7b12a1e876dd303",
+        "application_sha256": "c59595ad8d806e309ffdbe843db57994bb72603bdb30b483458faf2e00a4f233",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536,
+          "reranker": {
+            "model": "Qwen/Qwen3-Reranker-0.6B",
+            "revision": "e61197ed45024b0ed8a2d74b80b4d909f1255473",
+            "instruction": "Given a repository question, retrieve relevant code passages that answer the question",
+            "max_length": 32768,
+            "batch_size": 4,
+            "device": "cuda:0",
+            "dtype": "torch.float16",
+            "score": "yes_minus_no_logit",
+            "input": "file_path_newline_visible_parent_content",
+            "placement": "all_expanded_deduplicated_parents_before_final_six",
+            "truncation": "reject_oversize_no_truncation",
+            "use_cache": false
+          }
+        },
+        "retrieval_parameters": {
+          "vector_k": 24,
+          "keyword_k": 24,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "dependency_versions": {
+          "langchain": "1.3.14",
+          "langchain-openai": "1.4.1",
+          "asyncpg": "0.31.0",
+          "pydantic": "2.13.4",
+          "sentence-transformers": "6.1.0",
+          "transformers": "5.19.0",
+          "torch": "2.10.0+cu128"
+        },
+        "judge_configuration": null,
+        "judge_calibrated": false,
+        "case_timeout_seconds": 300.0,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.8235294117647058,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 31,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.4607843137254902,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 47,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "answer_correctness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "fact_completeness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_precision": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_coverage": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_validity": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "correct_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "unnecessary_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "by_category": {
+          "architecture": {
+            "recall_at_6": {
+              "macro_average": 0.6944444444444443,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 14,
+              "denominator_sum": 20
+            },
+            "precision_at_6": {
+              "macro_average": 0.5833333333333334,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 21,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "github": {
+            "recall_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "precision_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "insufficient": {
+            "recall_at_6": {
+              "macro_average": 1.0,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 1
+            },
+            "precision_at_6": {
+              "macro_average": 0.16666666666666666,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 6
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "mixed": {
+            "recall_at_6": {
+              "macro_average": 0.8333333333333334,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 5,
+              "denominator_sum": 7
+            },
+            "precision_at_6": {
+              "macro_average": 0.41666666666666663,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 10,
+              "denominator_sum": 24
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "single_file": {
+            "recall_at_6": {
+              "macro_average": 0.9166666666666666,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 11,
+              "denominator_sum": 12
+            },
+            "precision_at_6": {
+              "macro_average": 0.4166666666666667,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 15,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          }
+        },
+        "completed_cases": 24,
+        "failed_cases": 0,
+        "complete_quality_baseline": false
+      },
+      "retrieval_metrics": {
+        "recall_at_6": {
+          "macro": 0.8235294117647058,
+          "scored": 17,
+          "not_applicable": 7
+        },
+        "precision_at_6": {
+          "macro": 0.4607843137254902,
+          "scored": 17,
+          "not_applicable": 7
+        }
+      },
+      "per_case": [
+        {
+          "id": "code-01",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-02",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-03",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-04",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-05",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-06",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-01",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-02",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-03",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-04",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-05",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-06",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.8333333333333334,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "missing-01",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-02",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-03",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-04",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "github-01",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-02",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-03",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-04",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "mixed-01",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-02",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-03",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-04",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        }
+      ]
+    },
+    {
+      "artifact": "retrieval-v9-qwen-embedding-parents.json",
+      "artifact_sha256": "26d5de85baf30bd8cda46a38fa13087a505989ac064feb2b2d121ce6a4a6c085",
+      "metadata": {
+        "experiment_name": "retrieval-v9-qwen-embedding-parents",
+        "mode": "retrieval",
+        "created_at": "2026-10-14T07:09:28.214239+00:00",
+        "architecture": "single_agent",
+        "retrieval_mode": "hybrid",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "dataset_case_count": 24,
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "fixture_provenance": "Synthetic evaluation scenarios, not snapshots of real GitHub issues or PRs. Payload fields follow RepoMind MCP serialization. All identities, dates, discussions, counts and proposed changes are fixture facts only.",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "corpus_repository": "AdityaSaxena17/RepoMind",
+        "corpus_index_id": "eval_bcbbdca605e0668d9c36bb8add78c04e5d0723bc52c397df64134ad1d64dfd9f",
+        "corpus_file_count": 101,
+        "corpus_chunk_count": 153,
+        "application_revision": "1f84f5970b6037c02b994158e7b12a1e876dd303",
+        "application_sha256": "23f133508a7e1a082a164b58ab0b9eac9a635f315ed160aea7478809a31bdb2b",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "model_configurations": {
+          "chat": "deepseek-ai/deepseek-v4.1-flash",
+          "chat_temperature": "provider_default",
+          "use_responses_api": false,
+          "streaming": true,
+          "embeddings": "qwen3-embedding:0.6b",
+          "dimensions": 1024,
+          "embedding_provider": "ollama",
+          "embedding_profile": "{\"digest\": \"ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d\", \"dimensions\": 1024, \"model\": \"qwen3-embedding:0.6b\", \"num_ctx\": 8192, \"provider\": \"ollama\", \"query_instruction\": \"Given a question about a code repository, retrieve relevant code passages that answer the question.\", \"truncate\": false}",
+          "reranker": {
+            "model": "Qwen/Qwen3-Reranker-0.6B",
+            "revision": "e61197ed45024b0ed8a2d74b80b4d909f1255473",
+            "instruction": "Given a repository question, retrieve relevant code passages that answer the question",
+            "max_length": 32768,
+            "batch_size": 4,
+            "device": "cuda:0",
+            "dtype": "torch.float16",
+            "score": "yes_minus_no_logit",
+            "input": "file_path_newline_visible_parent_content",
+            "placement": "all_expanded_deduplicated_parents_before_final_six",
+            "truncation": "reject_oversize_no_truncation",
+            "use_cache": false
+          },
+          "chat_provider": "hive",
+          "chat_base_url": "https://api.thehive.ai/api/v3",
+          "chat_reasoning_effort": "high",
+          "chat_max_completion_tokens": 16384,
+          "chat_max_thinking_tokens": 8192,
+          "chat_timeout_seconds": 120,
+          "chat_max_retries": 1
+        },
+        "retrieval_parameters": {
+          "vector_k": 24,
+          "keyword_k": 24,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "dependency_versions": {
+          "langchain": "1.3.14",
+          "langchain-openai": "1.4.1",
+          "asyncpg": "0.31.0",
+          "pydantic": "2.13.4",
+          "sentence-transformers": "6.1.0",
+          "transformers": "5.19.0",
+          "torch": "2.10.0+cu128"
+        },
+        "judge_configuration": null,
+        "judge_calibrated": false,
+        "case_timeout_seconds": 300.0,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.8235294117647058,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 31,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.45098039215686275,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 46,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "answer_correctness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "fact_completeness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_precision": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_coverage": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_validity": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "correct_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "unnecessary_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "by_category": {
+          "architecture": {
+            "recall_at_6": {
+              "macro_average": 0.6944444444444443,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 14,
+              "denominator_sum": 20
+            },
+            "precision_at_6": {
+              "macro_average": 0.5833333333333334,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 21,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "github": {
+            "recall_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "precision_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "insufficient": {
+            "recall_at_6": {
+              "macro_average": 1.0,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 1
+            },
+            "precision_at_6": {
+              "macro_average": 0.16666666666666666,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 6
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "mixed": {
+            "recall_at_6": {
+              "macro_average": 0.8333333333333334,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 5,
+              "denominator_sum": 7
+            },
+            "precision_at_6": {
+              "macro_average": 0.375,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 9,
+              "denominator_sum": 24
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "single_file": {
+            "recall_at_6": {
+              "macro_average": 0.9166666666666666,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 11,
+              "denominator_sum": 12
+            },
+            "precision_at_6": {
+              "macro_average": 0.4166666666666667,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 15,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          }
+        },
+        "completed_cases": 24,
+        "failed_cases": 0,
+        "complete_quality_baseline": false
+      },
+      "retrieval_metrics": {
+        "recall_at_6": {
+          "macro": 0.8235294117647058,
+          "scored": 17,
+          "not_applicable": 7
+        },
+        "precision_at_6": {
+          "macro": 0.45098039215686275,
+          "scored": 17,
+          "not_applicable": 7
+        }
+      },
+      "per_case": [
+        {
+          "id": "code-01",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-02",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-03",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-04",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-05",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-06",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-01",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-02",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-03",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-04",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-05",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-06",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.8333333333333334,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "missing-01",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-02",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-03",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-04",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "github-01",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-02",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-03",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-04",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "mixed-01",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-02",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-03",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-04",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        }
+      ]
+    },
+    {
+      "artifact": "retrieval-v10-qwen-embedding-no-reranker.json",
+      "artifact_sha256": "d87583c251a33226b2860454161537adfacab94053758ee21302ad60a24d16d1",
+      "metadata": {
+        "experiment_name": "retrieval-v10-qwen-embedding-no-reranker",
+        "mode": "retrieval",
+        "created_at": "2026-10-14T07:20:18.567060+00:00",
+        "architecture": "single_agent",
+        "retrieval_mode": "hybrid",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "dataset_case_count": 24,
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "fixture_provenance": "Synthetic evaluation scenarios, not snapshots of real GitHub issues or PRs. Payload fields follow RepoMind MCP serialization. All identities, dates, discussions, counts and proposed changes are fixture facts only.",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "corpus_repository": "AdityaSaxena17/RepoMind",
+        "corpus_index_id": "eval_bcbbdca605e0668d9c36bb8add78c04e5d0723bc52c397df64134ad1d64dfd9f",
+        "corpus_file_count": 101,
+        "corpus_chunk_count": 153,
+        "application_revision": "1f84f5970b6037c02b994158e7b12a1e876dd303",
+        "application_sha256": "f4b5195e53bd724bbc236f8affd36289008a0f66865699ade5b94bc1e621dd6c",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "model_configurations": {
+          "chat": "deepseek-ai/deepseek-v4.1-flash",
+          "chat_temperature": "provider_default",
+          "use_responses_api": false,
+          "streaming": true,
+          "embeddings": "qwen3-embedding:0.6b",
+          "dimensions": 1024,
+          "embedding_provider": "ollama",
+          "embedding_profile": "{\"digest\": \"ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d\", \"dimensions\": 1024, \"model\": \"qwen3-embedding:0.6b\", \"num_ctx\": 8192, \"provider\": \"ollama\", \"query_instruction\": \"Given a question about a code repository, retrieve relevant code passages that answer the question.\", \"truncate\": false}",
+          "reranker": null,
+          "chat_provider": "hive",
+          "chat_base_url": "https://api.thehive.ai/api/v3",
+          "chat_reasoning_effort": "high",
+          "chat_max_completion_tokens": 16384,
+          "chat_max_thinking_tokens": 8192,
+          "chat_timeout_seconds": 120,
+          "chat_max_retries": 1
+        },
+        "retrieval_parameters": {
+          "vector_k": 24,
+          "keyword_k": 24,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "dependency_versions": {
+          "langchain": "1.3.14",
+          "langchain-openai": "1.4.1",
+          "asyncpg": "0.31.0",
+          "pydantic": "2.13.4"
+        },
+        "judge_configuration": null,
+        "judge_calibrated": false,
+        "case_timeout_seconds": 120.0,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.7794117647058822,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 31,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.37254901960784315,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 38,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "answer_correctness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "fact_completeness": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_precision": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_coverage": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "citation_validity": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "correct_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          },
+          "unnecessary_abstention": {
+            "macro_average": null,
+            "scored_cases": 0,
+            "not_applicable": 0,
+            "unscored": 24,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 0
+          }
+        },
+        "by_category": {
+          "architecture": {
+            "recall_at_6": {
+              "macro_average": 0.736111111111111,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 15,
+              "denominator_sum": 20
+            },
+            "precision_at_6": {
+              "macro_average": 0.49999999999999994,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 18,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "github": {
+            "recall_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "precision_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "insufficient": {
+            "recall_at_6": {
+              "macro_average": 1.0,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 1
+            },
+            "precision_at_6": {
+              "macro_average": 0.16666666666666666,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 6
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "mixed": {
+            "recall_at_6": {
+              "macro_average": 0.6666666666666666,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 5,
+              "denominator_sum": 7
+            },
+            "precision_at_6": {
+              "macro_average": 0.24999999999999997,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 6,
+              "denominator_sum": 24
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 4,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "single_file": {
+            "recall_at_6": {
+              "macro_average": 0.861111111111111,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 10,
+              "denominator_sum": 12
+            },
+            "precision_at_6": {
+              "macro_average": 0.3611111111111111,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 13,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "answer_correctness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "fact_completeness": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 0,
+              "unscored": 6,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          }
+        },
+        "completed_cases": 24,
+        "failed_cases": 0,
+        "complete_quality_baseline": false
+      },
+      "retrieval_metrics": {
+        "recall_at_6": {
+          "macro": 0.7794117647058822,
+          "scored": 17,
+          "not_applicable": 7
+        },
+        "precision_at_6": {
+          "macro": 0.37254901960784315,
+          "scored": 17,
+          "not_applicable": 7
+        }
+      },
+      "per_case": [
+        {
+          "id": "code-01",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-02",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-03",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-04",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-05",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "code-06",
+          "category": "single_file",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-01",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-02",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-03",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-04",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-05",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "architecture-06",
+          "category": "architecture",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "missing-01",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-02",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-03",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "missing-04",
+          "category": "insufficient",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "github-01",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-02",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-03",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "github-04",
+          "category": "github",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          }
+        },
+        {
+          "id": "mixed-01",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-02",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-03",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            }
+          }
+        },
+        {
+          "id": "mixed-04",
+          "category": "mixed",
+          "status": "completed",
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

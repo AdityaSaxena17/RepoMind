@@ -1,9 +1,322 @@
 import asyncio
+import sys
+import threading
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.documents import Document
 
+from app import reranking, retrieval
 from app.retrieval import RepoMindParentHybridRetriever
+
+
+def test_reranker_loads_pinned_official_model_once_without_remote_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loads: list[dict[str, object]] = []
+
+    class Model:
+        def __init__(self, name: str, **kwargs: object) -> None:
+            assert name == "Qwen/Qwen3-Reranker-0.6B"
+            loads.append(kwargs)
+
+    monkeypatch.setitem(
+        sys.modules, "sentence_transformers", SimpleNamespace(CrossEncoder=Model)
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        SimpleNamespace(
+            cuda=SimpleNamespace(is_available=lambda: False),
+            float16="float16",
+            float32="float32",
+            nn=SimpleNamespace(Identity=object),
+        ),
+    )
+    reranking.get_reranker.cache_clear()
+    try:
+        assert reranking.get_reranker() is reranking.get_reranker()
+        assert len(loads) == 1
+        assert loads[0]["revision"] == reranking.RERANKER_REVISION
+        assert loads[0]["trust_remote_code"] is False
+        assert loads[0]["max_length"] == 32768
+        assert loads[0]["config_kwargs"] == {"use_cache": False}
+        assert loads[0]["device"] == "cpu"
+        assert loads[0]["prompts"] == {"query": reranking.RERANKER_INSTRUCTION}
+    finally:
+        reranking.get_reranker.cache_clear()
+
+
+def test_reranking_scores_expanded_full_pool_off_loop_and_keeps_stable_ties(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main_thread = threading.get_ident()
+
+    class Connection:
+        async def fetch(
+            self, _sql: str, _repository: str, ids: list[str]
+        ) -> list[dict[str, object]]:
+            assert len(ids) == 24
+            return [
+                dict(
+                    id=str(index),
+                    path=f"{index:02}.py",
+                    lineCount=3,
+                    content=f"prefix {index}\nchild {index}\nsurrounding {index}",
+                )
+                for index in range(24)
+            ]
+
+    async def candidates(_self: object, _query: str) -> list[dict[str, object]]:
+        return [
+            dict(
+                id=str(index),
+                file_id=str(index),
+                path=f"{index:02}.py",
+                start_line=2,
+                end_line=2,
+                content=f"child {index}",
+                rank=index + 1,
+                source="vector",
+            )
+            for index in range(24)
+        ]
+
+    def scores(question: str, passages: list[str]) -> list[float]:
+        assert threading.get_ident() != main_thread
+        assert question == "question"
+        assert len(passages) == 24
+        assert passages[-1] == "23.py\nprefix 23\nchild 23\nsurrounding 23"
+        assert passages[0] == "00.py\nprefix 0\nchild 0\nsurrounding 0"
+        return [0.0] * 23 + [1.0]
+
+    async def duplicates(_self: object, _query: str) -> list[dict[str, object]]:
+        return [
+            dict(
+                id="duplicate",
+                file_id="0",
+                path="00.py",
+                start_line=2,
+                end_line=2,
+                rank=1,
+                source="keyword",
+            )
+        ]
+
+    monkeypatch.setattr(RepoMindParentHybridRetriever, "_vector_candidates", candidates)
+    monkeypatch.setattr(
+        RepoMindParentHybridRetriever, "_keyword_candidates", duplicates
+    )
+    monkeypatch.setattr(retrieval, "score_passages", scores)
+    retriever = RepoMindParentHybridRetriever.model_construct(
+        connection=Connection(),
+        embeddings=None,
+        repository_id="test",
+        rerank=True,
+    )
+    documents = asyncio.run(retriever.ainvoke("question"))
+    assert [doc.metadata["path"] for doc in documents] == [
+        "23.py",
+        "00.py",
+        "01.py",
+        "02.py",
+        "03.py",
+        "04.py",
+    ]
+    assert [doc.metadata["source_index"] for doc in documents] == list(range(1, 7))
+    assert documents[1].metadata["sources"] == ["keyword", "vector"]
+
+
+def test_reranker_failure_is_not_silently_replaced_with_rrf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def candidates(_self: object, _query: str) -> list[dict[str, object]]:
+        return [
+            dict(
+                id="a",
+                path="a.py",
+                start_line=1,
+                rank=1,
+                source="vector",
+                content="evidence",
+            )
+        ]
+
+    def fail(_question: str, _passages: list[str]) -> list[float]:
+        raise RuntimeError("model failed")
+
+    async def parents(_self: object, _rows: object) -> list[Document]:
+        return [
+            Document(
+                page_content="parent evidence",
+                metadata={
+                    "path": "a.py",
+                    "start_line": 1,
+                    "end_line": 1,
+                    "sources": ["vector"],
+                    "score": 1.0,
+                },
+            )
+        ]
+
+    monkeypatch.setattr(RepoMindParentHybridRetriever, "_vector_candidates", candidates)
+    monkeypatch.setattr(retrieval, "score_passages", fail)
+    monkeypatch.setattr(RepoMindParentHybridRetriever, "_parent_documents", parents)
+    retriever = RepoMindParentHybridRetriever.model_construct(
+        connection=None,
+        embeddings=None,
+        repository_id="test",
+        keyword_k=0,
+        rerank=True,
+    )
+    with pytest.raises(RuntimeError, match="model failed"):
+        asyncio.run(retriever.ainvoke("question"))
+
+
+@pytest.mark.parametrize("scores", [[1.0], [float("nan"), 0.0], [0.0, float("inf")]])
+def test_reranker_rejects_invalid_scores(
+    scores: list[float],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Model:
+        def preprocess(self, _pairs: object, **kwargs: object) -> dict[str, object]:
+            assert kwargs["processing_kwargs"] == {"text": {"truncation": False}}
+            return {"input_ids": SimpleNamespace(shape=(1, 5))}
+
+        def predict(
+            self, pairs: list[tuple[str, str]], **kwargs: object
+        ) -> list[float]:
+            assert pairs == [("query", "a"), ("query", "b")]
+            assert kwargs["batch_size"] == 4
+            assert kwargs["processing_kwargs"] == {"text": {"truncation": False}}
+            return scores
+
+    monkeypatch.setattr(reranking, "get_reranker", lambda: Model())
+    with pytest.raises(ValueError, match="invalid relevance scores"):
+        reranking.score_passages("query", ["a", "b"])
+
+
+def test_empty_reranking_does_not_load_the_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail() -> None:
+        raise AssertionError("Empty retrieval must not load model weights")
+
+    monkeypatch.setattr(reranking, "get_reranker", fail)
+    assert reranking.score_passages("query", []) == []
+
+
+def test_reranker_rejects_oversized_windows_instead_of_truncating(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Model:
+        def preprocess(self, _pairs: object, **_kwargs: object) -> dict[str, object]:
+            return {"input_ids": SimpleNamespace(shape=(1, 32769))}
+
+        def predict(self, *_args: object, **_kwargs: object) -> list[float]:
+            raise AssertionError("Oversized windows must not reach inference")
+
+    monkeypatch.setattr(reranking, "get_reranker", lambda: Model())
+    with pytest.raises(ValueError, match="complete-window token limit"):
+        reranking.score_passages("query", ["parent text"])
+
+
+def test_parent_reranking_deduplicates_visible_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def candidates(_self: object, _query: str) -> list[dict[str, object]]:
+        return [dict(id="a", path="a.py", start_line=1, source="vector", rank=1)]
+
+    async def parents(_self: object, _rows: object) -> list[Document]:
+        return [
+            Document(
+                page_content=text,
+                metadata={
+                    "path": "a.py",
+                    "start_line": first,
+                    "end_line": first,
+                    "sources": [source],
+                    "score": 1.0,
+                },
+            )
+            for text, first, source in [
+                ("one", 1, "vector"),
+                ("one", 1, "keyword"),
+                ("two", 100, "vector"),
+                ("", 200, "vector"),
+            ]
+        ]
+
+    def scores(_question: str, passages: list[str]) -> list[float]:
+        assert passages == ["a.py\none", "a.py\ntwo"]
+        return [0.0, 1.0]
+
+    monkeypatch.setattr(RepoMindParentHybridRetriever, "_vector_candidates", candidates)
+    monkeypatch.setattr(RepoMindParentHybridRetriever, "_parent_documents", parents)
+    monkeypatch.setattr(retrieval, "score_passages", scores)
+    retriever = RepoMindParentHybridRetriever.model_construct(
+        connection=None,
+        embeddings=None,
+        repository_id="test",
+        keyword_k=0,
+        rerank=True,
+    )
+    docs = asyncio.run(retriever.ainvoke("query"))
+    assert [doc.page_content for doc in docs] == ["two", "one"]
+    assert docs[1].metadata["sources"] == ["keyword", "vector"]
+
+
+def test_parent_reranking_uses_trimmed_text_and_distinct_same_file_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lines = [f"line {index}: café " + "x" * 100 for index in range(1, 501)]
+
+    class Connection:
+        async def fetch(self, *_args: object) -> list[dict[str, object]]:
+            return [
+                dict(id="file", path="a.py", lineCount=500, content="\n".join(lines))
+            ]
+
+    async def candidates(_self: object, _query: str) -> list[dict[str, object]]:
+        return [
+            dict(
+                id=str(index),
+                file_id="file",
+                path="a.py",
+                start_line=line,
+                end_line=line,
+                content=lines[line - 1],
+                source="vector",
+                rank=index,
+            )
+            for index, line in enumerate([100, 400], start=1)
+        ]
+
+    def scores(_question: str, passages: list[str]) -> list[float]:
+        assert len(passages) == 2
+        assert all(
+            len(passage) <= retrieval.PARENT_MAX_CHARS + len("a.py\n")
+            for passage in passages
+        )
+        assert all(passage.count("\n") > 100 for passage in passages)
+        return [0.0, 1.0]
+
+    monkeypatch.setattr(RepoMindParentHybridRetriever, "_vector_candidates", candidates)
+    monkeypatch.setattr(retrieval, "score_passages", scores)
+    retriever = RepoMindParentHybridRetriever.model_construct(
+        connection=Connection(),
+        embeddings=None,
+        repository_id="test",
+        keyword_k=0,
+        rerank=True,
+    )
+    docs = asyncio.run(retriever.ainvoke("query"))
+    assert len(docs) == 2
+    assert docs[0].metadata["start_line"] > docs[1].metadata["end_line"]
+    for doc in docs:
+        start, end = doc.metadata["start_line"], doc.metadata["end_line"]
+        assert doc.page_content == "\n".join(lines[start - 1 : end])
+        assert len(doc.page_content.splitlines()) == end - start + 1
 
 
 @pytest.mark.parametrize("source", ["vector", "keyword"])

@@ -1,0 +1,3161 @@
+{
+  "artifact_kind": "hive_deepseek_judge_trial",
+  "version": "1",
+  "measured_on": "2026-10-14",
+  "scope": "Regrade the saved original baseline only; no new generation or retrieval. The child-reranker comparison run was declined. The parent-window variant remains retrieval-only.",
+  "provider": "hive",
+  "model": "deepseek-ai/deepseek-v4.1-flash",
+  "reasoning_effort": "high",
+  "protocol_probe": {
+    "model": "deepseek-ai/deepseek-v4.1-flash",
+    "reasoning_effort_requested": "high",
+    "streaming": false,
+    "finish_reason": "stop",
+    "json_response_matches": true
+  },
+  "calibration_artifact": ".eval-artifacts/hive-deepseek-high-calibration-v2.json",
+  "calibration_artifact_sha256": "5d0b10ef604c8d545b150d4ff9ab43ee0116773a987b6a08403bd274f8429adc",
+  "calibration_passed": 12,
+  "initial_uncapped_attempt": {
+    "artifact": ".eval-artifacts/single-agent-v1-hive-deepseek-high.json",
+    "artifact_sha256": "f26e74160cbdd0b8f65a69de70dce7982c13429683a848335f3f4a1a4dfd464d",
+    "note": "Retained separately: 21 accepted judgments and three empty/incomplete response failures before adding the explicit thinking budget."
+  },
+  "thinking_budget_diagnosis": [
+    {
+      "case_id": "code-02",
+      "max_thinking_tokens": null,
+      "finish_reason": "stop",
+      "content_chars": 9089,
+      "usage": {
+        "completion_tokens": 13459,
+        "prompt_tokens": 12565,
+        "total_tokens": 26024,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 1024
+        },
+        "reasoning_tokens": 10910
+      },
+      "valid_grounding": true
+    },
+    {
+      "case_id": "code-02",
+      "max_thinking_tokens": 8192,
+      "finish_reason": "stop",
+      "content_chars": 8085,
+      "usage": {
+        "completion_tokens": 10425,
+        "prompt_tokens": 12565,
+        "total_tokens": 22990,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 1024
+        },
+        "reasoning_tokens": 8193
+      },
+      "valid_grounding": true
+    }
+  ],
+  "provider_pricing": "Hive has its own published rates; direct-DeepSeek off-peak pricing is not assumed.",
+  "verification": {
+    "offline_passed": 107,
+    "default_integration_skipped": 1,
+    "explicit_postgresql_passed": 1,
+    "ruff": "passed",
+    "mypy_app": "passed (19 files)",
+    "api_build": "passed"
+  },
+  "deterministic_cases_replayed": 24,
+  "original_gpt_baseline_unchanged": true,
+  "source_review_notes": {
+    "reviewer": "Implementation assistant; no independent human sign-off is asserted.",
+    "scope": "Reviewed the five differing reference-fact labels against verified reference facts and unchanged answer text; no labels were edited.",
+    "cases": [
+      {
+        "case_id": "code-04",
+        "fact_ids": [
+          "f1",
+          "f2"
+        ],
+        "finding": "Hive's contradicted labels are consistent with the answer denying that the line/character limits directly govern expansion. The answer also omits 250 lines, 16000 characters and the trailing-line trimming behavior."
+      },
+      {
+        "case_id": "architecture-05",
+        "fact_ids": [
+          "f1"
+        ],
+        "finding": "Hive's matched label accepts the answer's description of Python/server yield and delta SSE events carrying assistant output as equivalent wording."
+      },
+      {
+        "case_id": "mixed-03",
+        "fact_ids": [
+          "f3"
+        ],
+        "finding": "Hive's missing label reflects an omitted definite size-limit explanation; the answer speculates about several causes without explicitly contradicting the reference conclusion."
+      },
+      {
+        "case_id": "mixed-04",
+        "fact_ids": [
+          "f1"
+        ],
+        "finding": "Hive's missing label correctly requires both components of the fact: the answer repeats the availability claim but omits the transactional replacement proposal."
+      }
+    ]
+  },
+  "gpt_judge_agreement_status": "Not run: strict judge-agreement requires the same judge implementation hash, which changed when provider invocation was extracted. No compatibility metadata was rewritten to bypass this check.",
+  "comparison_status": "Not executed; the second regrading run was declined.",
+  "experiments": [
+    {
+      "artifact": ".eval-artifacts/single-agent-v1-hive-deepseek-high-v2.json",
+      "artifact_sha256": "8f932c1ebb7ff693dbe96ed27c7df2d23d30dbe0214ecc1dfaf42be30562c23a",
+      "input_artifact": ".eval-artifacts/single-agent-v1-accepted.json",
+      "input_artifact_sha256": "f097db668d326fe2d205b4992c3c735943ebb74377957dfb2a6a23532bd65c08",
+      "saved_inputs_unchanged": true,
+      "metadata": {
+        "experiment_name": "single-agent-v1-final",
+        "mode": "full",
+        "created_at": "2026-10-13T23:08:22.569544+00:00",
+        "architecture": "single_agent",
+        "dataset_version": "1",
+        "dataset_sha256": "0f1e1a8d5a7d741901a8e8d28a0673b34b6e53c5a9b190762283a67070a1a3ef",
+        "dataset_case_count": 24,
+        "fixture_version": "1",
+        "fixture_sha256": "8bb9324fb67214514a9964c00135fc577f30634f195bd221ae83024f81281a9d",
+        "fixture_provenance": "Synthetic evaluation scenarios, not snapshots of real GitHub issues or PRs. Payload fields follow RepoMind MCP serialization. All identities, dates, discussions, counts and proposed changes are fixture facts only.",
+        "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "corpus_repository": "AdityaSaxena17/RepoMind",
+        "corpus_index_id": "eval_b85bced7b06cc4e3d1c526ad18438c59182856b9b2d53d45945c6f4cb515f592",
+        "corpus_file_count": 101,
+        "corpus_chunk_count": 153,
+        "application_revision": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+        "application_sha256": "6619dffc5f5587bf476c2b6f6ed49caf0ab0a96b5221d446e50f26bba4326b56",
+        "prompt_sha256": "46d44bdbfe8bf81250c272410faa9f6cdf89aa6600fb144fcd4283c305e5eefa",
+        "scorer_version": "1",
+        "scorer_sha256": "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb",
+        "model_configurations": {
+          "chat": "gpt-4o-mini",
+          "chat_temperature": "provider_default",
+          "use_responses_api": true,
+          "streaming": true,
+          "embeddings": "text-embedding-3-small",
+          "dimensions": 1536
+        },
+        "retrieval_parameters": {
+          "vector_k": 12,
+          "keyword_k": 12,
+          "final_k": 6,
+          "rrf_k": 60,
+          "parent_expansion": 80,
+          "parent_max_lines": 250,
+          "parent_max_chars": 16000,
+          "chunk_tokens": 800,
+          "chunk_overlap": 100
+        },
+        "dependency_versions": {
+          "langchain": "1.3.14",
+          "langchain-openai": "1.4.1",
+          "asyncpg": "0.31.0",
+          "pydantic": "2.13.4"
+        },
+        "judge_configuration": {
+          "model": "deepseek-ai/deepseek-v4.1-flash",
+          "temperature": null,
+          "reasoning_effort": "high",
+          "timeout_seconds": 120.0,
+          "max_retries": 1,
+          "grounding_validation_retries": 2,
+          "structured_output": "json_object_with_pydantic_validation",
+          "rubric_sha256": "b6f1007ff2768398b1182601e453e9ac060aed8faa9e6062d83066b371753f69",
+          "implementation_sha256": "0c093e73fab7820436da21222ba120f6f40a41f10037c53a017134340bb71e31",
+          "schema_sha256": "e4b079d2d5b29ccdca72603d283f39f92af14b790b3fafc2f2b7a992283f85ce",
+          "calibration_sha256": "148fd925b2b25649a5ef7f078024305bdc16f23f0a5682f4c77bfee9483e705e",
+          "provider": "hive",
+          "base_url": "https://api.thehive.ai/api/v3",
+          "sdk": "openai.AsyncOpenAI",
+          "sdk_version": "2.49.0",
+          "max_output_tokens": 16384,
+          "max_thinking_tokens": 8192,
+          "pricing_policy": "Hive rates; no direct-DeepSeek off-peak discount assumed",
+          "provider_implementation_sha256": "6cd65003a1263a36406d85e9d2e3c622e20d100c6d96d173b670f119793c0f21"
+        },
+        "judge_calibrated": true,
+        "case_timeout_seconds": 120,
+        "aggregates": {
+          "recall_at_6": {
+            "macro_average": 0.5147058823529412,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 21,
+            "denominator_sum": 40
+          },
+          "precision_at_6": {
+            "macro_average": 0.2156862745098039,
+            "scored_cases": 17,
+            "not_applicable": 7,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 22,
+            "denominator_sum": 102
+          },
+          "groundedness": {
+            "macro_average": 0.8003730746377805,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 216,
+            "denominator_sum": 267
+          },
+          "answer_correctness": {
+            "macro_average": 0.22727272727272727,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 5,
+            "denominator_sum": 22
+          },
+          "fact_completeness": {
+            "macro_average": 0.3484848484848484,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 12,
+            "denominator_sum": 43
+          },
+          "citation_precision": {
+            "macro_average": 0.7823593073593074,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 68,
+            "denominator_sum": 86
+          },
+          "citation_coverage": {
+            "macro_average": 0.25586219336219335,
+            "scored_cases": 22,
+            "not_applicable": 2,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 62,
+            "denominator_sum": 267
+          },
+          "citation_validity": {
+            "macro_average": 0.8214285714285714,
+            "scored_cases": 14,
+            "not_applicable": 10,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 19,
+            "denominator_sum": 25
+          },
+          "correct_abstention": {
+            "macro_average": 0.75,
+            "scored_cases": 4,
+            "not_applicable": 20,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 3,
+            "denominator_sum": 4
+          },
+          "unnecessary_abstention": {
+            "macro_average": 0.0,
+            "scored_cases": 20,
+            "not_applicable": 4,
+            "unscored": 0,
+            "errors": 0,
+            "numerator_sum": 0,
+            "denominator_sum": 20
+          }
+        },
+        "by_category": {
+          "architecture": {
+            "recall_at_6": {
+              "macro_average": 0.5972222222222222,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 12,
+              "denominator_sum": 20
+            },
+            "precision_at_6": {
+              "macro_average": 0.3055555555555555,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 11,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": 0.8344017094017094,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 91,
+              "denominator_sum": 113
+            },
+            "answer_correctness": {
+              "macro_average": 0.0,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 6
+            },
+            "fact_completeness": {
+              "macro_average": 0.1111111111111111,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 2,
+              "denominator_sum": 14
+            },
+            "citation_precision": {
+              "macro_average": 0.634090909090909,
+              "scored_cases": 4,
+              "not_applicable": 2,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 38,
+              "denominator_sum": 52
+            },
+            "citation_coverage": {
+              "macro_average": 0.3175925925925926,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 34,
+              "denominator_sum": 113
+            },
+            "citation_validity": {
+              "macro_average": 0.625,
+              "scored_cases": 4,
+              "not_applicable": 2,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 9,
+              "denominator_sum": 14
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 6,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": 0.0,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 6
+            }
+          },
+          "github": {
+            "recall_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "precision_at_6": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "groundedness": {
+              "macro_average": 0.975,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 19,
+              "denominator_sum": 20
+            },
+            "answer_correctness": {
+              "macro_average": 1.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 4,
+              "denominator_sum": 4
+            },
+            "fact_completeness": {
+              "macro_average": 1.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 4,
+              "denominator_sum": 4
+            },
+            "citation_precision": {
+              "macro_average": 0.6875,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 16,
+              "denominator_sum": 18
+            },
+            "citation_coverage": {
+              "macro_average": 0.6625,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 16,
+              "denominator_sum": 20
+            },
+            "citation_validity": {
+              "macro_average": 0.75,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 3,
+              "denominator_sum": 4
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": 0.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 4
+            }
+          },
+          "insufficient": {
+            "recall_at_6": {
+              "macro_average": 0.0,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 1
+            },
+            "precision_at_6": {
+              "macro_average": 0.0,
+              "scored_cases": 1,
+              "not_applicable": 3,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 6
+            },
+            "groundedness": {
+              "macro_average": 0.625,
+              "scored_cases": 2,
+              "not_applicable": 2,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 4,
+              "denominator_sum": 6
+            },
+            "answer_correctness": {
+              "macro_average": 0.5,
+              "scored_cases": 2,
+              "not_applicable": 2,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 2
+            },
+            "fact_completeness": {
+              "macro_average": 0.5,
+              "scored_cases": 2,
+              "not_applicable": 2,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 1,
+              "denominator_sum": 2
+            },
+            "citation_precision": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "citation_coverage": {
+              "macro_average": 0.0,
+              "scored_cases": 2,
+              "not_applicable": 2,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 6
+            },
+            "citation_validity": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "correct_abstention": {
+              "macro_average": 0.75,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 3,
+              "denominator_sum": 4
+            },
+            "unnecessary_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            }
+          },
+          "mixed": {
+            "recall_at_6": {
+              "macro_average": 0.4583333333333333,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 3,
+              "denominator_sum": 7
+            },
+            "precision_at_6": {
+              "macro_average": 0.16666666666666666,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 4,
+              "denominator_sum": 24
+            },
+            "groundedness": {
+              "macro_average": 0.8229166666666666,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 35,
+              "denominator_sum": 40
+            },
+            "answer_correctness": {
+              "macro_average": 0.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 4
+            },
+            "fact_completeness": {
+              "macro_average": 0.25,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 3,
+              "denominator_sum": 13
+            },
+            "citation_precision": {
+              "macro_average": 1.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 8,
+              "denominator_sum": 8
+            },
+            "citation_coverage": {
+              "macro_average": 0.212797619047619,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 8,
+              "denominator_sum": 40
+            },
+            "citation_validity": {
+              "macro_average": 1.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 4,
+              "denominator_sum": 4
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": 0.0,
+              "scored_cases": 4,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 4
+            }
+          },
+          "single_file": {
+            "recall_at_6": {
+              "macro_average": 0.5555555555555556,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 6,
+              "denominator_sum": 12
+            },
+            "precision_at_6": {
+              "macro_average": 0.19444444444444442,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 7,
+              "denominator_sum": 36
+            },
+            "groundedness": {
+              "macro_average": 0.6933551198257081,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 67,
+              "denominator_sum": 88
+            },
+            "answer_correctness": {
+              "macro_average": 0.0,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 6
+            },
+            "fact_completeness": {
+              "macro_average": 0.16666666666666666,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 2,
+              "denominator_sum": 10
+            },
+            "citation_precision": {
+              "macro_average": 0.8333333333333333,
+              "scored_cases": 2,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 6,
+              "denominator_sum": 8
+            },
+            "citation_coverage": {
+              "macro_average": 0.037037037037037035,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 4,
+              "denominator_sum": 88
+            },
+            "citation_validity": {
+              "macro_average": 1.0,
+              "scored_cases": 2,
+              "not_applicable": 4,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 3,
+              "denominator_sum": 3
+            },
+            "correct_abstention": {
+              "macro_average": null,
+              "scored_cases": 0,
+              "not_applicable": 6,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 0
+            },
+            "unnecessary_abstention": {
+              "macro_average": 0.0,
+              "scored_cases": 6,
+              "not_applicable": 0,
+              "unscored": 0,
+              "errors": 0,
+              "numerator_sum": 0,
+              "denominator_sum": 6
+            }
+          }
+        },
+        "completed_cases": 24,
+        "failed_cases": 0,
+        "complete_quality_baseline": true,
+        "judge_calibration": [
+          {
+            "id": "correct",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 1.0,
+              "citation_precision": 1.0,
+              "citation_coverage": 1.0,
+              "citation_validity": 1.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "c1",
+                  "quote": "MAX_FILE_BYTES equals 1048576.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": true
+                    }
+                  ],
+                  "citations_fully_support": true,
+                  "reason": "The evidence item calibration:code contains the exact assignment MAX_FILE_BYTES = 1048576, and citation:1 is validly linked to that evidence."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "The answer asserts MAX_FILE_BYTES equals 1048576, matching the reference fact that MAX_FILE_BYTES is assigned the integer 1048576."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer directly provides the assigned numeric value 1048576, fully matching the single reference fact. There are no missing expected components and no factual errors."
+            }
+          },
+          {
+            "id": "incorrect",
+            "passed": true,
+            "actual": {
+              "groundedness": 0.0,
+              "answer_correctness": 0.0,
+              "citation_precision": 0.0,
+              "citation_coverage": 0.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "c1",
+                  "quote": "MAX_FILE_BYTES equals 2048.",
+                  "supported": false,
+                  "evidence_ids": [],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": false
+                    }
+                  ],
+                  "citations_fully_support": false,
+                  "reason": "The answer claims MAX_FILE_BYTES is 2048, but the supplied evidence shows MAX_FILE_BYTES = 1048576, so the claim is contradicted. Citation [1] points to that evidence, which does not support the asserted value."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "contradicted",
+                  "reason": "The answer asserts MAX_FILE_BYTES equals 2048, while the reference fact states it is assigned the integer 1048576."
+                }
+              ],
+              "material_errors": [
+                "Incorrect numeric value for MAX_FILE_BYTES: answer gives 2048 instead of 1048576."
+              ],
+              "abstention": "none",
+              "reason": "The answer provides a definite numeric value but contradicts the single reference fact; it does not refuse or claim inability to answer, so no abstention applies."
+            }
+          },
+          {
+            "id": "uncited",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 1.0,
+              "citation_coverage": 0.0,
+              "citation_precision": null
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "claim:1",
+                  "quote": "MAX_FILE_BYTES equals 1048576.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [],
+                  "citations_fully_support": false,
+                  "reason": "The evidence item calibration:code contains 'MAX_FILE_BYTES = 1048576', directly establishing the numeric value. The answer attaches no citation IDs, so the citations list is empty and citations_fully_support must be false."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "Answer states MAX_FILE_BYTES equals 1048576, matching the assigned integer value."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer directly provides the reference value 1048576 for MAX_FILE_BYTES; no refusal or unsupported claims."
+            }
+          },
+          {
+            "id": "fabricated-citation",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 1.0,
+              "citation_validity": 0.0,
+              "citation_precision": 0.0,
+              "citation_coverage": 0.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "claim:1",
+                  "quote": "MAX_FILE_BYTES equals 1048576.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": false
+                    }
+                  ],
+                  "citations_fully_support": false,
+                  "reason": "The evidence directly states MAX_FILE_BYTES = 1048576, but the attached citation [99] is invalid and does not contribute support."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "The answer states MAX_FILE_BYTES equals 1048576, matching the assigned integer value."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer directly provides the reference value 1048576 and does not refuse or claim inability to determine it."
+            }
+          },
+          {
+            "id": "unsupported-correct",
+            "passed": true,
+            "actual": {
+              "groundedness": 0.0,
+              "answer_correctness": 1.0,
+              "citation_coverage": 0.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "c1",
+                  "quote": "MAX_FILE_BYTES equals 1048576.",
+                  "supported": false,
+                  "evidence_ids": [],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": false
+                    }
+                  ],
+                  "citations_fully_support": false,
+                  "reason": "The cited evidence states only that no file-size limit is provided, which does not establish the value 1048576."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "Answer states MAX_FILE_BYTES equals 1048576, matching the reference fact's assigned integer value."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer directly asserts the reference value 1048576 for MAX_FILE_BYTES, matching the single reference fact; expected_missing is empty and the answer does not refuse or claim inability to determine the value."
+            }
+          },
+          {
+            "id": "correct-abstention",
+            "passed": true,
+            "actual": {
+              "correct_abstention": 1.0,
+              "groundedness": null
+            },
+            "grounding": {
+              "claims": [],
+              "limitations": [
+                "The available evidence does not specify a value of MAX_FILE_BYTES."
+              ]
+            },
+            "correctness": {
+              "facts": [],
+              "material_errors": [],
+              "abstention": "correct",
+              "reason": "The expected missing portion notes that the MAX_FILE_BYTES value is unavailable, and the answer acknowledges that the available evidence does not specify a value. There are no supported reference facts to report."
+            }
+          },
+          {
+            "id": "unnecessary-abstention",
+            "passed": true,
+            "actual": {
+              "unnecessary_abstention": 1.0,
+              "answer_correctness": 0.0
+            },
+            "grounding": {
+              "claims": [],
+              "limitations": [
+                "I cannot determine the value of MAX_FILE_BYTES from the available evidence."
+              ]
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "missing",
+                  "reason": "The answer does not state that MAX_FILE_BYTES is assigned 1048576; it only says it cannot determine the value."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "unnecessary",
+              "reason": "Expected_missing is empty and the reference fact is answerable, but the answer refuses/claims it cannot determine the value, so it is an unnecessary abstention. The reference fact is not conveyed."
+            }
+          },
+          {
+            "id": "false-extra-claim",
+            "passed": true,
+            "actual": {
+              "answer_correctness": 0.0,
+              "groundedness": 0.5
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "claim1",
+                  "quote": "MAX_FILE_BYTES equals 1048576.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": true
+                    }
+                  ],
+                  "citations_fully_support": true,
+                  "reason": "calibration:code states MAX_FILE_BYTES = 1048576, and citation:1 resolves to that evidence."
+                },
+                {
+                  "id": "claim2",
+                  "quote": "MAX_FILE_BYTES equals 2048.",
+                  "supported": false,
+                  "evidence_ids": [],
+                  "citations": [],
+                  "citations_fully_support": false,
+                  "reason": "The evidence states MAX_FILE_BYTES = 1048576, not 2048; no citation supports 2048."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "contradicted",
+                  "reason": "The answer states MAX_FILE_BYTES equals 1048576 (matching the fact) but also asserts it equals 2048, an asserted component that contradicts the reference value; all essential components are not consistently conveyed."
+                }
+              ],
+              "material_errors": [
+                "False claim that MAX_FILE_BYTES equals 2048, contradicting the reference value 1048576."
+              ],
+              "abstention": "none",
+              "reason": "The answer provides a numeric value rather than refusing or claiming inability, so it is not an abstention; however, it includes a contradictory incorrect value for MAX_FILE_BYTES."
+            }
+          },
+          {
+            "id": "valid-irrelevant-citation",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 1.0,
+              "citation_validity": 1.0,
+              "citation_precision": 0.0,
+              "citation_coverage": 0.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "c1",
+                  "quote": "MAX_FILE_BYTES equals 1048576.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": false
+                    }
+                  ],
+                  "citations_fully_support": false,
+                  "reason": "The supplied code evidence shows 'MAX_FILE_BYTES = 1048576'. The attached citation points to line 2, whose cited excerpt is 'OTHER = 7', so it does not support this claim."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "The answer states MAX_FILE_BYTES equals 1048576, matching the reference fact's assignment of the integer 1048576."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer directly provides the numeric value 1048576 for MAX_FILE_BYTES, matching the single reference fact; no refusal or unsupported claims."
+            }
+          },
+          {
+            "id": "partial-citation",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 1.0,
+              "citation_validity": 1.0,
+              "citation_precision": 1.0,
+              "citation_coverage": 0.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "claim:1",
+                  "quote": "ALPHA is assigned before BETA.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": true
+                    }
+                  ],
+                  "citations_fully_support": false,
+                  "reason": "The evidence file shows ALPHA = 1 on line 1 and BETA = 2 on line 2, establishing ALPHA before BETA. The cited excerpt only covers ALPHA = 1, so the citation contributes partially but does not by itself establish the ordering."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "Answer states 'ALPHA is assigned before BETA,' which conveys that the ALPHA assignment precedes the BETA assignment, matching all essential components of the reference fact."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer directly addresses the order question and matches the sole reference fact; it does not refuse or claim inability to answer, and expected_missing is empty."
+            }
+          },
+          {
+            "id": "joint-citations",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 1.0,
+              "citation_validity": 1.0,
+              "citation_precision": 1.0,
+              "citation_coverage": 1.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "claim:1",
+                  "quote": "ALPHA is assigned before BETA.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": true
+                    },
+                    {
+                      "citation_id": "citation:2",
+                      "contributes": true
+                    }
+                  ],
+                  "citations_fully_support": true,
+                  "reason": "The code window shows ALPHA = 1 on line 1 and BETA = 2 on line 2, establishing ALPHA precedes BETA; citation:1 supplies the ALPHA line and citation:2 the BETA line, jointly covering the claim."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "matched",
+                  "reason": "The answer states 'ALPHA is assigned before BETA,' which conveys that the ALPHA assignment precedes the BETA assignment."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The single reference fact is fully conveyed by the answer, and no refusal or claim of inability appears, so abstention is none."
+            }
+          },
+          {
+            "id": "incomplete-reference-fact",
+            "passed": true,
+            "actual": {
+              "groundedness": 1.0,
+              "answer_correctness": 0.0,
+              "fact_completeness": 0.0,
+              "citation_precision": 1.0,
+              "citation_coverage": 1.0,
+              "citation_validity": 1.0
+            },
+            "grounding": {
+              "claims": [
+                {
+                  "id": "c1",
+                  "quote": "LIMIT is 100.",
+                  "supported": true,
+                  "evidence_ids": [
+                    "calibration:code"
+                  ],
+                  "citations": [
+                    {
+                      "citation_id": "citation:1",
+                      "contributes": true
+                    }
+                  ],
+                  "citations_fully_support": true,
+                  "reason": "The evidence item calibration:code shows `LIMIT = 100`, and citation:1 maps to that evidence, fully supporting the claim."
+                }
+              ],
+              "limitations": []
+            },
+            "correctness": {
+              "facts": [
+                {
+                  "fact_id": "f1",
+                  "status": "missing",
+                  "reason": "Answer states LIMIT is 100 but omits the required CHUNK value of 800, so only part of the fact is conveyed."
+                }
+              ],
+              "material_errors": [],
+              "abstention": "none",
+              "reason": "The answer gives a partial factual response (LIMIT only) and does not refuse or claim the question cannot be answered. However, it omits the CHUNK value required by reference fact f1."
+            }
+          }
+        ],
+        "grading_case_concurrency": 3
+      },
+      "accepted_judgments": 24,
+      "cases": [
+        {
+          "case_id": "code-01",
+          "category": "single_file",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "contradicted",
+              "reason": "The answer states the limit is 1 MB (1,000,000 bytes), which contradicts the required 1,048,576-byte threshold. It also does not convey that only files strictly larger than the threshold are skipped and that equality alone does not trigger exclusion."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "It mentions node_modules, build, dist, .next, .venv, and coverage, but omits required exclusions for configured lock filenames/suffixes, private-key-like paths, and root .env prefixes. It also adds unsupported exclusions such as out, npm-debug.log*, logs/error files generally, and .DS_Store."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "code-02",
+          "category": "single_file",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8888888888888888,
+              "status": "scored",
+              "numerator": 16,
+              "denominator": 18
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.1111111111111111,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 18
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer identifies RecursiveCharacterTextSplitter and mentions chunk_size/chunk_overlap generally, but omits the required cl100k_base token encoding, 800-token chunk size, 100-token overlap, and add_start_index/start-index metadata."
+            },
+            {
+              "fact_id": "f2",
+              "status": "matched",
+              "reason": "The answer states each chunk includes path, content_sha as a SHA-256 hash of chunk content, and start_line/end_line source locations, matching all essential components."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "code-03",
+          "category": "single_file",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9444444444444444,
+              "status": "scored",
+              "numerator": 17,
+              "denominator": 18
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 6
+            },
+            "citation_coverage": {
+              "value": 0.1111111111111111,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 18
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer correctly conveys most components: deduplication by chunk ID (the id field), merging via fused.setdefault, adding a reciprocal-rank term 1/(RRF_K + rank) for each appearance, collecting source labels into a set, and sorting by descending fused score. However, it does not state the concrete constant value of 60 in 1/(60+rank); it only names the symbolic constant RRF_K and hedges that it is 'likely related to rank fusion.' Per the rule against inferring unstated numeric values from a symbolic constant name, the '60' component is omitted."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "code-04",
+          "category": "single_file",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.7777777777777778,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 9
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 9
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "contradicted",
+              "reason": "It correctly states at most six parent contexts and 80-line expansion, but omits the required 250-line per-window cap and asserts that PARENT_MAX_LINES is not directly tied to parent-context expansion, contradicting the direct 250-line window limit."
+            },
+            {
+              "fact_id": "f2",
+              "status": "contradicted",
+              "reason": "It mentions PARENT_MAX_CHARS but omits the 16,000-character threshold and the behavior of removing trailing lines while updating the end line; it also asserts character limits are not detailed or directly tied to parent-context expansion, contradicting the trimming behavior."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "code-05",
+          "category": "single_file",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.8823529411764706,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 17
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 17
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer states the query uses repo:owner/repo and is:issue, but it omits the required state qualifier behavior: that search_query adds is:<state> unless state is all."
+            },
+            {
+              "fact_id": "f2",
+              "status": "matched",
+              "reason": "The answer explicitly says items containing the \"pull_request\" key are filtered out before serialization and returned, matching the pull_request filtering requirement."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "code-06",
+          "category": "single_file",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 12,
+              "denominator": 18
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 18
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer mentions indexedCommitSha and commit SHA capture, but it does not state that the ref falls back to defaultBranch when indexedCommitSha is absent, nor does it give the URL construction /blob/{ref}/{path}#L{start_line}-L{end_line}. Essential components are omitted, so it is only a partial overlap."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "architecture-01",
+          "category": "architecture",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 15,
+              "denominator": 20
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.6363636363636364,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 11
+            },
+            "citation_coverage": {
+              "value": 0.35,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 20
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 5,
+              "denominator": 5
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "contradicted",
+              "reason": "The answer omits the web-layer upserts of repository metadata and the active user-repository relationship, and omits that the queued index job is created transactionally with the repository status update. It also asserts the RepositoryIndexJob record is created only after the job is successfully enqueued, which contradicts the reference flow."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "The answer says the web route calls enqueueFastApiJob/FastAPI and that FastAPI enqueues index_repository with user, repository, and job IDs, but it does not state that the connect route sends repository_id and job_id to FastAPI, and it omits the deterministic repo-index job key."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "architecture-02",
+          "category": "architecture",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.7777777777777778,
+              "status": "scored",
+              "numerator": 28,
+              "denominator": 36
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 36
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer traces resolving the default-branch head via fetch_default_branch_head, traversing the tree with fetch_tree at that commit, filtering/fetching blob files via fetch_file_content/should_skip_path, and building chunks with chunk_file."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "The answer says chunks are embedded before promotion and that promotion marks READY with file/chunk counts, but it omits that promotion replaces existing files/chunks, updates the indexed SHA, and does so inside a transaction."
+            },
+            {
+              "fact_id": "f3",
+              "status": "missing",
+              "reason": "The answer mentions inserting chunks into RepositoryChunk and generating embeddings, but it does not state that embeddings are written to RepositoryChunk as PostgreSQL vector values alongside source path and line metadata."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "architecture-03",
+          "category": "architecture",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5555555555555556,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 18
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 13,
+              "denominator": 13
+            },
+            "citation_coverage": {
+              "value": 0.5555555555555556,
+              "status": "scored",
+              "numerator": 10,
+              "denominator": 18
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer covers vector similarity at a high level, including a query vector and the pgvector `<=>` distance operator, but it does not convey the keyword side requirements: simple-language `websearch_to_tsquery` and `ts_rank_cd` are not mentioned. Since the reference fact requires both vector and keyword components, it is only partially addressed."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "The answer describes parent expansion after vector and keyword searches and additional surrounding lines, but it omits rank fusion of vector and keyword candidates and does not state that the resulting documents are formatted into the agent question context."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "architecture-04",
+          "category": "architecture",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 9
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 8
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 9
+            },
+            "citation_validity": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 3
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "Answer covers active user-repository association/access status for the web lookup, but it does not include the required conversation check that an existing conversation must match the authenticated user and repository. Required component omitted."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "Answer mentions a join on UserRepository/Repository active access, but does not say FastAPI independently performs this or that the user message is verified to belong to the supplied conversation, user, and repository. Required components omitted."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "architecture-05",
+          "category": "architecture",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 17,
+              "denominator": 17
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 0.9,
+              "status": "scored",
+              "numerator": 18,
+              "denominator": 20
+            },
+            "citation_coverage": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 17,
+              "denominator": 17
+            },
+            "citation_validity": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 4
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "Answer states the assistant text travels from the Python agent via SSE and describes the server using `yield`/`sse_event` to emit `delta` events containing pieces of the assistant output, which is equivalent to Python emitting delta SSE events with text."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "The answer does not mention the Next.js route, does not say it forwards the FastAPI response body as `text/event-stream`, and does not mention supplying conversation/message headers."
+            },
+            {
+              "fact_id": "f3",
+              "status": "missing",
+              "reason": "The answer only generally says the client reads the stream and updates state; it omits the required browser details of buffering decoded bytes into SSE blocks, parsing events, and appending `delta.text` to the assistant message."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "architecture-06",
+          "category": "architecture",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.6666666666666666,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9230769230769231,
+              "status": "scored",
+              "numerator": 12,
+              "denominator": 13
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 13
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer mentions repository-scoped environment variables and lists allowed issue/PR tools, but it does not state that chat starts the MCP stdio server with locked user/repository IDs in its environment or that it loads the allowed tools from that stdio session."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "The answer describes checking active user access via a database/UserRepository table and building scoped GitHub API calls, but it does not say the database is PostgreSQL nor that the server constructs GitHub searches using the resolved repository scope."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "missing-01",
+          "category": "insufficient",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": [],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "missing-02",
+          "category": "insufficient",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "answer_correctness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "fact_completeness": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": [],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "missing-03",
+          "category": "insufficient",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states there are no issues matching \"billing\" and that consequently no payment-failure reproduction steps can be identified, matching the reference fact that the billing search returns zero matches and no reproduction steps can be identified."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "missing-04",
+          "category": "insufficient",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 4
+            },
+            "citation_validity": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "correct_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "unnecessary_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "The answer only says files exceeding a certain threshold are skipped and does not state the required threshold of 1,048,576 bytes or that the comparison is strictly larger than that value."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "github-01",
+          "category": "github",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 0.9,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 10
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 9
+            },
+            "citation_coverage": {
+              "value": 0.9,
+              "status": "scored",
+              "numerator": 9,
+              "denominator": 10
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states issue #101 is Open and describes the reported problem as retrieved source cards including files the assistant's answer never cites, matching both essential components (open status and the reported problem)."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "github-02",
+          "category": "github",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "citation_coverage": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 2
+            },
+            "citation_validity": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer quotes reviewer-b stating displayed cards are retrieved candidates, not proof that answer claims are supported, and asks to evaluate citations at the claim level \u2014 all essential components conveyed."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "github-03",
+          "category": "github",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "citation_coverage": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states PR #201 is open and unmerged, and that it proposes running semantic and keyword candidate retrieval concurrently on the same existing shared database connection."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "github-04",
+          "category": "github",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "precision_at_6": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 4,
+              "denominator": 4
+            },
+            "answer_correctness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_precision": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "citation_coverage": {
+              "value": 0.75,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 4
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states the file apps/api/app/worker.py and reports 12 additions and 4 deletions, matching all components of the reference fact."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "mixed-01",
+          "category": "mixed",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.9166666666666666,
+              "status": "scored",
+              "numerator": 11,
+              "denominator": 12
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 3
+            },
+            "citation_coverage": {
+              "value": 0.25,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 12
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states Issue #101 reports source cards including files that are never cited in the answers, matching the reference fact."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "The answer does not state that the code emits cards for each retrieved document or that it does so without checking which numeric citations occur in the answer. It instead points to a different TypeScript citations-event handler."
+            },
+            {
+              "fact_id": "f3",
+              "status": "missing",
+              "reason": "The answer captures that source-card presence alone does not establish citation usage or claim support, but it omits the required component that the reported unused cards follow from the iteration over retrieved documents."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "mixed-02",
+          "category": "mixed",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "precision_at_6": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 3,
+              "denominator": 6
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer states PR #201 proposes concurrent semantic and keyword candidate retrieval using asyncio.gather on their existing shared database connection, matching the reference fact."
+            },
+            {
+              "fact_id": "f2",
+              "status": "contradicted",
+              "reason": "The answer asserts that asyncio.gather concurrency is not present in the current _aget_relevant_documents implementation, while the reference fact states the frozen implementation calls both candidate methods through asyncio.gather."
+            },
+            {
+              "fact_id": "f3",
+              "status": "contradicted",
+              "reason": "The answer says the proposed concurrency is not present and would be an enhancement, directly contradicting the reference fact that the concurrency is already present in the indexed snapshot."
+            }
+          ],
+          "judge_validation_errors": []
+        },
+        {
+          "case_id": "mixed-03",
+          "category": "mixed",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.5,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 2
+            },
+            "precision_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 0.875,
+              "status": "scored",
+              "numerator": 7,
+              "denominator": 8
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "citation_coverage": {
+              "value": 0.125,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 8
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "matched",
+              "reason": "The answer identifies issue #103 and states that it reports a 1,800,000-byte source file absent from the index."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "It mentions should_skip_path(path, file_size) and a size check before fetching content, but it does not give the threshold 1,048,576 bytes or state that files above that size are skipped."
+            },
+            {
+              "fact_id": "f3",
+              "status": "missing",
+              "reason": "It does not explain that the reported 1,800,000-byte file exceeds the 1,048,576-byte limit, instead offering multiple speculative causes."
+            }
+          ],
+          "judge_validation_errors": [
+            "Judge quote does not occur in the answer."
+          ]
+        },
+        {
+          "case_id": "mixed-04",
+          "category": "mixed",
+          "status": "completed",
+          "error": null,
+          "metrics": {
+            "recall_at_6": {
+              "value": 0.3333333333333333,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 3
+            },
+            "precision_at_6": {
+              "value": 0.16666666666666666,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 6
+            },
+            "groundedness": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 14,
+              "denominator": 14
+            },
+            "answer_correctness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            },
+            "fact_completeness": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 4
+            },
+            "citation_precision": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 2
+            },
+            "citation_coverage": {
+              "value": 0.14285714285714285,
+              "status": "scored",
+              "numerator": 2,
+              "denominator": 14
+            },
+            "citation_validity": {
+              "value": 1.0,
+              "status": "scored",
+              "numerator": 1,
+              "denominator": 1
+            },
+            "correct_abstention": {
+              "value": null,
+              "status": "not_applicable",
+              "numerator": 0,
+              "denominator": 0
+            },
+            "unnecessary_abstention": {
+              "value": 0.0,
+              "status": "scored",
+              "numerator": 0,
+              "denominator": 1
+            }
+          },
+          "fact_labels": [
+            {
+              "fact_id": "f1",
+              "status": "missing",
+              "reason": "Answer quotes the PR claim that previous-index chat stays available after a failed reindex, but omits that PR #202 proposes transactional index replacement."
+            },
+            {
+              "fact_id": "f2",
+              "status": "missing",
+              "reason": "Answer does not mention that promotion already performs replacement and READY update inside a transaction, nor that a failed transaction can preserve previous rows."
+            },
+            {
+              "fact_id": "f3",
+              "status": "missing",
+              "reason": "Answer says chat requires READY, but does not state that the worker marks the repository FAILED on indexing errors; its failure-handling discussion is about chat message sending and an assistant message FAILED status."
+            },
+            {
+              "fact_id": "f4",
+              "status": "missing",
+              "reason": "Answer says chat depends on READY and may not be available after failed reindexing, but does not state that preserved old rows do not establish chat availability or that the pinned code blocks chat after FAILED, contrary to that part of the PR claim."
+            }
+          ],
+          "judge_validation_errors": []
+        }
+      ]
+    }
+  ]
+}
