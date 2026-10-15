@@ -22,6 +22,7 @@ from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
@@ -657,6 +658,75 @@ class _ExecutionMetrics(AsyncCallbackHandler):
         self.first_delta: float | None = None
         self.completed_model_calls = 0
         self.usage: list[JsonValue] = []
+        self.timings: list[JsonValue] = []
+        self._active: dict[uuid.UUID, tuple[float, dict[str, JsonValue]]] = {}
+
+    def _start_call(
+        self,
+        kind: Literal["model", "tool"],
+        run_id: uuid.UUID,
+        parent_run_id: uuid.UUID | None,
+        metadata: dict[str, Any] | None,
+        tool_name: str | None = None,
+    ) -> None:
+        metadata = metadata or {}
+        role = metadata.get("repomind_role")
+        if role not in {"CODE", "GITHUB", "SYNTHESIS"}:
+            role = {
+                "query_router": "ROUTER",
+                "code_agent": "CODE",
+                "github_agent": "GITHUB",
+                "synthesize": "SYNTHESIS",
+            }.get(metadata.get("langgraph_node", ""), "UNKNOWN")
+        started = time.monotonic()
+        record: dict[str, JsonValue] = {
+            "run_id": str(run_id),
+            "parent_run_id": str(parent_run_id) if parent_run_id else None,
+            "kind": kind,
+            "role": role,
+            "started_seconds": started - self.started,
+        }
+        if tool_name is not None:
+            record["tool_name"] = tool_name
+        self._active[run_id] = (started, record)
+
+    def _finish_call(
+        self, run_id: uuid.UUID, outcome: Literal["success", "error", "canceled"]
+    ) -> None:
+        active = self._active.pop(run_id, None)
+        if active is not None:
+            started, record = active
+            record.update(duration_seconds=time.monotonic() - started, outcome=outcome)
+            self.timings.append(record)
+
+    def finish_pending(self, outcome: Literal["error", "canceled"]) -> None:
+        """Close interrupted callback runs when the owning workflow unwinds."""
+        for run_id in list(self._active):
+            self._finish_call(run_id, outcome)
+
+    async def on_chat_model_start(
+        self,
+        serialized: dict[str, Any],
+        messages: list[list[BaseMessage]],
+        *,
+        run_id: uuid.UUID,
+        parent_run_id: uuid.UUID | None = None,
+        metadata: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self._start_call("model", run_id, parent_run_id, metadata)
+
+    async def on_tool_start(
+        self,
+        serialized: dict[str, Any],
+        input_str: str,
+        *,
+        run_id: uuid.UUID,
+        parent_run_id: uuid.UUID | None = None,
+        metadata: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self._start_call("tool", run_id, parent_run_id, metadata, serialized["name"])
 
     async def on_custom_event(self, name: str, data: Any, **kwargs: Any) -> None:
         if (
@@ -667,13 +737,40 @@ class _ExecutionMetrics(AsyncCallbackHandler):
         ):
             self.first_delta = time.monotonic() - self.started
 
-    async def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+    async def on_llm_end(
+        self, response: Any, *, run_id: uuid.UUID, **kwargs: Any
+    ) -> None:
+        self._finish_call(run_id, "success")
         self.completed_model_calls += 1
         for group in response.generations:
             for generation in group:
                 usage = getattr(generation.message, "usage_metadata", None)
                 if usage is not None:
                     self.usage.append(JSON_OBJECT.validate_python(usage))
+
+    async def on_llm_error(
+        self, error: BaseException, *, run_id: uuid.UUID, **kwargs: Any
+    ) -> None:
+        self._finish_call(
+            run_id, "canceled" if isinstance(error, asyncio.CancelledError) else "error"
+        )
+
+    async def on_tool_end(
+        self, output: Any, *, run_id: uuid.UUID, **kwargs: Any
+    ) -> None:
+        self._finish_call(
+            run_id,
+            "error"
+            if isinstance(output, ToolMessage) and output.status == "error"
+            else "success",
+        )
+
+    async def on_tool_error(
+        self, error: BaseException, *, run_id: uuid.UUID, **kwargs: Any
+    ) -> None:
+        self._finish_call(
+            run_id, "canceled" if isinstance(error, asyncio.CancelledError) else "error"
+        )
 
 
 class GraphRunner:
@@ -783,6 +880,7 @@ class GraphRunner:
                 limits=self.limits,
             )
             metrics = _ExecutionMetrics()
+            interrupted: Literal["error", "canceled"] = "error"
             try:
                 findings = (
                     await graph.ainvoke(
@@ -790,7 +888,11 @@ class GraphRunner:
                         config={"callbacks": [metrics]},
                     )
                 )["result"]
+            except asyncio.CancelledError:
+                interrupted = "canceled"
+                raise
             finally:
+                metrics.finish_pending(interrupted)
                 self.statistics = {
                     "workflow_seconds": time.monotonic() - metrics.started,
                     "first_answer_delta_seconds": metrics.first_delta,
@@ -798,6 +900,7 @@ class GraphRunner:
                         metrics.completed_model_calls
                     ),
                     "provider_usage": metrics.usage,
+                    "call_timings": metrics.timings,
                     "cache": JSON_OBJECT.validate_python(code_tools.cache_stats),
                 }
             self.last_findings, self.first_query = findings, code_tools.first_query

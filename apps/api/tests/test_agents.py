@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 from typing import Any
 
@@ -22,6 +23,126 @@ from test_tool_registry import connect_offline, provider, request
 from app import agents, github_mcp_server
 from app.agents import AgentLimits, investigate_code, investigate_github
 from app.tool_registry import ToolRegistry
+
+
+def test_context_projection_preserves_lossless_lookup_and_original_records() -> None:
+    source = agents.CodeEvidence(
+        id="code:one",
+        source_index=1,
+        corpus_commit_sha="a" * 40,
+        path="app.py",
+        start_line=1,
+        end_line=2,
+        content="one\ntwo",
+        url="https://github.com/example/project/blob/commit/app.py#L1-L2",
+    )
+    other = source.model_copy(
+        update={
+            "id": "code:two",
+            "source_index": 2,
+            "start_line": 2,
+            "end_line": 3,
+            "content": "two\nthree",
+            "url": None,
+        }
+    )
+    result = {
+        "sources": [
+            source.model_dump(),
+            other.model_dump(),
+            {**source.model_dump(), "id": "unknown"},
+            {**source.model_dump(), "content": "different\ncontent"},
+        ],
+        "missing_information": ["Requested branch unavailable."],
+        "context_notes": ["Optional surrounding context unread."],
+    }
+    records = [
+        agents.ToolExecutionRecord(
+            id=f"code:{status}",
+            call_id=status,
+            name="get_file_context",
+            arguments={"path": "app.py", "start_line": 1, "end_line": 2},
+            result=result,
+            message=ToolMessage(
+                content=json.dumps(result),
+                artifact=result,
+                tool_call_id=status,
+                status=status,
+            ),
+        )
+        for status in ("success", "error")
+    ]
+    findings = agents.AgentFindings(
+        role="CODE",
+        status="incomplete",
+        answer="Observed [1,2].",
+        source_ids=[source.id, other.id],
+        evidence=[source, other],
+        citation_catalog={"1": source.id, "2": other.id},
+        tool_executions=records,
+        missing_information=result["missing_information"],
+        context_notes=result["context_notes"],
+        errors=[agents.InvestigationError(stage="tool", message="Read failed.")],
+    )
+    original = copy.deepcopy(findings.model_dump())
+    payload = findings.to_context_payload()
+    projected = payload["tool_executions"][0]
+    assert projected["status"] == "success" and "message" not in projected
+    canonical = {s["id"]: s for s in payload["evidence"]}
+    for index, item in enumerate(projected["result"]["sources"]):
+        expected = result["sources"][index]
+        if index < 2:
+            assert "content" not in item
+            assert {**item, "content": canonical[item["id"]]["content"]} == expected
+        else:
+            assert item == expected
+    assert {k: v for k, v in projected.items() if k not in {"status", "result"}} == {
+        "id": "code:success",
+        "call_id": "success",
+        "name": "get_file_context",
+        "arguments": records[0].arguments,
+    }
+    assert payload["tool_executions"][1]["result"] == result
+    assert payload["tool_executions"][1]["status"] == "error"
+    for field in ("citation_catalog", "missing_information", "context_notes", "errors"):
+        assert payload[field] == findings.model_dump(mode="json")[field]
+    assert findings.model_dump() == original
+
+
+def test_context_projection_keeps_github_evidence_and_errors() -> None:
+    result = {
+        "files": [{"filename": "app.py", "patch": "-old\n+new"}],
+        "issue": {
+            "url": "https://github.com/example/project/issues/1",
+            "body": "Live.",
+        },
+        "sources": [{"id": "github:one", "content": "Unmatched live evidence."}],
+    }
+    findings = agents.AgentFindings(
+        role="GITHUB",
+        status="incomplete",
+        citation_catalog={result["issue"]["url"]: "github:one"},
+        tool_executions=[
+            agents.ToolExecutionRecord(
+                id="github:one",
+                call_id="one",
+                name="issue_read",
+                arguments={"issue_number": 1},
+                result=result,
+                message=ToolMessage(content="Live.", tool_call_id="one"),
+            )
+        ],
+        missing_information=["Comments unavailable."],
+        context_notes=["Live proposal."],
+        errors=[agents.InvestigationError(stage="tool", message="Comments failed.")],
+    )
+    original = copy.deepcopy(findings.model_dump())
+    payload = findings.to_context_payload()
+    assert payload["tool_executions"][0]["result"] == result
+    assert payload["errors"][0]["message"] == "Comments failed."
+    assert payload["missing_information"] == ["Comments unavailable."]
+    assert payload["context_notes"] == ["Live proposal."]
+    assert findings.model_dump() == original
 
 
 class ScriptedModel(FakeMessagesListChatModel):
@@ -46,6 +167,7 @@ def summary(
     answer: str = "Supported answer [1].",
     sources: list[str] | None = None,
     missing: list[str] | None = None,
+    notes: list[str] | None = None,
 ) -> AIMessage:
     return AIMessage(
         content=json.dumps(
@@ -53,6 +175,7 @@ def summary(
                 "answer": answer,
                 "source_ids": sources if sources is not None else ["1"],
                 "missing_information": missing or [],
+                "context_notes": notes or [],
             }
         ),
     )
@@ -140,8 +263,14 @@ def test_few_shot_output_matches_the_active_protocol(
         assert "return only a JSON object" not in prompt
     else:
         value = json.loads(output)
-        assert set(value) == {"answer", "source_ids", "missing_information"}
+        assert set(value) == {
+            "answer",
+            "source_ids",
+            "missing_information",
+            "context_notes",
+        }
         assert value["missing_information"] == []
+        assert value["context_notes"] == []
     if github:
         assert "https://github.com/fictional-lab/atlas/" in output
         assert "[7]" not in output
@@ -172,7 +301,11 @@ def test_partial_status_tracks_requested_ranges_not_optional_context(
                     "second",
                 )
             )
-        responses.append(summary("Observed content [1].", ["1"]))
+        responses.append(
+            summary(
+                "Observed content [1].", ["1"], notes=["Other context is optional."]
+            )
+        )
         findings = await investigate_code(
             ScriptedModel(responses=responses),
             registry,
@@ -183,6 +316,47 @@ def test_partial_status_tracks_requested_ranges_not_optional_context(
             "incomplete" if explicit and not followup else "complete"
         )
         assert bool(findings.missing_information) is (explicit and not followup)
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("github", [False, True])
+@pytest.mark.parametrize("required_gap", [False, True])
+def test_handoff_notes_do_not_qualify_answers_or_erase_required_gaps(
+    monkeypatch: pytest.MonkeyPatch, github: bool, required_gap: bool
+) -> None:
+    github_scope(monkeypatch)
+    note = "The other agent owns the remaining portion of the question."
+    gap = "A requested fact within this role is unavailable."
+    url = "https://github.com/example/project/issues/1"
+
+    async def run() -> None:
+        model = ScriptedModel(
+            responses=[
+                call("issue_read", {"issue_number": 1})
+                if github
+                else call("get_file_context", {"path": "app.py"}),
+                summary(
+                    url if github else "Observed [1].",
+                    [url if github else "1"],
+                    [gap] if required_gap else [],
+                    [note],
+                ),
+            ]
+        )
+        if github:
+            findings = await investigate_github(
+                model, ToolRegistry(request(), (provider(),)), "Compare code and issue."
+            )
+        else:
+            registry, code = setup_tools(Database())
+            findings = await investigate_code(
+                model, registry, code, "Compare code and issue."
+            )
+        assert findings.context_notes == [note]
+        assert findings.missing_information == ([gap] if required_gap else [])
+        assert findings.status == ("incomplete" if required_gap else "complete")
+        assert findings.evidence or findings.citation_catalog
 
     asyncio.run(run())
 
@@ -652,9 +826,52 @@ def test_invalid_completion_fails_validation(
         )
         assert findings.status == "failed", findings.errors
         assert findings.errors[-1].stage == "validation"
+        assert findings.errors[-1].code == "summary_schema"
         assert findings.model_calls == 1
         assert findings.tool_executions == []
         assert findings.evidence == []
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("failure", ["json", "field", "extra", "many"])
+def test_summary_diagnostics_are_actionable_bounded_and_redacted(failure: str) -> None:
+    secret = "sk-private-output-do-not-retain"
+    invalid: dict[str, Any] = {
+        "answer": "Observed evidence.",
+        "source_ids": [],
+        "missing_information": [],
+    }
+    if failure in {"field", "many"}:
+        invalid["source_ids"] = [{"token": secret}] * (20 if failure == "many" else 1)
+    if failure == "extra":
+        invalid[secret] = secret
+    content = "Malformed JSON: " + secret if failure == "json" else json.dumps(invalid)
+
+    async def run() -> None:
+        registry, code = setup_tools(Database())
+        findings = await investigate_code(
+            ScriptedModel(responses=[AIMessage(content=content)]),
+            registry,
+            code,
+            "Question",
+        )
+        error = findings.errors[-1]
+        assert findings.status == "failed" and error.code == "summary_schema"
+        assert secret not in error.message and len(error.message) < 300
+        assert (
+            "summary: json_invalid"
+            if failure == "json"
+            else "unexpected_field: extra_forbidden"
+            if failure == "extra"
+            else "source_ids[0]: string_type"
+        ) in error.message
+        if failure == "many":
+            assert (
+                "source_ids[4]" in error.message
+                and "source_ids[5]" not in error.message
+            )
+        assert findings.model_calls == 1
 
     asyncio.run(run())
 

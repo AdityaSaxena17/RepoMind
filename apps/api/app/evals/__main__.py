@@ -971,6 +971,7 @@ async def run(args: argparse.Namespace) -> int:
                                 {
                                     "status": runner.last_findings.status,
                                     "missing_information": findings.missing_information,
+                                    "context_notes": findings.context_notes,
                                     "errors": [
                                         e.model_dump(mode="json")
                                         for e in runner.last_findings.errors
@@ -999,6 +1000,7 @@ async def run(args: argparse.Namespace) -> int:
                                         "missing_information": (
                                             value.missing_information
                                         ),
+                                        "context_notes": value.context_notes,
                                         "errors": [
                                             e.model_dump(mode="json")
                                             for e in value.errors

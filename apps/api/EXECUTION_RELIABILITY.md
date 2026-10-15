@@ -741,3 +741,287 @@ leaked in the new 24-case or supplemental capture, versus 18 historical answers.
 - Frozen benchmark, fixtures, supplemental/method datasets, original/v2 calibration,
   scorer, retrieval/reranking and dependency locks have no diff. Tracked generated
   bytecode was restored after the build. No frontend or migration was changed.
+
+## Targeted follow-up (2026-10-16)
+
+This follow-up ran **12 selected executions across eight distinct questions**, not
+another full benchmark. All 12 executions completed: **11 complete answers and one
+qualified partial** retaining the fixture's HTTP 503. The three selected citation
+answers received **3/3 accepted grades**. These results do not replace the previous
+24-case measurements or establish the original five-repetitions-per-case gate.
+
+### Changes and focused checks
+
+- Add optional `context_notes` to specialist summaries, investigation findings and
+  workflow results. Handoffs, provenance differences and optional context have a
+  separate output channel from unresolved requested facts. Notes are retained for
+  synthesis and evaluation without triggering a partial notice. Actual missing
+  information and unrecovered execution errors still qualify an answer; authorization
+  and scope failures still stop it. No free-text limitation is silently deleted.
+- Remove synthetic "agent is incomplete" entries from combined missing-information
+  lists; individual statuses remain available in findings. The graph determines
+  qualification from the actual gaps and errors rather than duplicating status as
+  a new factual limitation. Unknown semantic gaps still require truthful model
+  reporting; the application does not implement a production grader.
+- Retain at most five schema-owned field names/list positions and validation error
+  categories for invalid summaries. Exclude validation inputs, raw output, unknown
+  field names, context and stack traces. Existing required fields and strict
+  validation remain unchanged; older three-field summaries default to empty notes.
+- Add a small GitHub checkpoint after observed resource details: further reads need
+  an unanswered live fact from the original request. Enrich issue-tool descriptions
+  with the distinction between discussion and indexed implementation. Comments remain
+  callable; no intent classifier, selection model, hard block or permissive fixture
+  was introduced.
+- Add one shared citation rule covering factual summaries/conclusions and statements
+  combining a value with behavior from another window. No benchmark facts or new
+  few-shot examples were inserted. Models, budgets and retrieval remain unchanged.
+
+The affected agent, parent-graph and native-SSE batch passed **135/135 tests**,
+including 12 added cases for notes versus genuine gaps and redacted/bounded schema
+diagnostics. Mypy initially found a dictionary-default inference problem in the new
+checkpoint; explicit observed-call narrowing fixed it. Its four affected handoff
+cases then passed **4/4**. Changed-file Ruff, formatting (seven Python files), mypy
+(four changed application modules) and diff whitespace checks passed. No full API
+suite, opt-in integration suite, web build or lock verification was repeated for
+this change. The targeted live runs exercised the existing isolated evaluation DB.
+
+### Live execution results
+
+Artifacts use prefix `.eval-artifacts/component-5-targeted-v4`:
+`-pipeline.json`, `-summary.json`, `-issue-status.json`, `-pr-status.json`,
+`-mixed-repeat-{1..5}.json`, `-comments.json`, and `-citations.json`.
+All captures use the same application hash; every capture and failure is retained.
+
+| Check | Result | Observed behavior |
+| ----- | ------ | ----------------- |
+| Unstable `mixed-03` | 5/5 complete | Only `issue_read(get)`; no unnecessary comments or fixture misses. Previous repetitions completed 4/5. |
+| `mixed-01` issue/code status | Complete | Previously partial due to another role's scope; notes retained, no missing facts or execution errors. |
+| `supp-mixed-02` PR/code status | Complete | Different live/indexed versions remain provenance notes; actual PR details/files/diff and indexed evidence retained. |
+| Both necessary-comment cases | 2/2 complete | Each executed successful fixture-backed `get_comments`; previously marked incomplete. One execution each, not five. |
+| `mixed-02` summary diagnostic | Qualified partial | No summary-schema failure on this attempt; actual `get_diff` 503 remains unrecovered. A duplicate request was blocked and recorded as recovered. |
+| `code-03`, `code-04` citations | 2/2 complete | Actual final specialist generations, with observed code evidence and validated references. |
+
+There were zero failed executions or unmatched fixtures, but the genuine tool
+failure was not counted as success of every specialist. All **158/158 extracted
+references** were valid. The intermittent historical `summary_schema` failure was
+not reproduced in its one targeted run; this does not prove it is eliminated or
+identify its original cause. New diagnostics make a future occurrence actionable.
+
+### Three-answer judge comparison
+
+The three fixed cases are `mixed-01`, `code-03`, and `code-04`. Reports are
+`-citation-before.json`, `-citation-after.json`, and `-citation-comparison.json`.
+The baseline subset preserves existing accepted v3 grades from
+`component-5-reliability-v3-scoped-after.json`; it was not regenerated or rejudged.
+The unchanged v3 judge configuration matches exactly. Its passing 15-case calibration
+was reused with recorded provenance, not rerun. All three new grades were accepted
+without a validation repair; every metric below has three scored cases and no
+N/A, unscored or errored cases.
+
+| Case-macro metric | Saved matched subset | New matched subset |
+| ----------------- | -------------------- | ------------------ |
+| Answer correctness | 100% | 100% |
+| Fact completeness | 100% | 100% |
+| Groundedness | 100% | 98.77% |
+| Citation precision | 85.48% | 89.71% |
+| Citation coverage | 57.99% | 67.75% |
+| Citation validity | 100% | 100% |
+| Recall@6 | 88.89% | 55.56% |
+| Precision@6 | 27.78% | 27.78% |
+| Final evidence coverage | 100% | 100% |
+
+Citation coverage improves in all three: `mixed-01` 60.87% to 74.07%, `code-03`
+52.00% to 66.67%, `code-04` 61.11% to 62.50%. Coverage is still incomplete. Some
+factual introductions remain uncited, and some numeric/behavior claims still omit
+one of their required windows. The judge also retains section-boundary fragments.
+The one unsupported new claim says the system prompt "only" contains a particular
+citation instruction, although the observed prompt contains additional instructions.
+No rejected claim was relabeled to improve metrics.
+
+Recall@6 declines because the first `mixed-01` search did not recover its complete
+annotated evidence unit; subsequent searches/reads did. The other two cases' Recall@6
+is unchanged. All five required units were recovered across the final investigations.
+This is iterative evidence coverage, not Recall@6. No retriever, scorer, dataset,
+fixture, calibration, dependency lock or Redis behavior was changed.
+
+On these same three cases, mean workflow latency rose **24.59s to 29.80s**, completed
+model calls **13 to 15**, input tokens **160,833 to 197,224**, and output tokens
+**4,997 to 7,100**. Across all 12 targeted executions, mean latency was 30.87s,
+with 74 completed model calls, 966,222 input tokens and 30,296 output tokens.
+These counts exclude offline judge usage, which the runner does not record. They
+are observations of a small subset, not causal performance or generalization claims.
+
+The selected reliability regressions pass, with truthful partial handling preserved.
+Remaining limitations include incomplete citation attachment, the observed retrieval,
+grounding and latency regressions, the unreproduced intermittent schema failure,
+and unknown behavior on untested cases. The historical repository-link omission and
+historical judge rejection were not rechecked here. No further prompt/evaluation loop
+was run; a full acceptance checkpoint and independent holdout remain separate work.
+
+## First-search recall and latency pass (2026-10-16)
+
+This pass executed `mixed-01` three times and graded **trial 1 only** with the
+unchanged v3 judge. All three executions completed with complete workflow status,
+no errors or requested-evidence gaps, and **49/49 valid extracted references**.
+The judge accepted trial 1 without validation repairs and matched all three
+reference facts. The all-three first-search recovery target **failed**: trial 3
+needed a file read. No additional tuning or evaluation loop followed that result.
+These are three executions of one development regression, not a new benchmark
+score or evidence of generalization.
+
+### Implementation and focused checks
+
+- `AgentFindings.to_context_payload()` is shared by synthesis and sequential
+  GitHub-to-Code handoff. It keeps canonical evidence intact and removes only a
+  successful tool source's repeated `content` whose ID and text match canonical
+  evidence exactly. Unmatched text and failed results stay intact. Source
+  associations, call IDs, paths/ranges, URLs, arguments, status, errors and
+  limitations remain in context. Original findings, native messages and artifacts
+  are unchanged. Both consumers explain ID-based canonical evidence lookup.
+- Only the code-search tool description gains a query-fidelity instruction:
+  preserve the requested behavior and explicit identifiers/paths. No specialist
+  prompt examples, models, reasoning settings, budgets, routing strategies,
+  retrieval/reranking parameters, SSE protocol or cache behavior changed.
+- Offline callbacks add `execution.call_timings` keyed by native run ID, with
+  parent ID, role, start offset, duration and success/error/canceled outcome.
+  Tool names are included; message bodies, tool arguments, outputs and exception
+  bodies are not. In-flight callbacks are finalized when the workflow unwinds.
+  Existing provider usage, model counts and first-answer-delta timing remain.
+- The focused batch passed **145/145 tests** (62 unrelated evaluation tests
+  deselected): agents, parent graph, native SSE and eight evaluation-timing cases.
+  This includes two new lossless-projection regressions and real graph callback
+  coverage. Changed-file Ruff and formatting passed for seven Python files;
+  mypy passed for four changed application modules. Initial lint line lengths and
+  a callback-metadata typing issue were corrected before the live captures.
+  No full suite, opt-in integration suite, full benchmark, build, lock check,
+  recalibration or repeat of the saved 17-query retrieval investigation ran.
+
+The exact test selection from `apps/api` was:
+
+```powershell
+python scripts/uv_run.py pytest -p no:cacheprovider tests/test_agents.py tests/test_repository_graph.py tests/test_chat_streaming.py tests/test_evals.py -k 'not test_evals or execution_timing'
+```
+
+### Payload reduction
+
+Using saved slow-case evidence and tool records from
+`component-5-targeted-v4-citation-after.json`, equivalent synthesis payloads before
+and after projection measured **160,132 to 86,368 characters (46.06% smaller)**,
+or 160,144 to 86,378 UTF-8 bytes. All 11 canonical code windows (55,896 text
+characters) remain, and all 14 omitted copies resolve to exactly their original
+text. This exceeds the 30% target without truncation or summarization.
+
+This is a reconstruction from saved complete evidence, tool records, catalogs and
+agent summaries, not a capture of the original prompt bytes. Unsaved per-agent
+`source_ids` and `model_calls` use identical defaults in both versions. The
+measurement and resolution assertions are saved in `-projection.json`.
+
+### Three live trials
+
+Artifacts use `.eval-artifacts/component-5-context-v5`: `-trial-{1..3}.json`,
+`-trial-1-judged.json`, `-saved-before.json`, `-trial-1-comparison.json`,
+`-projection.json`, `-pipeline.json`, and `-summary.json`. All three captures have
+the same application hash. Dataset, strict fixtures, corpus, scorer, judge
+configuration and the saved baseline report are unchanged.
+
+| Measurement | Saved slow run | Trial 1 | Trial 2 | Trial 3 |
+| ----------- | -------------- | ------- | ------- | ------- |
+| Execution / workflow | Completed / complete | Completed / complete | Completed / complete | Completed / complete |
+| Recall@6 | 0% | 100% | 100% | **0%** |
+| Precision@6 | 0% | 16.67% | 16.67% | 0% |
+| Final evidence coverage | 100% | 100% | 100% | 100% |
+| Citation validity | 20/20 | 14/14 | 16/16 | 19/19 |
+| Workflow seconds | 57.906 | 53.609 | 36.703 | 44.562 |
+| First answer delta seconds | 54.828 | 52.328 | 32.688 | 42.500 |
+| Completed model calls, including router | 8 | 6 | 7 | 8 |
+| Tool calls | 5 | 3 | 4 | 5 |
+| Input tokens | 129,615 | 61,646 | 63,190 | 100,172 |
+| Output tokens, including reasoning | 4,445 | 5,182 | 4,323 | 5,484 |
+| Reasoning tokens | 2,744 | 3,761 | 2,610 | 3,675 |
+| Synthesis input tokens | 46,877 | 25,854 | 23,486 | 27,632 |
+
+Recorded first queries, in trial order:
+
+1. `source cards chat retrieved sources display answer citations`
+2. `chat source cards retrieved candidates citations answer claims`
+3. `streaming source cards retrieved candidates citations chat`
+
+Each trial selected `GITHUB_THEN_CODE` and made two concurrent search calls in its
+first Code Agent step. The recorded first query is the first search to enter the
+existing code-tool method; result-record order can differ during concurrency.
+Recall@6 still scores that single search's six windows, not the union of searches.
+
+- Trial 1: issue `get`, then the first query above alongside
+  `chat streaming source card citation rendering`. No file read or comment read.
+- Trial 2: issue `get`, then `get_comments`, then the first query above alongside
+  `streaming source card display chat answer cite`. No file read.
+- Trial 3: issue `get`, then `get_comments`, then the first query above alongside
+  `chat message source card attach`, then `get_file_context` for
+  `apps/api/app/chat.py:350-470` (observed window 350-446).
+
+Every tool call matched the strict fixtures or returned actual indexed evidence.
+The extra comment reads in trials 2 and 3 repeated facts already present in the
+issue body; they add work without being necessary for the requested report.
+
+### Stage timing and remaining failures
+
+Observed role spans below run from the role's earliest native callback start to
+its latest callback end. They include gaps within the role and overlapping tool
+calls only once. They are not summed durations or a breakdown of database versus
+embedding time. The historical run has no such callback measurements.
+
+| Role span, seconds | Trial 1 | Trial 2 | Trial 3 |
+| ------------------ | ------- | ------- | ------- |
+| Router | 4.469 | 2.547 | 1.625 |
+| GitHub investigation | 9.110 | 8.703 | 9.235 |
+| Code investigation | 19.437 | 10.407 | 12.422 |
+| Synthesis model | 20.062 | 14.906 | 21.156 |
+
+Median workflow latency is **44.562s**, 23.04% below the saved slow run; median
+first delta is **42.500s**, 22.48% lower. Median input tokens fall **51.25%** to
+63,190, and synthesis input tokens fall **44.85%** to 25,854. Median completed
+model calls fall from 8 to 7. These observations compare three new runs to one
+saved slow run; provider caching and runtime variance prevent a causal claim.
+The first trial's two search durations were 7.61s and 7.77s and overlapped; later
+searches took 0.72-0.97s. Timing does not identify which retrieval substage caused
+that difference. Redis is not enabled in this existing offline runner.
+
+Median output tokens rise **16.58%** to 5,182, and reasoning tokens rise **33.93%**
+to 3,675. Synthesis still takes 14.91-21.16s; its median reasoning count rises
+from 1,967 to 3,076 despite fewer input tokens. Reasoning settings were preserved.
+
+Trial 3's first six windows contain `chat.py:129-376` but omit the required later
+backend citation loop. First-pass evidence overlap is only 20%; the second query
+also fails to establish the full requested backend behavior. The later exact file
+read recovers it. This is consistent with the previously observed parent-window
+selection sensitivity, but this pass did not rerun candidate-pool analysis or
+change ranking. The tested full-pool sorting alternative remains rejected after
+its saved 17-query regression (Recall@6 77.45% to 73.53%). Query-description guidance
+alone has not made first-search recovery reliable.
+
+### Trial 1 judge comparison
+
+The unchanged v3 judge reused its matching **15/15 passing saved calibration**
+from `component-5-reliability-v3-scoped-before.json`, with file-hash provenance.
+Trial 1 received one accepted grade, no validation repairs and no material errors.
+Trials 2 and 3 were intentionally not judged; their semantic metrics remain unscored.
+
+| Metric on the identical question | Saved accepted grade | Trial 1 accepted grade |
+| -------------------------------- | -------------------- | ---------------------- |
+| Correctness | 100% (1/1) | 100% (1/1) |
+| Completeness | 100% (3/3) | 100% (3/3) |
+| Groundedness | 96.30% (26/27) | 100% (23/23) |
+| Citation precision | 85.00% (34/40) | **80.77% (21/26)** |
+| Citation coverage | 74.07% (20/27) | 86.96% (20/23) |
+| Citation validity | 100% (20/20) | 100% (14/14) |
+
+The precision regression remains visible: two literal citation-number examples and
+three citations in a limitation paragraph are not assigned supporting claims by
+the judge. The commit statement and two factual conclusions lack directly attached
+citations. Valid references therefore do not imply complete citation attachment.
+
+Payload reduction, citation validity and trial-1 reference completeness targets
+pass; all-three first-search recovery does not. The failure, precision regression,
+extra comment reads and increased output/reasoning usage are retained. No baseline
+answer substitution, judge recalibration, permissive fixtures, additional examples,
+larger budgets, reranker/model changes or further live evaluations were applied.

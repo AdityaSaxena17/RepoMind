@@ -583,6 +583,9 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                             else f"Private investigation {url}",
                             "source_ids": ["1" if code else url],
                             "missing_information": [],
+                            "context_notes": [
+                                "The other specialist owns its portion of the question."
+                            ],
                         }
                     )
                     wire = Wire(

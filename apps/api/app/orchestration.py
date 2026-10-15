@@ -15,6 +15,7 @@ from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from .agents import (
+    EVIDENCE_REFERENCE_GUIDANCE,
     AgentFindings,
     AgentLimits,
     InvestigationError,
@@ -222,6 +223,8 @@ SYNTHESIS_PROMPT = (
     "A proposed diff is not proof that the "
     "indexed implementation contains it. Explain contradictions, label inferences, "
     "and qualify conclusions when an investigation failed or is incomplete. Missing "
+    "facts within a role remain limitations; context_notes about handoffs, optional "
+    "context or version differences alone do not require qualification. Missing "
     "evidence does not prove absence. Preserve all material limitations and errors. "
     "Cite code with returned numeric labels like [1] and GitHub with exact returned "
     "URLs. Never invent source IDs, URLs or line ranges. Return the final answer "
@@ -246,6 +249,7 @@ class WorkflowResult(BaseModel):
     citation_catalog: dict[str, str] = Field(default_factory=dict)
     tool_executions: list[ToolExecutionRecord] = Field(default_factory=list)
     missing_information: list[str] = Field(default_factory=list)
+    context_notes: list[str] = Field(default_factory=list)
     errors: list[InvestigationError] = Field(default_factory=list)
     findings: dict[Literal["CODE", "GITHUB"], AgentFindings] = Field(
         default_factory=dict
@@ -281,16 +285,14 @@ def _combined_result(state: WorkflowState) -> WorkflowResult:
         result.tool_executions.extend(findings.tool_executions)
         result.errors.extend(findings.errors)
         result.missing_information.extend(findings.missing_information)
+        result.context_notes.extend(findings.context_notes)
         result.model_calls += findings.model_calls
         for key, source in findings.citation_catalog.items():
             # A URI can occur in both investigations. Prefer the indexed window
             # while retaining every observed GitHub record and its provenance.
             result.citation_catalog.setdefault(key, source)
-        if findings.status != "complete":
-            result.missing_information.append(
-                f"{findings.role} investigation is {findings.status}."
-            )
     result.missing_information = list(dict.fromkeys(result.missing_information))
+    result.context_notes = list(dict.fromkeys(result.context_notes))
     return result
 
 
@@ -521,9 +523,7 @@ def create_repository_graph(
             "indexed_commit_sha": code_tools.commit_sha,
             "citation_catalog": result.citation_catalog,
             "investigations": {
-                role: findings.model_dump(
-                    mode="json", exclude={"tool_executions": {"__all__": {"message"}}}
-                )
+                role: findings.to_context_payload()
                 for role, findings in result.findings.items()
             },
         }
@@ -539,7 +539,9 @@ def create_repository_graph(
                     SystemMessage(content=SYNTHESIS_PROMPT),
                     *state["history"],
                     HumanMessage(
-                        content="Observed investigation data:\n"
+                        content="Observed investigation data. "
+                        + EVIDENCE_REFERENCE_GUIDANCE
+                        + "\n"
                         + json.dumps(payload, ensure_ascii=False)
                     ),
                     HumanMessage(content=state["question"]),

@@ -2,9 +2,12 @@ import asyncio
 import json
 from collections import Counter
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from langchain_core.embeddings import Embeddings
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.outputs import ChatGeneration, LLMResult
 
 from app import chat
 from app.evals import execution
@@ -45,6 +48,154 @@ from app.evals.scoring import (
 )
 
 SHA = "a" * 40
+
+
+def test_execution_timing_tracks_overlapping_calls_and_existing_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = [100.0]
+    monkeypatch.setattr(execution.time, "monotonic", lambda: clock[0])
+    metrics = execution._ExecutionMetrics()
+    code, github, tool = uuid4(), uuid4(), uuid4()
+
+    async def run() -> None:
+        clock[0] = 101.0
+        await metrics.on_chat_model_start(
+            {},
+            [[HumanMessage(content="private")]],
+            run_id=code,
+            metadata={"repomind_role": "CODE"},
+        )
+        clock[0] = 102.0
+        await metrics.on_chat_model_start(
+            {}, [], run_id=github, metadata={"repomind_role": "GITHUB"}
+        )
+        clock[0] = 103.0
+        await metrics.on_tool_start(
+            {"name": "issue_read"},
+            "private arguments",
+            run_id=tool,
+            parent_run_id=github,
+            metadata={"repomind_role": "GITHUB"},
+        )
+        clock[0] = 105.0
+        await metrics.on_tool_end(
+            ToolMessage(content="private output", tool_call_id="x"), run_id=tool
+        )
+        response = LLMResult(
+            generations=[
+                [
+                    ChatGeneration(
+                        message=AIMessage(
+                            content="private",
+                            usage_metadata={
+                                "input_tokens": 4,
+                                "output_tokens": 2,
+                                "total_tokens": 6,
+                            },
+                        )
+                    )
+                ]
+            ]
+        )
+        clock[0] = 106.0
+        await metrics.on_llm_end(response, run_id=github)
+        clock[0] = 108.0
+        await metrics.on_custom_event(
+            "repomind_answer_delta", {"text": "private", "native": False}
+        )
+        assert metrics.first_delta is None
+        await metrics.on_custom_event("repomind_answer_delta", {"text": "private"})
+        await metrics.on_llm_end(response, run_id=code)
+
+    asyncio.run(run())
+    by_id = {r["run_id"]: r for r in metrics.timings}
+    assert by_id[str(code)]["duration_seconds"] == 7
+    assert by_id[str(github)]["duration_seconds"] == 4
+    assert by_id[str(tool)] == {
+        "run_id": str(tool),
+        "parent_run_id": str(github),
+        "kind": "tool",
+        "role": "GITHUB",
+        "tool_name": "issue_read",
+        "started_seconds": 3.0,
+        "duration_seconds": 2.0,
+        "outcome": "success",
+    }
+    assert metrics.first_delta == 8 and metrics.completed_model_calls == 2
+    assert (
+        metrics.usage
+        == [{"input_tokens": 4, "output_tokens": 2, "total_tokens": 6}] * 2
+    )
+    assert "private" not in json.dumps(metrics.timings)
+    assert metrics._active == {}
+
+
+@pytest.mark.parametrize("kind", ["model", "tool"])
+@pytest.mark.parametrize("outcome", ["error", "canceled", "interrupted"])
+def test_execution_timing_records_failures_and_cancellation(
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    outcome: str,
+) -> None:
+    clock = [10.0]
+    monkeypatch.setattr(execution.time, "monotonic", lambda: clock[0])
+    metrics = execution._ExecutionMetrics()
+    run_id = uuid4()
+
+    async def run() -> None:
+        if kind == "model":
+            await metrics.on_chat_model_start(
+                {}, [], run_id=run_id, metadata={"langgraph_node": "query_router"}
+            )
+        else:
+            await metrics.on_tool_start(
+                {"name": "read"},
+                "private",
+                run_id=run_id,
+                metadata={"langgraph_node": "code_agent"},
+            )
+        clock[0] = 12.5
+        error = (
+            asyncio.CancelledError("private")
+            if outcome != "error"
+            else ValueError("private")
+        )
+        if outcome == "interrupted":
+            metrics.finish_pending("canceled")
+        elif kind == "model":
+            await metrics.on_llm_error(error, run_id=run_id)
+        else:
+            await metrics.on_tool_error(error, run_id=run_id)
+        # A late native cancellation callback must not duplicate a finalized run.
+        await metrics.on_llm_error(error, run_id=run_id)
+
+    asyncio.run(run())
+    assert len(metrics.timings) == 1
+    assert metrics.timings[0]["outcome"] == (
+        "error" if outcome == "error" else "canceled"
+    )
+    assert metrics.timings[0]["duration_seconds"] == 2.5
+    assert metrics.timings[0]["role"] == ("ROUTER" if kind == "model" else "CODE")
+    assert metrics.completed_model_calls == 0 and not metrics.usage
+    assert "private" not in json.dumps(metrics.timings)
+    assert not metrics._active
+
+
+def test_execution_timing_recognizes_failed_tool_messages() -> None:
+    metrics = execution._ExecutionMetrics()
+    run_id = uuid4()
+
+    async def run() -> None:
+        await metrics.on_tool_start({"name": "read"}, "private", run_id=run_id)
+        await metrics.on_tool_end(
+            ToolMessage(content="private failure", tool_call_id="x", status="error"),
+            run_id=run_id,
+        )
+
+    asyncio.run(run())
+    assert metrics.timings[0]["outcome"] == "error"
+    assert metrics.timings[0]["role"] == "UNKNOWN"
 
 
 @pytest.mark.parametrize("eligible", [False, True])

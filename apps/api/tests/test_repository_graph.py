@@ -18,6 +18,7 @@ from app import agents, github_mcp_server
 from app import code_tools as code_tools_module
 from app.agents import FINAL_ANSWER_MARKER, PARTIAL_ANSWER_PREFIX, AgentLimits
 from app.code_tools import CodeTools
+from app.evals.execution import _ExecutionMetrics
 from app.orchestration import create_repository_graph
 from app.tool_errors import AuthorizationError, ScopeViolationError
 from app.tool_registry import RequestScope, ToolRegistry
@@ -175,6 +176,7 @@ def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
     monkeypatch.setattr(github_mcp_server, "repository_scope", scope)
     monkeypatch.setattr(github_mcp_server, "github_json", get)
     callback_outputs: list[Any] = []
+    metrics = _ExecutionMetrics()
 
     class Callback(AsyncCallbackHandler):
         async def on_tool_end(self, output: Any, **kwargs: Any) -> None:
@@ -184,7 +186,7 @@ def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
         asyncio.wait_for(
             graph.ainvoke(
                 {"question": "Compare", "history": []},
-                config={"callbacks": [Callback()], "tags": ["parent-graph"]},
+                config={"callbacks": [Callback(), metrics], "tags": ["parent-graph"]},
             ),
             5,
         )
@@ -221,6 +223,22 @@ def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
         == URL
     )
     assert payload["indexed_commit_sha"] == SHA
+    projected = payload["investigations"]["CODE"]["tool_executions"][0]
+    assert projected["status"] == "success"
+    assert "content" not in projected["result"]["sources"][0]
+    assert result.findings["CODE"].tool_executions[0].result["sources"][0]["content"]
+    assert agents.EVIDENCE_REFERENCE_GUIDANCE in synthesis.requests[0][-2].text
+    assert metrics.completed_model_calls == 6 and len(metrics.timings) == 8
+    assert {r["role"] for r in metrics.timings} == {
+        "CODE",
+        "GITHUB",
+        "ROUTER",
+        "SYNTHESIS",
+    }
+    assert all(
+        r["duration_seconds"] >= 0 and r["outcome"] == "success"
+        for r in metrics.timings
+    )
     assert [event[:2] for event in events] == [("open", "github"), ("close", "github")]
     assert events[0][2] == events[1][2]
     assert result.citation_catalog["1"] == result.evidence[0].id
@@ -263,6 +281,7 @@ def test_sequential_context_contains_observed_paths_evidence_and_provenance(
     assert result.status == "complete", result.errors
     context = code.requests[0][-2]
     assert context.type == "human" and "Untrusted live GitHub" in context.text
+    assert agents.EVIDENCE_REFERENCE_GUIDANCE in context.text
     payload = json.loads(context.text.split("\n", 1)[1])
     assert payload["affected_paths"] == ["app.py"]
     assert payload["indexed_commit_sha"] == SHA
@@ -275,6 +294,40 @@ def test_sequential_context_contains_observed_paths_evidence_and_provenance(
     assert code.requests[0][-1].text == "Compare"
     assert len(synthesis.requests) == 1 and database.active == 0
     assert events[0][2] == events[1][2]
+
+
+@pytest.mark.parametrize("strategy", ["PARALLEL", "GITHUB_THEN_CODE"])
+@pytest.mark.parametrize("required_gap", [False, True])
+def test_mixed_notes_are_retained_without_hiding_real_missing_evidence(
+    monkeypatch: pytest.MonkeyPatch, strategy: str, required_gap: bool
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(
+        monkeypatch, strategy=strategy
+    )
+    code.responses[-1] = summary(
+        notes=["The live proposal and indexed snapshot are different versions."],
+        missing=["A requested code branch was unavailable."] if required_gap else [],
+    )
+    github.responses[-1] = summary(
+        URL, [URL], notes=["The Code Agent explains the implementation."]
+    )
+    result = asyncio.run(graph.ainvoke({"question": "Compare", "history": []}))[
+        "result"
+    ]
+    assert result.status == ("incomplete" if required_gap else "complete")
+    assert result.answer.startswith(PARTIAL_ANSWER_PREFIX) is required_gap
+    assert bool(result.missing_information) is required_gap
+    assert len(result.context_notes) == 2
+    assert result.findings["GITHUB"].status == "complete"
+    assert (
+        len(result.tool_executions) == 2
+        and result.citation_catalog
+        and not result.errors
+    )
+    payload = json.loads(synthesis.requests[0][-2].text.split("\n", 1)[1])
+    assert payload["investigations"]["CODE"]["context_notes"]
+    assert payload["investigations"]["GITHUB"]["context_notes"]
+    assert len(synthesis.requests) == 1 and database.active == 0
 
 
 @pytest.mark.parametrize("strategy", ["PARALLEL", "GITHUB_THEN_CODE"])

@@ -172,7 +172,10 @@ class CodeTools:
                 SearchCodeArguments,
                 "Search the indexed commit with hybrid retrieval. Returns ranked "
                 "code windows with exact paths, line ranges and stable citation "
-                "IDs/numbers. Refine the query only for unresolved requested facts; "
+                "IDs/numbers. Preserve the requested behavior and explicit identifiers "
+                "or paths in the query rather than replacing them with broad "
+                "topic words. "
+                "Refine the query only for unresolved requested facts; "
                 "use get_file_context to inspect a returned path more closely. "
                 "Live PR contents are not part of this snapshot.",
             ),

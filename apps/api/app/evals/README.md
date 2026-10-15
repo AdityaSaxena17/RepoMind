@@ -563,3 +563,29 @@ Verification repeats the previously failing MIXED case and both necessary-commen
 cases five times, followed by one full benchmark and the existing supplemental set.
 Execution failures, judge failures and qualified partial outcomes are reported
 separately. These development regressions do not constitute an independent holdout.
+
+Specialist summaries also return optional `context_notes` for cross-agent handoffs,
+provenance and optional context. These notes are retained in workflow findings and
+evaluation metadata without qualifying the answer. Unresolved requested facts stay
+in `missing_information`; actual execution errors still affect status. Summary
+validation diagnostics contain at most five schema field/error-code pairs, without
+raw model output or unknown field names.
+
+For focused changes, select live cases with `full --case <id>` and grade only the
+affected saved answers. Reuse calibration only with an identical judge configuration.
+Report these captures as targeted regressions; they do not replace the last complete
+24-case benchmark or its acceptance gates.
+
+Offline graph execution metadata includes `execution.call_timings`: each native
+model/tool run has its run ID, parent run ID, role, start offset, duration and
+success/error/canceled outcome. Tool entries also carry the tool name. Overlapping
+durations are independent observations, not additive workflow wall time. Interrupted
+runs are closed when the workflow unwinds. Timing entries contain no message text,
+tool arguments, outputs or exception bodies; existing provider usage and first
+answer delta measurements remain separate.
+
+Synthesis and sequential handoff use an internal evidence projection. A successful
+tool source omits `content` only when its ID and text exactly match canonical
+evidence; consumers resolve it by ID. Full investigation results and cache entries
+retain their original text. Unmatched sources, failed results, provenance, citations,
+arguments, statuses, limitations and errors remain available in model context.
