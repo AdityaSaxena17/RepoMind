@@ -11,7 +11,7 @@ from uuid import UUID
 import httpx
 import pytest
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda
 from langchain_openai import ChatOpenAI
 from pydantic import JsonValue, TypeAdapter, ValidationError
@@ -94,20 +94,23 @@ def test_router_uses_validated_json_without_research(
     clarification = "Which problem and change do you mean?" if scope is None else None
     replies.append(
         json.dumps(
-            {"scope": scope, "clarification": clarification, "mixed_strategy": strategy}
+            {
+                "scope": scope,
+                "clarification": clarification,
+                "mixed_strategy": strategy,
+                "code_task": "Inspect indexed behavior." if scope == "MIXED" else None,
+                "github_task": "Read requested live facts."
+                if scope == "MIXED"
+                else None,
+            }
         )
     )
 
     def unexpected_research(*_args: object, **_kwargs: object) -> NoReturn:
         pytest.fail("Routing must not start retrieval, MCP, or answer generation.")
 
-    for name in (
-        "create_embedding_model",
-        "RepoMindParentHybridRetriever",
-        "scoped_mcp_tools",
-        "stream_repository_answer",
-    ):
-        monkeypatch.setattr(chat, name, unexpected_research)
+    monkeypatch.setattr("app.code_tools.create_embedding_model", unexpected_research)
+    monkeypatch.setattr("app.tool_registry.MultiServerMCPClient", unexpected_research)
 
     router = create_query_router(chat.create_chat_model(purpose="router"))
     history = [HumanMessage(content="Read issue #101."), AIMessage(content="A bug.")]
@@ -116,7 +119,11 @@ def test_router_uses_validated_json_without_research(
     )
     assert result == {
         "decision": RouteDecision(
-            scope=scope, clarification=clarification, mixed_strategy=strategy
+            scope=scope,
+            clarification=clarification,
+            mixed_strategy=strategy,
+            code_task="Inspect indexed behavior." if scope == "MIXED" else None,
+            github_task="Read requested live facts." if scope == "MIXED" else None,
         )
     }
     assert len(requests) == 1
@@ -152,6 +159,14 @@ def test_router_uses_validated_json_without_research(
         '{"scope":"MIXED","clarification":null,"mixed_strategy":"OTHER"}',
         '{"scope":"CODE","clarification":null,"mixed_strategy":"PARALLEL"}',
         '{"scope":null,"clarification":"Which?","mixed_strategy":"GITHUB_THEN_CODE"}',
+        '{"scope":"MIXED","clarification":null,"mixed_strategy":"PARALLEL",'
+        '"code_task":" ","github_task":"Read live facts."}',
+        '{"scope":"CODE","clarification":null,"code_task":"Unexpected assignment."}',
+        '{"scope":"GITHUB","clarification":null,'
+        '"github_task":"Unexpected assignment."}',
+        '{"scope":"MIXED","clarification":null,"mixed_strategy":"PARALLEL",'
+        '"code_task":"Read code.","github_task":"Read issue.",'
+        '"github_evidence":"OTHER"}',
     ],
 )
 def test_invalid_decisions_are_rejected(reply: str) -> None:
@@ -335,6 +350,12 @@ def test_benchmark_questions_use_question_only_contract(
                 "mixed_strategy": "PARALLEL"
                 if question.evidence_scope == "MIXED"
                 else None,
+                "code_task": "Inspect indexed behavior."
+                if question.evidence_scope == "MIXED"
+                else None,
+                "github_task": "Read requested live facts."
+                if question.evidence_scope == "MIXED"
+                else None,
             }
         )
     )
@@ -345,95 +366,6 @@ def test_benchmark_questions_use_question_only_contract(
     assert isinstance(messages, list)
     assert len(messages) == 2
     assert messages[-1] == {"role": "user", "content": question.question}
-
-
-@pytest.mark.parametrize("failure", [False, True])
-def test_router_clarification_and_failure_preserve_sse_and_persistence(
-    failure: bool,
-    provider: Provider,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    requests, replies = provider
-    clarification = "Which PR and problem do you mean?"
-    replies.extend(
-        ["malformed private output"] * 2
-        if failure
-        else [json.dumps({"scope": None, "clarification": clarification})]
-    )
-    writes: list[tuple[object, ...]] = []
-
-    class Connection:
-        async def fetchrow(self, sql: str, *_args: object) -> dict[str, object]:
-            if 'FROM "Repository"' in sql:
-                return {
-                    "id": "repo",
-                    "htmlUrl": "https://github.com/fixture/repo",
-                    "indexedCommitSha": "a" * 40,
-                    "defaultBranch": "main",
-                    "indexStatus": "READY",
-                    "indexedChunkCount": 1,
-                }
-            return {"content": "Does it fix that?"}
-
-        async def fetch(self, *_args: object) -> list[object]:
-            return []
-
-        async def execute(self, *args: object) -> str:
-            writes.append(args)
-            return "OK"
-
-    def unexpected_research(*_args: object, **_kwargs: object) -> NoReturn:
-        pytest.fail("Clarification and router failure must not start research.")
-
-    for name in (
-        "create_embedding_model",
-        "RepoMindParentHybridRetriever",
-        "scoped_mcp_tools",
-        "stream_repository_answer",
-    ):
-        monkeypatch.setattr(chat, name, unexpected_research)
-
-    router = create_query_router(chat.create_chat_model(purpose="router"))
-
-    async def collect() -> list[str]:
-        return [
-            event
-            async for event in chat.stream_repository_chat(
-                Connection(),
-                "repo",
-                "conversation",
-                "user",
-                "message",
-                query_router=router,
-            )
-        ]
-
-    events = asyncio.run(collect())
-    names = [event.splitlines()[0] for event in events]
-    assert names[0] == "event: assistant_message"
-    assert all('"scope"' not in event and "private" not in event for event in events)
-    assert not any(
-        'INSERT INTO "ChatMessageCitation"' in str(write[0]) for write in writes
-    )
-    if failure:
-        assert names == ["event: assistant_message", "event: error"]
-        assert "Query routing failed after two attempts" in events[-1]
-        assert "'FAILED'" in str(writes[-1][0])
-        assert len(requests) == 2
-    else:
-        assert names == [
-            "event: assistant_message",
-            "event: delta",
-            "event: citations",
-            "event: done",
-        ]
-        assert json.dumps({"text": clarification}) in events[1]
-        assert '"citations": []' in events[2]
-        assert any(
-            "'SUCCEEDED'" in str(write[0]) and clarification in write
-            for write in writes
-        )
-        assert len(requests) == 1
 
 
 def test_latest_history_excludes_current_failed_and_other_conversations() -> None:
@@ -479,27 +411,3 @@ def test_latest_history_excludes_current_failed_and_other_conversations() -> Non
         isinstance(message, HumanMessage if index % 2 else AIMessage)
         for index, message in enumerate(history)
     )
-
-
-def test_answer_stream_filters_internal_classification_events(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    class Agent:
-        async def astream(self, *_args: object, **_kwargs: object):
-            for metadata in (
-                {"langgraph_node": "query_router"},
-                {"langgraph_node": "model", "tags": ["nostream"]},
-                {"langgraph_node": "model", "tags": ["answer"]},
-            ):
-                yield {
-                    "type": "messages",
-                    "data": (AIMessageChunk(content="text"), metadata),
-                }
-
-    monkeypatch.setattr(chat, "create_agent", lambda *_args, **_kwargs: Agent())
-    monkeypatch.setattr(chat, "create_chat_model", lambda: object())
-
-    async def collect() -> list[tuple[str, str]]:
-        return [event async for event in chat.stream_repository_answer("q", [], [], [])]
-
-    assert asyncio.run(collect()) == [("delta", "text")]

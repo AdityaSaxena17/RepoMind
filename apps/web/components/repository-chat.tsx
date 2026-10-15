@@ -69,9 +69,7 @@ function readStreamPayload(value: string) {
 }
 
 function parseSseEvent(block: string) {
-  const eventLine = block
-    .split("\n")
-    .find((line) => line.startsWith("event:"));
+  const eventLine = block.split("\n").find((line) => line.startsWith("event:"));
   const dataLines = block
     .split("\n")
     .filter((line) => line.startsWith("data:"));
@@ -88,15 +86,11 @@ function parseSseEvent(block: string) {
   };
 }
 
-export function RepositoryChat({
-  repository,
-}: {
-  repository: RepositoryView;
-}) {
+export function RepositoryChat({ repository }: { repository: RepositoryView }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    null,
-  );
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [streaming, setStreaming] = useState(false);
@@ -134,9 +128,10 @@ export function RepositoryChat({
       const nextConversations = readConversations(await response.json());
       setConversations(nextConversations);
       setActiveConversationId((current) =>
-        current && nextConversations.some((conversation) => conversation.id === current)
+        current &&
+        nextConversations.some((conversation) => conversation.id === current)
           ? current
-          : nextConversations[0]?.id ?? null,
+          : (nextConversations[0]?.id ?? null),
       );
     } catch (loadError) {
       setError(
@@ -163,7 +158,9 @@ export function RepositoryChat({
   ) {
     setConversations((current) =>
       current.map((conversation) => {
-        if (!conversation.messages.some((message) => message.id === messageId)) {
+        if (
+          !conversation.messages.some((message) => message.id === messageId)
+        ) {
           return conversation;
         }
 
@@ -188,6 +185,7 @@ export function RepositoryChat({
     setError(null);
     setToolActivity([]);
     setStreaming(true);
+    const streamController = new AbortController();
 
     const createdAt = new Date().toISOString();
     const optimisticConversationId = activeConversation?.id ?? "pending";
@@ -243,6 +241,7 @@ export function RepositoryChat({
         `/api/repositories/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/chat`,
         {
           method: "POST",
+          signal: streamController.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             conversation_id: activeConversation?.id,
@@ -256,9 +255,14 @@ export function RepositoryChat({
         throw new Error(payload.error ?? "Chat request failed.");
       }
 
-      const realConversationId = response.headers.get("X-RepoMind-Conversation-Id");
+      const realConversationId = response.headers.get(
+        "X-RepoMind-Conversation-Id",
+      );
 
-      if (realConversationId && realConversationId !== optimisticConversationId) {
+      if (
+        realConversationId &&
+        realConversationId !== optimisticConversationId
+      ) {
         setActiveConversationId(realConversationId);
         setConversations((current) =>
           current.map((conversation) =>
@@ -272,6 +276,7 @@ export function RepositoryChat({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let completed = false;
 
       for (;;) {
         const { value, done } = await reader.read();
@@ -304,21 +309,30 @@ export function RepositoryChat({
             }));
           }
 
-          if (parsed.event === "delta" && typeof parsed.payload.text === "string") {
+          if (
+            parsed.event === "delta" &&
+            typeof parsed.payload.text === "string"
+          ) {
             updateAssistantMessage(assistantMessageId, (assistant) => ({
               ...assistant,
               content: assistant.content + parsed.payload?.text,
             }));
           }
 
-          if (parsed.event === "citations" && Array.isArray(parsed.payload.citations)) {
+          if (
+            parsed.event === "citations" &&
+            Array.isArray(parsed.payload.citations)
+          ) {
             updateAssistantMessage(assistantMessageId, (assistant) => ({
               ...assistant,
               citations: parsed.payload?.citations ?? [],
             }));
           }
 
-          if (parsed.event === "tool" && typeof parsed.payload.name === "string") {
+          if (
+            parsed.event === "tool" &&
+            typeof parsed.payload.name === "string"
+          ) {
             const toolName = parsed.payload.name;
             setToolActivity((current) =>
               current.includes(toolName)
@@ -330,25 +344,37 @@ export function RepositoryChat({
           if (parsed.event === "error") {
             throw new Error(parsed.payload.message ?? "Chat failed.");
           }
+          if (
+            parsed.event === "done" &&
+            parsed.payload.message_id === assistantMessageId
+          ) {
+            completed = true;
+          }
         }
       }
 
+      if (!completed) {
+        throw new Error(
+          "Answer stream ended before completion. Partial text is unverified.",
+        );
+      }
       updateAssistantMessage(assistantMessageId, (assistant) => ({
         ...assistant,
         status: "SUCCEEDED",
       }));
       await loadConversations();
     } catch (sendError) {
-      const messageText = sendError instanceof Error
-        ? sendError.message
-        : "Chat request failed.";
+      const messageText =
+        sendError instanceof Error ? sendError.message : "Chat request failed.";
       setError(messageText);
       updateAssistantMessage(assistantMessageId, (assistant) => ({
         ...assistant,
         status: "FAILED",
         error_message: messageText,
+        citations: [],
       }));
     } finally {
+      streamController.abort();
       setStreaming(false);
     }
   }
@@ -394,7 +420,8 @@ export function RepositoryChat({
             {!chatReady ? (
               <div className="max-w-2xl rounded-lg border border-amber-400/20 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
                 Repository chat is available after indexing succeeds. Current
-                status: {repository.status}; indexed chunks: {repository.embeddings}.
+                status: {repository.status}; indexed chunks:{" "}
+                {repository.embeddings}.
               </div>
             ) : null}
             {loading ? (
@@ -409,11 +436,11 @@ export function RepositoryChat({
                   <Bot className="h-4 w-4" />
                 </span>
                 <p className="mt-4 text-sm font-medium text-zinc-100">
-                  Ask about the indexed codebase.
+                  Ask about code, issues, and pull requests.
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  RepoMind searches pgvector and PostgreSQL full-text indexes,
-                  then answers from parent file windows with citations.
+                  Answers use indexed code and live GitHub evidence, with
+                  citations.
                 </p>
               </div>
             ) : null}
@@ -439,7 +466,10 @@ export function RepositoryChat({
                   {message.content || "Thinking..."}
                 </p>
                 {message.error_message ? (
-                  <p className="mt-3 text-sm text-red-300">{message.error_message}</p>
+                  <p className="mt-3 text-sm text-red-300">
+                    {message.error_message}
+                    {message.content ? " Partial text is unverified." : ""}
+                  </p>
                 ) : null}
                 {message.citations.length > 0 ? (
                   <div className="mt-4 grid gap-2">

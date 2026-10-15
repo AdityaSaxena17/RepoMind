@@ -1,0 +1,222 @@
+{
+  "version": "supplemental-1",
+  "repository": "AdityaSaxena17/RepoMind",
+  "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+  "annotation_policy": "Separate agent-authored supplemental questions frozen after application prompt design, before evaluation. Exact function spans reviewed from the existing indexed commit. Not an independently authored holdout; GitHub scenarios are synthetic. Original benchmark and fixture files are unchanged.",
+  "questions": [
+    {
+      "id": "supp-code-01",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "In the indexed normalize_asyncpg_database_url, which query parameter is removed? Are other options, blank values and URL fragments preserved?",
+      "required_evidence": [
+        {
+          "id": "normalize_asyncpg_database_url",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/config.py",
+                "start_line": 31,
+                "end_line": 49,
+                "file_sha256": "8821855fce66ebfd69aae12774dcfb12befc0a8f05fb2433f212dd13b7e823e8",
+                "excerpt": "def normalize_asyncpg_database_url(database_url: str) -> str:\n    \"\"\"Remove Prisma-only query params before passing DATABASE_URL to asyncpg.\"\"\"\n    parsed = urlsplit(database_url)\n    query = urlencode(\n        [\n            (key, value)\n            for key, value in parse_qsl(parsed.query, keep_blank_values=True)\n            if key != \"schema\"\n        ],\n    )\n    return urlunsplit(\n        (\n            parsed.scheme,\n            parsed.netloc,\n            parsed.path,\n            query,\n            parsed.fragment,\n        ),\n    )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The function removes schema query parameters.",
+          "evidence_units": ["normalize_asyncpg_database_url"],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Other query parameters and blank values are preserved by parse_qsl(keep_blank_values=True) and urlencode; the original fragment is retained.",
+          "evidence_units": ["normalize_asyncpg_database_url"],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "supp-code-02",
+      "category": "single_file",
+      "evidence_scope": "CODE",
+      "question": "Explain the indexed compact_text helper: how are empty values, repeated whitespace and the default output limit handled?",
+      "required_evidence": [
+        {
+          "id": "compact_text",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 44,
+                "end_line": 51,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "def compact_text(value: object, limit: int = 1200) -> str | None:\n    text = read_string(value)\n\n    if text is None:\n        return None\n\n    normalized = \" \".join(text.split())\n    return normalized[:limit]"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Empty or non-string input yields None via read_string.",
+          "evidence_units": ["compact_text"],
+          "fixture_evidence": []
+        },
+        {
+          "id": "f2",
+          "text": "Whitespace is collapsed with split/join and the default maximum is 1200 characters.",
+          "evidence_units": ["compact_text"],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "none",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "supp-github-01",
+      "category": "github",
+      "evidence_scope": "GITHUB",
+      "question": "Read the discussion on issue #701. What did reviewer-z recommend, and which prerequisite did they name?",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "reviewer-z recommended deferring the proposal until accessibility review is complete.",
+          "evidence_units": [],
+          "fixture_evidence": ["issue-701", "comment-701"]
+        }
+      ],
+      "fixture_scenario": "discussion",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "supp-github-02",
+      "category": "github",
+      "evidence_scope": "GITHUB",
+      "question": "Compare the statuses of issues #702 and #703. If one is unavailable, still report the other issue's observed status.",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Issue #703 is closed.",
+          "evidence_units": [],
+          "fixture_evidence": ["issue-702", "issue-703"]
+        }
+      ],
+      "fixture_scenario": "comparison",
+      "expected_missing": [
+        "Issue #702 cannot be retrieved, so its status and the complete comparison are unavailable."
+      ],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "supp-mixed-01",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read issue #704's reported preview problem, then explain whether the indexed compact_text implementation can account for the whitespace change. Distinguish the report from verified code behavior.",
+      "required_evidence": [
+        {
+          "id": "compact_text",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/github_mcp_server.py",
+                "start_line": 44,
+                "end_line": 51,
+                "file_sha256": "8cb8a76acc2925ba03dfa43a2d2e7c4e4beb8333fb0df256e56f15c2ad6ae640",
+                "excerpt": "def compact_text(value: object, limit: int = 1200) -> str | None:\n    text = read_string(value)\n\n    if text is None:\n        return None\n\n    normalized = \" \".join(text.split())\n    return normalized[:limit]"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "Issue #704 reports collapsed repeated spaces and line breaks in its API preview.",
+          "evidence_units": ["compact_text"],
+          "fixture_evidence": ["issue-704"]
+        },
+        {
+          "id": "f2",
+          "text": "The indexed compact_text uses split followed by space join, which collapses whitespace before truncation.",
+          "evidence_units": ["compact_text"],
+          "fixture_evidence": ["issue-704"]
+        }
+      ],
+      "fixture_scenario": "compaction",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "supp-mixed-02",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read PR #705's details, affected files and diff. Compare its proposed database URL handling with the indexed normalize_asyncpg_database_url. Is the proposed removal of all query options already implemented?",
+      "required_evidence": [
+        {
+          "id": "normalize_asyncpg_database_url",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/config.py",
+                "start_line": 31,
+                "end_line": 49,
+                "file_sha256": "8821855fce66ebfd69aae12774dcfb12befc0a8f05fb2433f212dd13b7e823e8",
+                "excerpt": "def normalize_asyncpg_database_url(database_url: str) -> str:\n    \"\"\"Remove Prisma-only query params before passing DATABASE_URL to asyncpg.\"\"\"\n    parsed = urlsplit(database_url)\n    query = urlencode(\n        [\n            (key, value)\n            for key, value in parse_qsl(parsed.query, keep_blank_values=True)\n            if key != \"schema\"\n        ],\n    )\n    return urlunsplit(\n        (\n            parsed.scheme,\n            parsed.netloc,\n            parsed.path,\n            query,\n            parsed.fragment,\n        ),\n    )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The open PR #705 proposes removing all query parameters and changes apps/api/app/config.py.",
+          "evidence_units": ["normalize_asyncpg_database_url"],
+          "fixture_evidence": ["pr-705", "pr-705-files", "pr-705-diff"]
+        },
+        {
+          "id": "f2",
+          "text": "The indexed normalizer removes only schema parameters and preserves other query options, so the proposal is not already implemented in that snapshot.",
+          "evidence_units": ["normalize_asyncpg_database_url"],
+          "fixture_evidence": ["pr-705", "pr-705-files", "pr-705-diff"]
+        }
+      ],
+      "fixture_scenario": "normalizer-proposal",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "supp-missing-01",
+      "category": "insufficient",
+      "evidence_scope": "CODE",
+      "question": "What production p99 latency has been measured specifically for normalize_asyncpg_database_url? Cite the measurement if the indexed repository contains it.",
+      "required_evidence": [],
+      "relevant_evidence": [],
+      "reference_facts": [],
+      "fixture_scenario": "none",
+      "expected_missing": [
+        "A measured production p99 latency for normalize_asyncpg_database_url is not established by the indexed repository."
+      ],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    }
+  ]
+}

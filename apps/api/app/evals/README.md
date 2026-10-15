@@ -1,10 +1,9 @@
 # RepoMind quality evaluations
 
-Component 4 adds the parent graph and MIXED synthesis without activating production
-chat/SSE integration:
+The parent LangGraph workflow is the sole production and full-evaluation path:
 
 ```powershell
-python scripts/uv_run.py python -m app.evals full --agent graph --experiment graph-v1
+python scripts/uv_run.py python -m app.evals full --experiment graph-v1
 ```
 
 The graph evaluates all selected CODE, GITHUB and MIXED cases through the same
@@ -13,7 +12,9 @@ only the question and conversation history reach the router. Its existing model
 call now validates `mixed_strategy`: MIXED requires `PARALLEL` or
 `GITHUB_THEN_CODE`; all other outcomes require no strategy.
 
-CODE/GITHUB use their agent's answer directly; clarification starts neither agent.
+CODE/GITHUB use their agent's normal final generation directly; clarification
+starts neither agent. An unexposed missing-marker failure permits one format
+correction within the existing call/time budgets. Normal requests add no answer call.
 Parallel MIXED uses a native LangGraph fan-out and a barrier joining both results.
 Sequential MIXED passes structured GitHub observations and observed affected paths
 as untrusted context into indexed-code investigation. Both then use one tool-free
@@ -24,9 +25,10 @@ imports no evaluation scorer or judge.
 Commit-pinned code URLs may cite a contained subrange of an observed window;
 repository, commit, path and every cited line must match selected evidence.
 
-Authorization and scope errors fail the workflow without publishing a partial
-answer; sequential workflows also skip code investigation after such a GitHub
-failure. Cancellation propagates and closes each scope in its owning task.
+Authorization and scope errors fail the workflow; sequential workflows also skip
+code investigation after such a GitHub failure. Cancellation propagates and closes
+each scope in its owning task. Already streamed text remains explicitly unverified
+on failure; it is not persisted as a successful answer.
 Recoverable failures can produce a clearly marked partial answer when observed
 citable evidence exists. Limitations cannot be erased by synthesis. With no
 citable evidence, or invalid synthesis, the workflow fails and retains findings.
@@ -45,25 +47,24 @@ The graph's fan-out/barrier follows the installed API and
 GitHub access-denial/rate-limit classification follows its
 [REST troubleshooting documentation](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api).
 
-Component 3 adds standalone specialist runs. The default remains the existing
-single-agent baseline; production chat remains unchanged.
-
-```powershell
-python scripts/uv_run.py python -m app.evals full --agent code --experiment code-agent-v1
-python scripts/uv_run.py python -m app.evals full --agent github --experiment github-agent-v1
-```
-
-Each specialist runs only its evidence-scope cases. Explicit `--case` selections
-must match that scope; use `--agent graph` for MIXED cases.
-Both use the existing model factory. `--tool-call-limit` (default 6),
+All scopes use the existing model factory. `--tool-call-limit` (default 6),
 `--model-call-limit` (default 8), and `--timeout` (default 120 seconds) bound each
-investigation. Final JSON completion is validated against a strict Pydantic schema
-in the same agent loop and does not consume the repository-tool budget. Malformed
-completion fails with partial evidence retained. This avoids the forced tool choice
-that Hive rejects in LangChain's structured-output tool mode. Intermediate research
-and completion JSON are not forwarded to production SSE.
+investigation. MIXED specialists retain validated internal JSON summaries; the
+synthesizer emits a plain-text answer. Direct specialists and the synthesizer begin
+their final generation with an internal `<final_answer>` declaration. The stream
+gate removes this prefix and forwards native answer tokens immediately. Unmarked
+planning, reasoning, tool arguments and internal JSON never become answer deltas.
+Any tool call after the declaration fails the turn before that tool executes.
+Partial-answer notices come from application-observed limitations, not an exact
+sentence the model must reproduce. Corrected argument errors remain recorded as
+recovered. Request-local execution controls suppress unchanged repeated calls,
+observe known-resource details before speculative searches, and reserve the last
+existing model turn for completion. See [the reliability pass](../../EXECUTION_RELIABILITY.md).
+This avoids guessing finality from early chunks, which can precede a tool call.
+Completion signals and citations are validated after generation. Production then
+atomically persists the answer and citations before emitting `citations` and `done`.
 
-For Code Agent runs, `final_contexts` contains the first search batch, at most six
+For graph runs, `final_contexts` contains the first code search batch, at most six
 windows, for the unchanged Recall@6/Precision@6 scorers. All successfully returned
 search/file evidence is retained in `evidence_seen`, with stable source IDs and
 numbers across calls. `final_evidence_coverage` separately measures the fraction
@@ -72,15 +73,24 @@ unbounded coverage, not Recall@6; report metadata records this distinction, the
 first search query, model/tool counts, missing information, errors, and per-unit
 final overlap. Additional retrieval therefore cannot inflate first-pass @6 scores.
 
-Specialist adapters use temporary user/access rows in the verified evaluation-only
+Graph evaluation uses temporary user/access rows in the verified evaluation-only
 database so production code-tool authorization is exercised without a bypass.
 Those rows are removed on success, failure, and cancellation. GitHub fixture
 matching, schemas, normalized defaults, and execution records remain unchanged.
 No frozen datasets, corpus references, scorer definitions, or baseline artifacts
-are modified. These standalone component runs are not a full multi-agent baseline.
+are modified. Historical comparisons use saved baseline reports; the legacy runner
+and production generation path have been removed. Git history retains their source.
 
-This package benchmarks the production hybrid retriever and shared single-agent
-generation function. Cases start with empty conversation history. Results separate
+Full-run details also record workflow duration, time to the first native answer
+delta, completed model calls including router calls, and provider-reported token
+usage. Workflow timing excludes fixture/index preparation. Missing provider usage
+is not interpreted as zero tokens. Production code-context caching is intentionally
+disabled in evaluation so retrieval comparisons do not depend on Redis warmth.
+The independent `retrieval` command retains the existing hybrid retriever and
+first-pass scoring contract without invoking the graph or an answer model.
+
+This package benchmarks the production hybrid retriever and multi-agent graph.
+Cases start with empty conversation history. Results separate
 retrieval, groundedness, correctness, citation support, and abstention; there is no
 composite score. The fixed GitHub scenarios are synthetic, not real issue/PR history.
 
@@ -356,7 +366,8 @@ retrieval experiments; omitted budgets use production defaults. The earlier
 vector/keyword/hybrid comparison used 12 per branch. All modes
 reuse the same fusion and parent expansion with up to six final contexts. The
 mode and actual candidate budgets are recorded in reports; full runs remain hybrid.
-`--timeout` bounds each retrieval/generation case (default 120 seconds);
+`--timeout` bounds each retrieval case, or each graph investigation and synthesis
+call separately (default 120 seconds);
 `--judge-timeout` bounds each judge request (default 60 seconds). The judge has one
 provider retry. Grounding schema/quotation validation can request at most two
 corrections, using validation feedback without gold facts; rejections remain in
@@ -406,17 +417,17 @@ as measured answer quality.
 
 ## Scoring rules
 
-| Metric | Definition |
-|---|---|
-| Recall@6 | Fraction of required evidence units fully covered by the union of the final six visible windows. Every span in one annotated alternative must be recovered. |
-| Precision@6 | Relevant, nonduplicate windows divided by actual returned windows, up to six. A relevant window completely contains an annotated required or additional relevance unit. Multi-file facts have separately annotated local relevance units where appropriate. |
-| Groundedness | Supported domain factual claims divided by extracted domain factual claims, using only evidence actually consumed and successful tool results. |
-| Answer correctness | All required reference facts matched with no material factual errors. Fact completeness is reported separately as matched facts divided by reference facts. |
-| Citation precision | Supporting valid claim–reference associations divided by all associations plus orphan references. |
-| Citation coverage | Domain factual claims fully established by their attached valid citations jointly, divided by all domain factual claims. Joint sufficiency is a validated semantic label; alternative supporting sources need not match the minimal grounding evidence set. |
-| Citation validity | Referenced citations resolving to visible source indices/locations, commit-pinned code URLs or structured URLs actually returned by successful tools, divided by referenced citations. |
-| Correct abstention | Appropriate acknowledgments of annotated missing information, with all answerable reference facts still addressed and no material errors. |
-| Unnecessary abstention | Abstention on an answerable case with an empty expected-missing list. |
+| Metric                 | Definition                                                                                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recall@6               | Fraction of required evidence units fully covered by the union of the final six visible windows. Every span in one annotated alternative must be recovered.                                                                                                 |
+| Precision@6            | Relevant, nonduplicate windows divided by actual returned windows, up to six. A relevant window completely contains an annotated required or additional relevance unit. Multi-file facts have separately annotated local relevance units where appropriate. |
+| Groundedness           | Supported domain factual claims divided by extracted domain factual claims, using only evidence actually consumed and successful tool results.                                                                                                              |
+| Answer correctness     | All required reference facts matched with no material factual errors. Fact completeness is reported separately as matched facts divided by reference facts.                                                                                                 |
+| Citation precision     | Supporting valid claim–reference associations divided by all associations plus orphan references.                                                                                                                                                           |
+| Citation coverage      | Domain factual claims fully established by their attached valid citations jointly, divided by all domain factual claims. Joint sufficiency is a validated semantic label; alternative supporting sources need not match the minimal grounding evidence set. |
+| Citation validity      | Referenced citations resolving to visible source indices/locations, commit-pinned code URLs or structured URLs actually returned by successful tools, divided by referenced citations.                                                                      |
+| Correct abstention     | Appropriate acknowledgments of annotated missing information, with all answerable reference facts still addressed and no material errors.                                                                                                                   |
+| Unnecessary abstention | Abstention on an answerable case with an empty expected-missing list.                                                                                                                                                                                       |
 
 Partial span coverage is diagnostic only: it earns no primary recall credit.
 Duplicates cannot improve recall and consume precision slots without repeated
@@ -485,6 +496,34 @@ while exposing intentional application/model changes. A single small benchmark
 does not establish statistical significance.
 
 ## Verification
+
+### Evaluator version 2
+
+Scorer v2 fixes URLs inside inline code being interpreted as file:line citations.
+Recall@6, Precision@6, final evidence coverage and semantic score definitions are
+unchanged. The offline judge labels bounded answer sections, requires every section
+to be accounted for, retains section judgments for audit, and adds two independent
+synthetic calibration cases (14 total). Section accounting detects dropped sections;
+it cannot prove that a model extracted every atomic claim within a section.
+
+Use a distinct output file when rescoring saved v1 results. Only the known v1 scorer
+hash is accepted for this explicit transition; other mismatches remain errors:
+
+```powershell
+python scripts/uv_run.py python -m app.evals grade ../../.eval-artifacts/component-5-fewshot-full-v1.json --rescore --judge-model deepseek-ai/deepseek-v4.1-flash --judge-timeout 120 --output ../../.eval-artifacts/component-5-quality-v2-before.json
+```
+
+Subsequent grading can reuse that report's passing calibration with
+`--calibration-from ../../.eval-artifacts/component-5-quality-v2-before.json` only
+when the entire judge configuration matches. Reports record the reused file hash.
+Compare newly rescored reports with one another; historical v1 reports stay intact.
+
+`data/supplemental-v1.json` and `data/supplemental-github-v1.json` contain seven
+separate agent-authored, source-reviewed regressions. They use the existing frozen
+index, new synthetic GitHub scenarios and strict fixture matching. They are not an
+independently authored holdout and do not establish generalization. Run them with
+the existing `--dataset` and `--fixtures` CLI arguments. Reference facts and scopes
+remain outside the runner. A genuine external holdout still needs independent review.
 
 From `apps/api`:
 

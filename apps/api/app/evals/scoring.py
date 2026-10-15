@@ -189,7 +189,15 @@ def referenced_citations(
         r"[\w@./\[\]-]+\.[\w]+:\d+(?:-\d+)?",
         location_prose,
     ):
-        if not any(first <= match.start() < last for first, last, _ in occurrences):
+        # Inline-code URLs are hidden from prose URL citations but must still not
+        # have their host:port interpreted as a repository file location.
+        inside_url = any(
+            url.start() <= match.start() < url.end()
+            for url in re.finditer(r"https?://[^\s<>()\[\]`]+", location_prose)
+        )
+        if not inside_url and not any(
+            first <= match.start() < last for first, last, _ in occurrences
+        ):
             occurrences.append((match.start(), match.end(), match.group()))
     citations: list[Citation] = []
     for start, end, key in sorted(occurrences):

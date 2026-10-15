@@ -2,6 +2,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -31,6 +32,8 @@ class Database:
         self.connections: list[Connection] = []
         self.active = 0
         self.maximum = 0
+        self.revision = datetime(2026, 10, 15, tzinfo=timezone.utc)
+        self.users = {"user"}
         self.queries: list[tuple[Any, ...]] = []
 
 
@@ -60,15 +63,17 @@ class Connection:
         self.database.queries.append((sql, *args))
         await asyncio.sleep(0)
         if 'FROM "Repository"' in sql:
-            assert args == ("repo", "user")
             assert 'ur."accessStatus"' in sql and 'r."accessStatus"' in sql
             return (
                 {
                     "indexedCommitSha": self.snapshot,
                     "indexStatus": "READY",
                     "htmlUrl": "https://github.com/example/project",
+                    "lastIndexedAt": self.database.revision,
                 }
                 if self.database.allowed
+                and args[0] == "repo"
+                and args[1] in self.database.users
                 else None
             )
         assert args[0] == "repo"
@@ -245,7 +250,24 @@ def test_file_arguments_fail_without_fabricating_evidence(
             )
             assert result.status == "error"
             assert result.tool_call_id == "bad"
+            if result.additional_kwargs.get("repomind_error_kind") == "validation":
+                assert "250" in result.text and "Split" in result.text
+            assert len(result.text) < 500 and "Traceback" not in result.text
         assert catalog.evidence == {}
+
+    asyncio.run(run())
+
+
+def test_read_through_known_eof_is_complete() -> None:
+    async def run() -> None:
+        registry, catalog = setup_tools(Database())
+        async with registry.scoped_tools(frozenset({"code.read"})) as tools:
+            result = json.loads(
+                await tools[1].ainvoke({"path": "app.py", "end_line": 10})
+            )
+        assert result["file_line_count"] == 6
+        assert result["sources"][0]["end_line"] == 6
+        assert result["missing_information"] == []
 
     asyncio.run(run())
 

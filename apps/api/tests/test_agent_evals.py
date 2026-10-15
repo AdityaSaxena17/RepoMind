@@ -96,14 +96,13 @@ def test_iterative_coverage_is_separate_from_unchanged_first_pass_at_six() -> No
         score_final_evidence_coverage(question, result, corpus, sha)
 
 
-@pytest.mark.parametrize("role", ["code", "github", "graph"])
 @pytest.mark.parametrize("fail_first", [False, True])
 def test_specialist_cli_records_findings_and_continues_after_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    role: str,
     fail_first: bool,
 ) -> None:
+    role = "graph"
     monkeypatch.setenv("HIVE_API_KEY", "offline")
     get_settings.cache_clear()
     prompts: list[str] = []
@@ -121,13 +120,18 @@ def test_specialist_cli_records_findings_and_continues_after_failure(
 
     class Runner:
         def __init__(self, *args: Any, **kwargs: Any) -> None:
-            assert args[5] == role.upper()
+            assert len(args) == 8
             self.last_result = EvaluationResult()
             self.first_query = None
+            self.statistics = {"completed_model_calls_including_router": 0}
             if role == "graph":
                 self.last_findings = WorkflowResult(
                     decision=RouteDecision(
-                        scope="MIXED", clarification=None, mixed_strategy="PARALLEL"
+                        scope="MIXED",
+                        clarification=None,
+                        mixed_strategy="PARALLEL",
+                        code_task="Inspect indexed code.",
+                        github_task="Read live facts.",
                     ),
                     status="incomplete",
                     missing_information=["No supporting evidence was found."],
@@ -151,7 +155,7 @@ def test_specialist_cli_records_findings_and_continues_after_failure(
     monkeypatch.setattr(cli, "connect_evaluation_database", connect)
     monkeypatch.setattr(cli, "verify_index", verified)
     monkeypatch.setattr(cli, "corpus_documents", lambda benchmark: ("test", []))
-    monkeypatch.setattr(cli, "SpecializedAgentRunner", Runner)
+    monkeypatch.setattr(cli, "GraphRunner", Runner)
     output = tmp_path / "specialists.json"
     args = argparse.Namespace(
         command="full",

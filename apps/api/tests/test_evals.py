@@ -25,7 +25,9 @@ from app.evals.models import (
     EvaluationResult,
     EvidenceUnit,
     FactJudgment,
+    GroundingBatch,
     GroundingJudgment,
+    GroundingSection,
     Question,
     ReferenceFact,
     RunReport,
@@ -76,7 +78,9 @@ def test_fixture_catalog_uses_metadata_and_preserves_defaults_and_records(
         tools = await fixture_tools(load_benchmark().fixtures, "streaming", records)
         assert [tool.name for tool in tools] == (["dynamic_reader"] if eligible else [])
         if eligible:
-            assert tools[0].args_schema == (await server.list_tools())[0].inputSchema
+            definition = (await server.list_tools())[0]
+            assert tools[0].args_schema == definition.inputSchema
+            assert tools[0].description == definition.description
             await tools[0].ainvoke({"issue_number": 1})
             assert len(records) == 1
             assert records[0].name == "dynamic_reader"
@@ -291,102 +295,6 @@ def test_plain_locations_and_orphan_citations() -> None:
     assert scores["citation_precision"].value == 0
 
 
-@pytest.mark.parametrize("fail", [False, True])
-def test_chat_wrapper_preserves_sse_and_failure_events(
-    fail: bool,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from collections.abc import AsyncIterator
-    from contextlib import asynccontextmanager
-
-    from langchain_core.documents import Document
-
-    writes: list[tuple[object, ...]] = []
-
-    class FakeConnection:
-        async def fetchrow(self, sql: str, *_args: object) -> dict[str, object]:
-            if 'FROM "Repository"' in sql:
-                return {
-                    "id": "repo",
-                    "owner": "fixture",
-                    "name": "repo",
-                    "htmlUrl": "https://github.com/fixture/repo",
-                    "indexedCommitSha": SHA,
-                    "defaultBranch": "main",
-                    "indexStatus": "READY",
-                    "indexedChunkCount": 1,
-                }
-            return {"content": "question"}
-
-        async def fetch(self, *_args: object) -> list[object]:
-            return []
-
-        async def execute(self, *args: object) -> str:
-            writes.append(args)
-            return "OK"
-
-    class FakeRetriever:
-        def __init__(self, **_kwargs: object) -> None:
-            return None
-
-        async def ainvoke(self, _question: str) -> list[Document]:
-            return [
-                Document(
-                    page_content="alpha = 1",
-                    metadata={
-                        "path": "app.py",
-                        "start_line": 1,
-                        "end_line": 1,
-                    },
-                )
-            ]
-
-    @asynccontextmanager
-    async def tools(*_args: object) -> AsyncIterator[list[object]]:
-        yield []
-
-    async def generate(*_args: object) -> AsyncIterator[tuple[str, str]]:
-        yield "delta", "alpha"
-        if fail:
-            raise RuntimeError("controlled failure")
-        yield "tool", "issue_read"
-        yield "delta", " is 1"
-
-    monkeypatch.setattr(chat, "RepoMindParentHybridRetriever", FakeRetriever)
-    monkeypatch.setattr(chat, "create_embedding_model", lambda: object())
-    monkeypatch.setattr(chat, "scoped_mcp_tools", tools)
-    monkeypatch.setattr(chat, "stream_repository_answer", generate)
-
-    async def collect() -> list[str]:
-        return [
-            event
-            async for event in chat.stream_repository_chat(
-                FakeConnection(),
-                "repo",
-                "conversation",
-                "user",
-                "message",
-            )
-        ]
-
-    events = asyncio.run(collect())
-    names = [event.splitlines()[0] for event in events]
-    assert names[:2] == ["event: assistant_message", "event: delta"]
-    if fail:
-        assert names[-1] == "event: error"
-        assert '"message": "controlled failure"' in events[-1]
-    else:
-        assert names == [
-            "event: assistant_message",
-            "event: delta",
-            "event: tool",
-            "event: delta",
-            "event: citations",
-            "event: done",
-        ]
-        assert any("alpha is 1" in write for write in writes)
-
-
 def test_semantic_scores_are_independent_and_missing_citations_do_not_pass() -> None:
     value = result("alpha is 1.")
     grounding = GroundingJudgment(
@@ -552,6 +460,10 @@ def test_fixtures_match_production_defaults_and_record_misses_and_errors() -> No
             "issue_read",
             "search_pull_requests",
             "pull_request_read",
+        }
+        definitions = await execution.mcp.list_tools()
+        assert {t.name: t.description for t in tools} == {
+            t.name: t.description for t in definitions
         }
         issue_tool = next(t for t in tools if t.name == "issue_read")
         response = await issue_tool.ainvoke({"issue_number": 101})
@@ -818,50 +730,6 @@ def test_judge_agreement_uses_fixed_inputs_and_separate_adoption_gates(
         compare_reports(report, candidate)
 
 
-@pytest.mark.parametrize("name", ["issue_read", "new_eligible_reader"])
-def test_shared_stream_preserves_text_tool_order_and_deduplication(
-    monkeypatch: pytest.MonkeyPatch,
-    name: str,
-) -> None:
-    from langchain_core.messages import AIMessage, AIMessageChunk
-    from langchain_core.tools import StructuredTool
-
-    class FakeAgent:
-        async def astream(self, *_args: object, **_kwargs: object):
-            yield {"type": "messages", "data": (AIMessageChunk(content="hello"), {})}
-            message = AIMessage(
-                content="",
-                tool_calls=[
-                    {
-                        "name": name,
-                        "args": {"issue_number": 101},
-                        "id": "one",
-                    },
-                    {"name": "not_supplied", "args": {}, "id": "forged"},
-                ],
-            )
-            for _ in range(2):
-                yield {"type": "updates", "data": {"model": {"messages": [message]}}}
-            yield {"type": "messages", "data": (AIMessageChunk(content=" world"), {})}
-
-    monkeypatch.setattr(chat, "create_agent", lambda *_args, **_kwargs: FakeAgent())
-    monkeypatch.setattr(chat, "create_chat_model", lambda: object())
-
-    async def collect() -> list[tuple[str, str]]:
-        tools = [
-            StructuredTool(name=name, description="Read an issue.", args_schema={})
-        ]
-        return [
-            event async for event in chat.stream_repository_answer("q", [], [], tools)
-        ]
-
-    assert asyncio.run(collect()) == [
-        ("delta", "hello"),
-        ("tool", name),
-        ("delta", " world"),
-    ]
-
-
 @pytest.mark.parametrize("model", ["offline-test", "deepseek-ai/deepseek-v4.1-flash"])
 @pytest.mark.parametrize("bad_attempts", [0, 1, 3])
 def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
@@ -885,21 +753,26 @@ def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
 
         async def ainvoke(self, messages: list[tuple[str, str]]) -> object:
             payloads.append(messages[-1][1])
-            if self.schema is GroundingJudgment:
-                return GroundingJudgment(
-                    claims=[
-                        Claim(
-                            id="c1",
-                            quote=(
-                                "invented quote"
-                                if len(payloads) <= bad_attempts
-                                else "alpha is 1."
-                            ),
-                            supported=True,
-                            evidence_ids=[value.evidence_seen[0].id],
-                            citations=[],
-                            citations_fully_support=False,
-                            reason="Visible code",
+            if self.schema is GroundingBatch:
+                return GroundingBatch(
+                    sections=[
+                        GroundingSection(
+                            section_id="section:1",
+                            claims=[
+                                Claim(
+                                    id="c1",
+                                    quote=(
+                                        "invented quote"
+                                        if len(payloads) <= bad_attempts
+                                        else "alpha is 1."
+                                    ),
+                                    supported=True,
+                                    evidence_ids=[value.evidence_seen[0].id],
+                                    citations=[],
+                                    citations_fully_support=False,
+                                    reason="Visible code",
+                                )
+                            ],
                         )
                     ]
                 )
@@ -937,8 +810,8 @@ def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
 
         async def create(self, *, messages: list[dict[str, str]], **_kwargs: object):
             schema = (
-                GroundingJudgment
-                if "GroundingJudgment" in messages[0]["content"]
+                GroundingBatch
+                if "GroundingBatch" in messages[0]["content"]
                 else CorrectnessJudgment
             )
             labeled = await FakeCall(schema).ainvoke(
@@ -1140,7 +1013,7 @@ def test_timeout_does_not_kill_the_remaining_batch(
     monkeypatch.setattr(cli, "connect_evaluation_database", connect)
     monkeypatch.setattr(cli, "verify_index", verified)
     monkeypatch.setattr(cli, "corpus_documents", lambda _benchmark: ("test", []))
-    monkeypatch.setattr(cli, "SingleAgentRunner", FakeRunner)
+    monkeypatch.setattr(cli, "RetrievalRunner", FakeRunner)
     output = tmp_path / "batch.json"
     args = argparse.Namespace(
         command="retrieval",

@@ -161,6 +161,16 @@ class _GuardedTool(BaseTool):
                         kind = "authorization"
                     elif "[repomind:scope]" in result.text:
                         kind = "scope"
+                    elif result.text.startswith("Invalid code-tool arguments:"):
+                        kind = "validation"
+                    elif "validation error" in result.text.casefold():
+                        kind = "validation"
+                        result.content = (
+                            f"Invalid arguments for '{self.name}'. Check required "
+                            "fields, types and allowed enum values in the supplied "
+                            "tool schema. Allowed fields: "
+                            + ", ".join(self.delegate.args)
+                        )[:500]
                     result.additional_kwargs["repomind_error_kind"] = kind
                 return result
         except Exception as error:
@@ -168,6 +178,12 @@ class _GuardedTool(BaseTool):
             if isinstance(error, TimeoutError):
                 message = f"{context} timed out."
                 kind = "timeout"
+            elif isinstance(error, ValidationError):
+                message = (
+                    f"{context}: invalid arguments. Check required fields, "
+                    "types and allowed enum values in the supplied tool schema."
+                )
+                kind = "validation"
             elif isinstance(error, ScopeViolationError) or not self.scope.active:
                 message = (
                     f"{context} cannot run after its scope closes."

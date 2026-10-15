@@ -1,54 +1,46 @@
+"""Production chat streaming, request preparation and transactional persistence."""
+
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import os
 import sys
 import uuid
-from collections.abc import AsyncIterator, Sequence
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
+from contextlib import aclosing, suppress
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
+import anyio
 import asyncpg
-from langchain.agents import create_agent
-from langchain_core.documents import Document
-from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
-from langchain_core.runnables import Runnable
-from langchain_core.tools import BaseTool
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.runnables.schema import StreamEvent
 from langchain_mcp_adapters.sessions import Connection
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
+from redis.asyncio import Redis
 
+from .agents import AgentLimits
+from .code_tools import CodeTools
 from .config import get_settings
-from .orchestration import ROUTER_TIMEOUT_SECONDS, RouterInput, RouterOutput
-from .retrieval import RepoMindParentHybridRetriever, create_embedding_model
-from .tool_registry import Capability, MCPProvider, RequestScope, ToolRegistry
-
-AgentStreamMode = Literal[
-    "values",
-    "updates",
-    "checkpoints",
-    "tasks",
-    "debug",
-    "messages",
-    "custom",
-]
-AGENT_STREAM_MODES: Sequence[AgentStreamMode] = (
-    "messages",
-    "updates",
+from .orchestration import (
+    ROUTER_TIMEOUT_SECONDS,
+    WorkflowResult,
+    create_repository_graph,
 )
-AGENT_STREAM_VERSION: Literal["v2"] = "v2"
-
-CHAT_SYSTEM_PROMPT = (
-    "You are RepoMind, an AI assistant answering questions about one indexed "
-    "GitHub repository. Use indexed repository context for code claims. Use the "
-    "available MCP tools for live issue and pull request questions. Cite code "
-    "claims with source numbers like [1] or [2]. Cite issue and pull request "
-    "claims with GitHub URLs returned by tools. If the available context does "
-    "not contain enough evidence, say what is missing. Never invent file paths, "
-    "APIs, line numbers, issue numbers, pull request numbers, authors, labels, "
-    "states, URLs, or behavior."
+from .tool_errors import AuthorizationError
+from .tool_registry import (
+    Capability,
+    MCPProvider,
+    RequestScope,
+    ToolRegistry,
+    parse_tool_policy,
 )
+
+logger = logging.getLogger(__name__)
+HEARTBEAT_SECONDS = 15.0
 
 
 def sse_event(event: str, data: dict[str, Any]) -> str:
@@ -56,9 +48,13 @@ def sse_event(event: str, data: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-def redacted_error(error: Exception) -> str:
-    message = str(error).replace("\n", " ").strip()
-    return message[:300] if message else error.__class__.__name__
+def github_line_url(
+    html_url: str | None, ref: str, path: str, start_line: int, end_line: int
+) -> str | None:
+    """Format code citation URLs using the historical benchmark convention."""
+    if not html_url:
+        return None
+    return f"{html_url}/blob/{ref}/{path}#L{start_line}-L{end_line}"
 
 
 def create_chat_model(*, purpose: Literal["answer", "router"] = "answer") -> ChatOpenAI:
@@ -113,111 +109,19 @@ def create_chat_model(*, purpose: Literal["answer", "router"] = "answer") -> Cha
     )
 
 
-def format_documents(documents: list[Document]) -> str:
-    """Format retrieved parent windows into citation-addressable context."""
-    if not documents:
-        return "No indexed repository context was retrieved."
-
-    sections: list[str] = []
-
-    for index, document in enumerate(documents, start=1):
-        path = document.metadata.get("path")
-        start_line = document.metadata.get("start_line")
-        end_line = document.metadata.get("end_line")
-        location = (
-            f"{path}:{start_line}-{end_line}"
-            if isinstance(path, str)
-            and isinstance(start_line, int)
-            and isinstance(end_line, int)
-            else "unknown"
-        )
-        sections.append(f"[{index}] {location}\n{document.page_content}")
-
-    return "\n\n".join(sections)
-
-
-@asynccontextmanager
-async def scoped_mcp_tools(
-    user_id: str,
-    repository_id: str,
-) -> AsyncIterator[list[BaseTool]]:
-    """Load real MCP tools from a repository-scoped stdio server session."""
+def create_github_provider(user_id: str, repository_id: str) -> MCPProvider:
+    """Configure our MCP provider; the registry opens its request-owned sessions."""
     env = dict(os.environ)
     env["REPOMIND_MCP_USER_ID"] = user_id
     env["REPOMIND_MCP_REPOSITORY_ID"] = repository_id
-    api_root = Path(__file__).resolve().parents[1]
     connection: Connection = {
         "transport": "stdio",
         "command": sys.executable,
         "args": ["-m", "app.github_mcp_server"],
-        "cwd": str(api_root),
+        "cwd": str(Path(__file__).resolve().parents[1]),
         "env": env,
     }
-    capabilities: frozenset[Capability] = frozenset({"github.read"})
-    registry = ToolRegistry(
-        RequestScope(
-            user_id=user_id,
-            repository_id=repository_id,
-            capabilities=capabilities,
-        ),
-        (MCPProvider("github", connection, capabilities),),
-    )
-
-    async with registry.scoped_tools(capabilities) as tools:
-        yield tools
-
-
-def agent_messages(
-    question: str,
-    history: list[BaseMessage],
-    documents: list[Document],
-) -> list[BaseMessage]:
-    """Build the message list passed to the repository chat agent."""
-    return [
-        *history,
-        HumanMessage(
-            content=(
-                f"Question:\n{question}\n\n"
-                f"Indexed code context:\n{format_documents(documents)}"
-            ),
-        ),
-    ]
-
-
-def message_text(token: object) -> str:
-    """Extract streamed assistant text from LangChain message events."""
-    if isinstance(token, AIMessage | AIMessageChunk):
-        return token.text
-
-    return ""
-
-
-def tool_calls(message: object, supplied_names: set[str]) -> list[tuple[str, str]]:
-    if not isinstance(message, AIMessage):
-        return []
-
-    calls: list[tuple[str, str]] = []
-
-    for tool_call in message.tool_calls:
-        name = tool_call.get("name")
-        call_id = tool_call.get("id")
-        if isinstance(name, str) and name in supplied_names:
-            calls.append((name, str(call_id or name)))
-
-    return calls
-
-
-def github_line_url(
-    html_url: str | None,
-    ref: str,
-    path: str,
-    start_line: int,
-    end_line: int,
-) -> str | None:
-    if not html_url:
-        return None
-
-    return f"{html_url}/blob/{ref}/{path}#L{start_line}-L{end_line}"
+    return MCPProvider("github", connection, frozenset({"github.read"}))
 
 
 async def load_history(
@@ -251,270 +155,316 @@ async def load_history(
     return messages
 
 
-async def stream_repository_answer(
-    question: str,
-    history: list[BaseMessage],
-    documents: list[Document],
-    tools: Sequence[BaseTool],
-) -> AsyncIterator[tuple[Literal["delta", "tool"], str]]:
-    """Run the production agent; yield text and tool activity without persistence."""
-    emitted_tool_calls: set[str] = set()
-    supplied_names = {tool.name for tool in tools}
-    # LangGraph's compiled agent type is narrower than its documented
-    # dynamic state input, so keep the untyped boundary at construction.
-    agent: Any = create_agent(
-        create_chat_model(),
-        tools=list(tools),
-        system_prompt=CHAT_SYSTEM_PROMPT,
-        name="repomind",
-    )
-    agent_input: dict[str, Any] = {
-        "messages": agent_messages(
-            question,
-            history,
-            documents,
-        ),
-    }
-    async for chunk in agent.astream(
-        agent_input,
-        stream_mode=AGENT_STREAM_MODES,
-        version=AGENT_STREAM_VERSION,
-    ):
-        if not isinstance(chunk, dict):
-            continue
-
-        if chunk.get("type") == "messages":
-            data = chunk.get("data")
-
-            if isinstance(data, tuple) and data:
-                metadata = data[1] if len(data) > 1 else {}
-                if isinstance(metadata, dict) and (
-                    metadata.get("langgraph_node") == "query_router"
-                    or "nostream" in metadata.get("tags", [])
-                ):
-                    continue
-                text = message_text(data[0])
-
-                if text:
-                    yield "delta", text
-
-        if chunk.get("type") == "updates":
-            data = chunk.get("data")
-
-            if not isinstance(data, dict):
-                continue
-
-            for update in data.values():
-                if not isinstance(update, dict):
-                    continue
-
-                messages = update.get("messages")
-                if not isinstance(messages, list) or not messages:
-                    continue
-
-                for name, call_id in tool_calls(messages[-1], supplied_names):
-                    if call_id in emitted_tool_calls:
-                        continue
-
-                    emitted_tool_calls.add(call_id)
-                    yield "tool", name
+async def _fail_message(
+    pool: asyncpg.Pool, message_id: str, content: str, error: str
+) -> None:
+    # Failure cleanup must survive disconnect cancellation, but cannot block shutdown.
+    with anyio.CancelScope(shield=True):
+        try:
+            with anyio.fail_after(10):
+                async with pool.acquire(timeout=10) as connection:
+                    await connection.execute(
+                        """
+                        UPDATE "ChatMessage"
+                        SET "content"=$2, "status"='FAILED', "errorMessage"=$3,
+                            "updatedAt"=now()
+                        WHERE "id"=$1 AND "status"='STREAMING'
+                        """,
+                        message_id,
+                        content,
+                        error,
+                    )
+        except Exception as failure:
+            logger.error("Failed to persist chat failure (%s).", type(failure).__name__)
 
 
 async def stream_repository_chat(
-    connection: asyncpg.Connection,
+    pool: asyncpg.Pool,
     repository_id: str,
     conversation_id: str,
     user_id: str,
     message_id: str,
     *,
-    query_router: Runnable[RouterInput, RouterOutput] | None = None,
-) -> AsyncIterator[str]:
-    """Persist SSE answers; an optional router handles clarification before research."""
-    assistant_message_id = uuid.uuid4().hex
-    answer_parts: list[str] = []
-    documents: list[Document] = []
-
+    redis: Redis | None = None,
+) -> AsyncGenerator[str, None]:
+    """Stream only final answer tokens, then validate and persist the completed turn."""
+    assistant_id = uuid.uuid4().hex
+    parts: list[str] = []
+    created = committed = False
+    producer: asyncio.Task[None] | None = None
     try:
-        repository = await connection.fetchrow(
-            """
-            SELECT r."id", r."owner", r."name", r."htmlUrl", r."indexedCommitSha",
-                   r."defaultBranch", r."indexStatus", r."indexedChunkCount"
-            FROM "Repository" r
-            JOIN "UserRepository" ur ON ur."repositoryId" = r."id"
-            WHERE r."id" = $1
-              AND ur."userId" = $2
-              AND r."accessStatus" = 'ACTIVE'
-              AND ur."accessStatus" = 'ACTIVE'
-            """,
-            repository_id,
-            user_id,
-        )
-
-        if not repository:
-            raise RuntimeError("Repository is not active or no longer accessible.")
-
-        if (
-            repository["indexStatus"] != "READY"
-            or int(repository["indexedChunkCount"]) <= 0
-        ):
-            raise RuntimeError(
-                "Repository must finish indexing before chat is available.",
+        async with pool.acquire(timeout=10) as connection:
+            user_message = await connection.fetchrow(
+                """
+                SELECT m."content" FROM "ChatMessage" m
+                JOIN "ChatConversation" c ON c."id"=m."conversationId"
+                WHERE m."id"=$1 AND m."conversationId"=$2
+                  AND c."userId"=$3 AND c."repositoryId"=$4 AND m."role"='USER'
+                """,
+                message_id,
+                conversation_id,
+                user_id,
+                repository_id,
             )
-
-        user_message = await connection.fetchrow(
-            """
-            SELECT m."content"
-            FROM "ChatMessage" m
-            JOIN "ChatConversation" c ON c."id" = m."conversationId"
-            WHERE m."id" = $1
-              AND m."conversationId" = $2
-              AND c."userId" = $3
-              AND c."repositoryId" = $4
-              AND m."role" = 'USER'
-            """,
-            message_id,
-            conversation_id,
-            user_id,
-            repository_id,
-        )
-
-        if not user_message:
-            raise RuntimeError("Chat message was not found.")
-
-        await connection.execute(
-            """
-            INSERT INTO "ChatMessage"
-              ("id", "conversationId", "role", "content", "status", "updatedAt")
-            VALUES ($1, $2, 'ASSISTANT', '', 'STREAMING', now())
-            """,
-            assistant_message_id,
-            conversation_id,
-        )
-        yield sse_event("assistant_message", {"message_id": assistant_message_id})
-
-        history = await load_history(connection, conversation_id, message_id)
-        clarification: str | None = None
-        if query_router is not None:
-            routed = await query_router.ainvoke(
-                {"question": str(user_message["content"]), "history": history}
+            if not user_message:
+                raise AuthorizationError(
+                    "Chat message was not found or is inaccessible."
+                )
+            repository = await connection.fetchrow(
+                """
+                SELECT r."indexedCommitSha", r."lastIndexedAt", r."indexStatus",
+                       r."indexedChunkCount"
+                FROM "Repository" r
+                JOIN "UserRepository" ur ON ur."repositoryId"=r."id"
+                WHERE r."id"=$1 AND ur."userId"=$2
+                  AND r."accessStatus"='ACTIVE' AND ur."accessStatus"='ACTIVE'
+                """,
+                repository_id,
+                user_id,
             )
-            clarification = routed["decision"].clarification
-
-        if clarification is not None:
-            answer_parts.append(clarification)
-            yield sse_event("delta", {"text": clarification})
-        else:
-            retriever = RepoMindParentHybridRetriever(
-                connection=connection,
-                embeddings=create_embedding_model(),
-                repository_id=repository_id,
-                rerank=get_settings().repository_rerank,
-            )
-            documents = await retriever.ainvoke(str(user_message["content"]))
-            async with scoped_mcp_tools(user_id, repository_id) as mcp_tools:
-                async for event, value in stream_repository_answer(
-                    str(user_message["content"]),
-                    history,
-                    documents,
-                    mcp_tools,
-                ):
-                    if event == "delta":
-                        answer_parts.append(value)
-                    yield sse_event(
-                        event, {"text" if event == "delta" else "name": value}
-                    )
-
-        final_answer = "".join(answer_parts).strip()
-
-        if not final_answer:
-            final_answer = "I could not generate an answer from the indexed context."
-
-        await connection.execute(
-            """
-            UPDATE "ChatMessage"
-            SET "content" = $2,
-                "status" = 'SUCCEEDED',
-                "updatedAt" = now()
-            WHERE "id" = $1
-            """,
-            assistant_message_id,
-            final_answer,
-        )
-
-        ref = str(repository["indexedCommitSha"] or repository["defaultBranch"])
-        citations: list[dict[str, Any]] = []
-
-        for index, document in enumerate(documents[:6], start=1):
-            path = document.metadata.get("path")
-            start_line = document.metadata.get("start_line")
-            end_line = document.metadata.get("end_line")
-
+            if not repository:
+                raise AuthorizationError("Repository access is no longer active.")
             if (
-                not isinstance(path, str)
-                or not isinstance(start_line, int)
-                or not isinstance(end_line, int)
+                repository["indexStatus"] != "READY"
+                or repository["indexedChunkCount"] <= 0
             ):
-                continue
-
-            url = github_line_url(
-                str(repository["htmlUrl"]) if repository["htmlUrl"] else None,
-                ref,
-                path,
-                start_line,
-                end_line,
-            )
-            citation_id = uuid.uuid4().hex
+                raise ValueError(
+                    "Repository must finish indexing before chat is available."
+                )
+            history = await load_history(connection, conversation_id, message_id)
             await connection.execute(
                 """
-                INSERT INTO "ChatMessageCitation"
-                  ("id", "messageId", "sourceIndex", "path", "startLine",
-                   "endLine", "url")
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO "ChatMessage"
+                  ("id","conversationId","role","content","status","updatedAt")
+                VALUES ($1,$2,'ASSISTANT','','STREAMING',now())
                 """,
-                citation_id,
-                assistant_message_id,
-                index,
-                path,
-                start_line,
-                end_line,
-                url,
+                assistant_id,
+                conversation_id,
             )
-            citations.append(
-                {
-                    "id": citation_id,
-                    "source_index": index,
-                    "path": path,
-                    "start_line": start_line,
-                    "end_line": end_line,
-                    "url": url,
-                },
-            )
+            created = True
+        yield sse_event("assistant_message", {"message_id": assistant_id})
+        capabilities: frozenset[Capability] = frozenset({"code.read", "github.read"})
+        registry = ToolRegistry(
+            RequestScope(
+                user_id=user_id, repository_id=repository_id, capabilities=capabilities
+            ),
+            (create_github_provider(user_id, repository_id),),
+        )
+        code_tools = CodeTools(
+            registry,
+            None,
+            str(repository["indexedCommitSha"]),
+            pool=pool,
+            redis=redis,
+            last_indexed_at=repository["lastIndexedAt"],
+        )
+        settings = get_settings()
+        model = create_chat_model()
+        graph = create_repository_graph(
+            create_chat_model(purpose="router"),
+            model,
+            model,
+            model,
+            registry=registry,
+            code_tools=code_tools,
+            limits=AgentLimits(
+                tool_calls=settings.agent_tool_call_limit,
+                model_calls=settings.agent_model_call_limit,
+                timeout_seconds=settings.agent_timeout_seconds,
+            ),
+        )
+        queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue(maxsize=64)
 
-        await connection.execute(
-            """
-            UPDATE "ChatConversation"
-            SET "updatedAt" = now()
-            WHERE "id" = $1
-            """,
-            conversation_id,
+        async def produce() -> None:
+            root_id: str | None = None
+            emitted_tools: set[str] = set()
+            try:
+                # v2 returns a generator with cleanup, typed only as AsyncIterator.
+                async with aclosing(
+                    cast(
+                        AsyncGenerator[StreamEvent, None],
+                        graph.astream_events(
+                            {
+                                "question": str(user_message["content"]),
+                                "history": history,
+                            },
+                            config={},
+                            version="v2",
+                            include_types=["chain", "tool"],
+                            include_names=["repomind_answer_delta"],
+                        ),
+                    )
+                ) as stream:
+                    async for event in stream:
+                        kind = event["event"]
+                        if kind == "on_chain_start" and not event["parent_ids"]:
+                            root_id = event["run_id"]
+                        elif kind == "on_tool_start":
+                            metadata = event.get("metadata", {})
+                            policy = parse_tool_policy(metadata.get("_meta"), metadata)
+                            if (
+                                policy is not None
+                                and policy.capability in capabilities
+                                and event["run_id"] not in emitted_tools
+                            ):
+                                emitted_tools.add(event["run_id"])
+                                await queue.put(("tool", event["name"]))
+                        elif (
+                            kind == "on_custom_event"
+                            and event["name"] == "repomind_answer_delta"
+                        ):
+                            data = event["data"]
+                            text = data.get("text")
+                            if data.get("role") in {
+                                "CODE",
+                                "GITHUB",
+                                "SYNTHESIS",
+                            } and isinstance(text, str):
+                                await queue.put(("delta", text))
+                        elif kind == "on_chain_end" and event["run_id"] == root_id:
+                            await queue.put(
+                                (
+                                    "result",
+                                    WorkflowResult.model_validate(
+                                        event["data"]["output"]["result"]
+                                    ),
+                                )
+                            )
+            except Exception as failure:
+                await queue.put(("failure", failure))
+
+        producer = asyncio.create_task(produce())
+        result: WorkflowResult | None = None
+        while result is None:
+            try:
+                kind, value = await asyncio.wait_for(
+                    queue.get(), timeout=HEARTBEAT_SECONDS
+                )
+            except asyncio.TimeoutError:
+                if producer.done():
+                    await producer
+                    raise RuntimeError(
+                        "Workflow ended without a final result."
+                    ) from None
+                yield ": heartbeat\n\n"
+                continue
+            if kind == "failure":
+                raise value
+            if kind == "result":
+                result = value
+            else:
+                if kind == "delta":
+                    parts.append(value)
+                yield sse_event(kind, {"text" if kind == "delta" else "name": value})
+        await producer
+        if result.status == "failed":
+            failure = result.errors[-1] if result.errors else None
+            raise RuntimeError(
+                failure.message if failure else "Investigation could not be completed."
+            )
+        if result.status == "clarification":
+            parts.append(result.answer)
+            yield sse_event("delta", {"text": result.answer})
+        if "".join(parts) != result.answer:
+            raise RuntimeError(
+                "Streamed answer does not match the validated workflow result."
+            )
+        citations = [
+            {
+                "id": uuid.uuid4().hex,
+                "source_index": source.source_index,
+                "path": source.path,
+                "start_line": source.start_line,
+                "end_line": source.end_line,
+                "url": source.url,
+            }
+            for source in result.evidence
+            if source.id in result.source_ids
+        ]
+        async with (
+            pool.acquire(timeout=10) as connection,
+            connection.transaction(),
+        ):
+            allowed = await connection.fetchval(
+                """
+                SELECT EXISTS(
+                    SELECT 1 FROM "Repository" r
+                    JOIN "UserRepository" ur ON ur."repositoryId"=r."id"
+                    JOIN "ChatConversation" c ON c."repositoryId"=r."id"
+                    WHERE r."id"=$1 AND ur."userId"=$2 AND c."id"=$3
+                      AND c."userId"=$2 AND r."accessStatus"='ACTIVE'
+                      AND ur."accessStatus"='ACTIVE'
+                )
+                """,
+                repository_id,
+                user_id,
+                conversation_id,
+            )
+            if not allowed:
+                raise AuthorizationError(
+                    "Repository access was revoked during the answer."
+                )
+            for citation in citations:
+                await connection.execute(
+                    """
+                    INSERT INTO "ChatMessageCitation"
+                      ("id","messageId","sourceIndex","path","startLine","endLine","url")
+                    VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    """,
+                    citation["id"],
+                    assistant_id,
+                    citation["source_index"],
+                    citation["path"],
+                    citation["start_line"],
+                    citation["end_line"],
+                    citation["url"],
+                )
+            await connection.execute(
+                """
+                UPDATE "ChatMessage" SET "content"=$2, "status"='SUCCEEDED',
+                    "errorMessage"=NULL, "updatedAt"=now() WHERE "id"=$1
+                """,
+                assistant_id,
+                result.answer,
+            )
+            await connection.execute(
+                'UPDATE "ChatConversation" SET "updatedAt"=now() WHERE "id"=$1',
+                conversation_id,
+            )
+        committed = True
+        logger.info(
+            "Chat finished: scope=%s status=%s model_calls=%d cache=%s",
+            result.decision.scope,
+            result.status,
+            result.model_calls,
+            code_tools.cache_stats,
         )
         yield sse_event("citations", {"citations": citations})
-        yield sse_event("done", {"message_id": assistant_message_id})
-    except Exception as error:
-        message = redacted_error(error)
-        await connection.execute(
-            """
-            INSERT INTO "ChatMessage"
-              ("id", "conversationId", "role", "content", "status",
-               "errorMessage", "updatedAt")
-            VALUES ($1, $2, 'ASSISTANT', '', 'FAILED', $3, now())
-            ON CONFLICT ("id") DO UPDATE
-            SET "status" = 'FAILED',
-                "errorMessage" = $3,
-                "updatedAt" = now()
-            """,
-            assistant_message_id,
-            conversation_id,
-            message,
+        yield sse_event("done", {"message_id": assistant_id})
+    except (asyncio.CancelledError, GeneratorExit):
+        if created and not committed:
+            await _fail_message(
+                pool, assistant_id, "".join(parts), "Answer canceled before completion."
+            )
+        raise
+    except Exception as failure:
+        if producer is not None and not producer.done():
+            producer.cancel()
+            with suppress(asyncio.CancelledError):
+                await producer
+        message = (
+            str(failure)
+            if isinstance(failure, (AuthorizationError, RuntimeError, ValueError))
+            and failure.__class__.__module__.startswith(("app", "builtins"))
+            else f"Repository chat failed ({type(failure).__name__})."
         )
+        message = message.replace("\n", " ")[:300]
+        if created and not committed:
+            await _fail_message(pool, assistant_id, "".join(parts), message)
         yield sse_event("error", {"message": message})
+    finally:
+        if producer is not None and not producer.done():
+            producer.cancel()
+            with anyio.CancelScope(shield=True):
+                with suppress(asyncio.CancelledError):
+                    await producer

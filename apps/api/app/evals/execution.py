@@ -8,23 +8,24 @@ import json
 import math
 import os
 import subprocess
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import unquote, urlsplit
 
 import anyio
 import asyncpg
+from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
-from ..agents import AgentFindings, AgentLimits, investigate_code, investigate_github
-from ..chat import stream_repository_answer
+from ..agents import AgentLimits
 from ..code_tools import CodeTools
 from ..config import get_settings, normalize_asyncpg_database_url
 from ..github_mcp_server import mcp, search_query, validate_page
@@ -567,8 +568,8 @@ async def fixture_tools(
     return tools
 
 
-class SingleAgentRunner:
-    """Adapt current retrieval/generation to the architecture-independent contract."""
+class RetrievalRunner:
+    """Benchmark the unchanged hybrid retriever independently of generation."""
 
     def __init__(
         self,
@@ -577,10 +578,7 @@ class SingleAgentRunner:
         repository_id: str,
         commit_sha: str,
         repository: str,
-        tools: list[BaseTool],
-        tool_records: list[ToolExecution],
         *,
-        retrieval_only: bool = False,
         vector_k: int = VECTOR_CANDIDATES,
         keyword_k: int = KEYWORD_CANDIDATES,
         rerank: bool = False,
@@ -594,11 +592,9 @@ class SingleAgentRunner:
             rerank=rerank,
         )
         self.commit_sha, self.repository = commit_sha, repository
-        self.tools, self.tool_records = tools, tool_records
-        self.retrieval_only = retrieval_only
 
     async def run(self, question: str) -> EvaluationResult:
-        """Execute the real retriever and shared streaming agent with empty history."""
+        """Run one first-pass retrieval using the existing benchmark contract."""
         documents = await self.retriever.ainvoke(question)
         contexts: list[CodeContext] = []
         for index, document in enumerate(documents, start=1):
@@ -628,20 +624,6 @@ class SingleAgentRunner:
                 )
             )
         result = EvaluationResult(final_contexts=contexts, evidence_seen=contexts)
-        if not self.retrieval_only:
-            parts: list[str] = []
-            async for event, value in stream_repository_answer(
-                question,
-                [],
-                documents,
-                self.tools,
-            ):
-                if event == "delta":
-                    parts.append(value)
-            result.answer = "".join(parts).strip()
-            if not result.answer:
-                raise ValueError("The production agent generated no answer text.")
-        result.tool_executions = list(self.tool_records)
         result.citation_catalog = build_catalog(result, self.repository)
         return result
 
@@ -667,8 +649,35 @@ def score_final_evidence_coverage(
     ), overlaps
 
 
-class SpecializedAgentRunner:
-    """Evaluate one specialist through Runner in the isolated database."""
+class _ExecutionMetrics(AsyncCallbackHandler):
+    """Observe actual streaming and provider usage without recording answer text."""
+
+    def __init__(self) -> None:
+        self.started = time.monotonic()
+        self.first_delta: float | None = None
+        self.completed_model_calls = 0
+        self.usage: list[JsonValue] = []
+
+    async def on_custom_event(self, name: str, data: Any, **kwargs: Any) -> None:
+        if (
+            name == "repomind_answer_delta"
+            and data.get("text")
+            and data.get("native", True)
+            and self.first_delta is None
+        ):
+            self.first_delta = time.monotonic() - self.started
+
+    async def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+        self.completed_model_calls += 1
+        for group in response.generations:
+            for generation in group:
+                usage = getattr(generation.message, "usage_metadata", None)
+                if usage is not None:
+                    self.usage.append(JSON_OBJECT.validate_python(usage))
+
+
+class GraphRunner:
+    """Evaluate the production graph through Runner in the isolated database."""
 
     def __init__(
         self,
@@ -677,14 +686,13 @@ class SpecializedAgentRunner:
         repository_id: str,
         commit_sha: str,
         repository: str,
-        role: Literal["CODE", "GITHUB", "GRAPH"],
         model: BaseChatModel,
         tools: list[BaseTool],
         tool_records: list[ToolExecution],
         *,
         limits: AgentLimits | None = None,
         rerank: bool = False,
-        router_model: BaseChatModel | None = None,
+        router_model: BaseChatModel,
     ) -> None:
         self.connection, self.embeddings = connection, embeddings
         self.repository_id, self.commit_sha, self.repository = (
@@ -692,15 +700,16 @@ class SpecializedAgentRunner:
             commit_sha,
             repository,
         )
-        self.role, self.model, self.tools = role, model, tools
+        self.model, self.tools = model, tools
         self.tool_records, self.rerank = tool_records, rerank
         self.limits = limits or AgentLimits()
         self.router_model = router_model
-        if role == "GRAPH" and router_model is None:
+        if router_model is None:
             raise ValueError("Graph evaluation requires the configured router model.")
-        self.last_findings: AgentFindings | WorkflowResult | None = None
+        self.last_findings: WorkflowResult | None = None
         self.last_result = EvaluationResult()
         self.first_query: str | None = None
+        self.statistics: dict[str, JsonValue] = {}
 
     async def run(self, question: str) -> EvaluationResult:
         """Seed temporary eval access, run the specialist, then remove access."""
@@ -736,18 +745,17 @@ class SpecializedAgentRunner:
                     capabilities=frozenset({"code.read", "github.read"}),
                 )
             )
-            if self.role == "GRAPH":
-                # Revalidate the configured URL/role before opening independent
-                # pooled connections; never borrow the seeding connection in nodes.
-                probe = await connect_evaluation_database()
-                await probe.close()
-                pool = await asyncpg.create_pool(
-                    normalize_asyncpg_database_url(os.environ["EVAL_DATABASE_URL"]),
-                    min_size=1,
-                    max_size=4,
-                    timeout=10,
-                    command_timeout=60,
-                )
+            # Revalidate the configured URL/role before opening independent
+            # pooled connections; never borrow the seeding connection in nodes.
+            probe = await connect_evaluation_database()
+            await probe.close()
+            pool = await asyncpg.create_pool(
+                normalize_asyncpg_database_url(os.environ["EVAL_DATABASE_URL"]),
+                min_size=1,
+                max_size=4,
+                timeout=10,
+                command_timeout=60,
+            )
             code_tools = CodeTools(
                 registry,
                 self.embeddings,
@@ -756,44 +764,42 @@ class SpecializedAgentRunner:
                 pool=pool,
                 rerank=self.rerank,
             )
-            if self.role != "CODE":
-                for tool in self.tools:
-                    metadata = tool.metadata or {}
-                    policy = parse_tool_policy(metadata.get("_meta"), metadata)
-                    if policy is None or policy.capability != "github.read":
-                        raise ValueError("GitHub fixture tool has an invalid policy.")
-                    registry.register_local(tool, policy, code_tools.authorize)
-            findings: AgentFindings | WorkflowResult
-            if self.role == "GRAPH":
-                if self.router_model is None:
-                    raise ValueError("Graph router model is unavailable.")
-                graph = create_repository_graph(
-                    self.router_model,
-                    self.model,
-                    self.model,
-                    self.model,
-                    registry=registry,
-                    code_tools=code_tools,
-                    limits=self.limits,
-                )
-                findings = (await graph.ainvoke({"question": question, "history": []}))[
-                    "result"
-                ]
-            elif self.role == "CODE":
-                findings = await investigate_code(
-                    self.model,
-                    registry,
-                    code_tools,
-                    question,
-                    limits=self.limits,
-                )
-            else:
-                findings = await investigate_github(
-                    self.model,
-                    registry,
-                    question,
-                    limits=self.limits,
-                )
+            for tool in self.tools:
+                metadata = tool.metadata or {}
+                policy = parse_tool_policy(metadata.get("_meta"), metadata)
+                if policy is None or policy.capability != "github.read":
+                    raise ValueError("GitHub fixture tool has an invalid policy.")
+                registry.register_local(tool, policy, code_tools.authorize)
+            findings: WorkflowResult
+            if self.router_model is None:
+                raise ValueError("Graph router model is unavailable.")
+            graph = create_repository_graph(
+                self.router_model,
+                self.model,
+                self.model,
+                self.model,
+                registry=registry,
+                code_tools=code_tools,
+                limits=self.limits,
+            )
+            metrics = _ExecutionMetrics()
+            try:
+                findings = (
+                    await graph.ainvoke(
+                        {"question": question, "history": []},
+                        config={"callbacks": [metrics]},
+                    )
+                )["result"]
+            finally:
+                self.statistics = {
+                    "workflow_seconds": time.monotonic() - metrics.started,
+                    "first_answer_delta_seconds": metrics.first_delta,
+                    "completed_model_calls_including_router": (
+                        metrics.completed_model_calls
+                    ),
+                    "provider_usage": metrics.usage,
+                    "cache": JSON_OBJECT.validate_python(code_tools.cache_stats),
+                }
             self.last_findings, self.first_query = findings, code_tools.first_query
             contexts = [
                 CodeContext.model_validate(source.model_dump(exclude={"url"}))
@@ -809,49 +815,44 @@ class SpecializedAgentRunner:
                 for tool in self.tools
             }
             executions: list[ToolExecution] = []
-            if self.role != "GITHUB":
-                for record in findings.tool_executions:
-                    arguments = record.arguments
-                    if record.name in fixture_defaults:
-                        registration = mcp._tool_manager.get_tool(record.name)
-                        if registration is None:
-                            raise ValueError(
-                                "GitHub fixture registration is unavailable."
-                            )
-                        try:
-                            arguments = JSON_OBJECT.validate_python(
-                                registration.fn_metadata.arg_model.model_validate(
-                                    record.arguments
-                                ).model_dump(mode="json")
-                            )
-                        except ValidationError:
-                            # Failed fixture validation retains the attempted input,
-                            # exactly as fixture_tools does in its execution record.
-                            arguments = {
-                                **fixture_defaults[record.name],
-                                **record.arguments,
-                            }
-                    error = (
-                        record.message.text
-                        if record.message.status == "error"
-                        else None
-                    )
-                    executions.append(
-                        ToolExecution(
-                            id=record.id,
-                            name=record.name,
-                            arguments=arguments,
-                            result=record.result,
-                            error=error,
-                            fixture_miss=any(
-                                entry.fixture_miss
-                                and entry.name == record.name
-                                and entry.arguments == arguments
-                                and entry.error == error
-                                for entry in self.tool_records
-                            ),
+            for record in findings.tool_executions:
+                arguments = record.arguments
+                if record.name in fixture_defaults:
+                    registration = mcp._tool_manager.get_tool(record.name)
+                    if registration is None:
+                        raise ValueError("GitHub fixture registration is unavailable.")
+                    try:
+                        arguments = JSON_OBJECT.validate_python(
+                            registration.fn_metadata.arg_model.model_validate(
+                                record.arguments
+                            ).model_dump(mode="json")
                         )
+                    except ValidationError:
+                        # Failed fixture validation retains the attempted input,
+                        # exactly as fixture_tools does in its execution record.
+                        arguments = {
+                            **fixture_defaults[record.name],
+                            **record.arguments,
+                        }
+                error = (
+                    record.message.text if record.message.status == "error" else None
+                )
+                executions.append(
+                    ToolExecution(
+                        id=record.id,
+                        name=record.name,
+                        arguments=arguments,
+                        result=record.result,
+                        error=error,
+                        fixture_miss=any(
+                            entry.fixture_miss
+                            and entry.name == record.name
+                            and entry.arguments == arguments
+                            and entry.error == error
+                            for entry in self.tool_records
+                        ),
                     )
+                )
             self.last_result = EvaluationResult(
                 answer=findings.answer,
                 final_contexts=[
@@ -860,15 +861,12 @@ class SpecializedAgentRunner:
                     if source.id in visible_ids
                 ],
                 evidence_seen=contexts,
-                tool_executions=(
-                    list(self.tool_records) if self.role == "GITHUB" else executions
-                ),
+                tool_executions=executions,
             )
             self.last_result.citation_catalog = build_catalog(
                 self.last_result, self.repository
             )
-            if self.role in {"CODE", "GRAPH"}:
-                self.last_result.citation_catalog.update(findings.citation_catalog)
+            self.last_result.citation_catalog.update(findings.citation_catalog)
             if findings.status == "failed":
                 raise RuntimeError(
                     "Specialized investigation failed; inspect its structured findings."

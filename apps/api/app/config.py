@@ -34,6 +34,10 @@ class Settings:
     embeddings_provider: str
     ollama_base_url: str
     repository_rerank: bool
+    agent_tool_call_limit: int = 6
+    agent_model_call_limit: int = 8
+    agent_timeout_seconds: float = 120.0
+    code_context_cache_ttl_seconds: int = 900
 
     @property
     def embedding_model(self) -> str:
@@ -133,6 +137,16 @@ def read_optional_token(value: str | None) -> str | None:
 
 @lru_cache
 def get_settings() -> Settings:
+    tool_limit = int(os.getenv("AGENT_TOOL_CALL_LIMIT", "6"))
+    model_limit = int(os.getenv("AGENT_MODEL_CALL_LIMIT", "8"))
+    agent_timeout = float(os.getenv("AGENT_TIMEOUT_SECONDS", "120"))
+    cache_ttl = int(os.getenv("CODE_CONTEXT_CACHE_TTL_SECONDS", "900"))
+    if tool_limit < 1 or model_limit < 1:
+        raise ValueError("Agent tool and model call limits must be positive.")
+    if not 0 < agent_timeout < float("inf") or cache_ttl < 0:
+        raise ValueError(
+            "Agent timeout must be finite/positive; cache TTL nonnegative."
+        )
     embeddings_provider = os.getenv("EMBEDDINGS_PROVIDER", "ollama")
     if embeddings_provider not in {"ollama", "openai"}:
         raise ValueError("EMBEDDINGS_PROVIDER must be ollama or openai.")
@@ -169,4 +183,8 @@ def get_settings() -> Settings:
         embeddings_provider=embeddings_provider,
         ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
         repository_rerank=reranker == "qwen3",
+        agent_tool_call_limit=tool_limit,
+        agent_model_call_limit=model_limit,
+        agent_timeout_seconds=agent_timeout,
+        code_context_cache_ttl_seconds=cache_ttl,
     )

@@ -1,0 +1,88 @@
+{
+  "version": "method-selection-1",
+  "repository": "AdityaSaxena17/RepoMind",
+  "corpus_commit_sha": "678cd4ef010ef31f9293aa8ff0c92dafd255d002",
+  "annotation_policy": "Separate agent-authored mixed-discussion regression; not an independent holdout. Source spans reused from reviewed supplemental normalizer case; strict discussion fixture reused without changes.",
+  "questions": [
+    {
+      "id": "method-mixed-discussion",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Read reviewer-z's discussion on issue #701 and report their recommendation and prerequisite. Separately, explain which query options the indexed normalize_asyncpg_database_url removes and preserves.",
+      "required_evidence": [
+        {
+          "id": "normalize_asyncpg_database_url",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/config.py",
+                "start_line": 31,
+                "end_line": 49,
+                "file_sha256": "8821855fce66ebfd69aae12774dcfb12befc0a8f05fb2433f212dd13b7e823e8",
+                "excerpt": "def normalize_asyncpg_database_url(database_url: str) -> str:\n    \"\"\"Remove Prisma-only query params before passing DATABASE_URL to asyncpg.\"\"\"\n    parsed = urlsplit(database_url)\n    query = urlencode(\n        [\n            (key, value)\n            for key, value in parse_qsl(parsed.query, keep_blank_values=True)\n            if key != \"schema\"\n        ],\n    )\n    return urlunsplit(\n        (\n            parsed.scheme,\n            parsed.netloc,\n            parsed.path,\n            query,\n            parsed.fragment,\n        ),\n    )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "reviewer-z recommends deferring the proposal until accessibility review is complete.",
+          "evidence_units": [],
+          "fixture_evidence": ["comment-701"]
+        },
+        {
+          "id": "f2",
+          "text": "The indexed normalizer removes schema parameters and preserves other query options, including blank values.",
+          "evidence_units": ["normalize_asyncpg_database_url"],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "discussion",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    },
+    {
+      "id": "method-mixed-fact-finding",
+      "category": "mixed",
+      "evidence_scope": "MIXED",
+      "question": "Find the reproduction steps for issue #706. Separately, explain which query options the indexed normalize_asyncpg_database_url removes and preserves.",
+      "required_evidence": [
+        {
+          "id": "normalize_asyncpg_database_url",
+          "alternatives": [
+            [
+              {
+                "path": "apps/api/app/config.py",
+                "start_line": 31,
+                "end_line": 49,
+                "file_sha256": "8821855fce66ebfd69aae12774dcfb12befc0a8f05fb2433f212dd13b7e823e8",
+                "excerpt": "def normalize_asyncpg_database_url(database_url: str) -> str:\n    \"\"\"Remove Prisma-only query params before passing DATABASE_URL to asyncpg.\"\"\"\n    parsed = urlsplit(database_url)\n    query = urlencode(\n        [\n            (key, value)\n            for key, value in parse_qsl(parsed.query, keep_blank_values=True)\n            if key != \"schema\"\n        ],\n    )\n    return urlunsplit(\n        (\n            parsed.scheme,\n            parsed.netloc,\n            parsed.path,\n            query,\n            parsed.fragment,\n        ),\n    )"
+              }
+            ]
+          ]
+        }
+      ],
+      "relevant_evidence": [],
+      "reference_facts": [
+        {
+          "id": "f1",
+          "text": "The reproduction steps are to reset the client, then retry the upload.",
+          "evidence_units": [],
+          "fixture_evidence": ["comment-706"]
+        },
+        {
+          "id": "f2",
+          "text": "The indexed normalizer removes schema parameters and preserves other query options, including blank values.",
+          "evidence_units": ["normalize_asyncpg_database_url"],
+          "fixture_evidence": []
+        }
+      ],
+      "fixture_scenario": "reproduction",
+      "expected_missing": [],
+      "review_note": "Agent-authored, source-reviewed supplemental regression. No independent human review or held-out generalization claim."
+    }
+  ]
+}

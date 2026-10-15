@@ -1,0 +1,212 @@
+{
+  "version": "method-selection-1",
+  "provenance": "New synthetic issue and PR scenarios for supplemental regressions only; not real GitHub observations. Exact fixture matching remains enabled.",
+  "scenarios": {
+    "none": [],
+    "discussion": [
+      {
+        "id": "issue-701",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 701
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue": {
+            "number": 701,
+            "title": "Supplemental issue 701",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/issues/701",
+            "body": "Review the documentation export proposal."
+          }
+        },
+        "error": null
+      },
+      {
+        "id": "comment-701",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 701,
+            "method": "get_comments"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue_number": 701,
+          "comments": [
+            {
+              "author": "reviewer-z",
+              "body": "Defer the proposal until accessibility review is complete.",
+              "url": "https://github.com/AdityaSaxena17/RepoMind/issues/701#issuecomment-1701"
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "comparison": [
+      {
+        "id": "issue-702",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 702
+          }
+        ],
+        "result": {},
+        "error": "GitHub resource was not found."
+      },
+      {
+        "id": "issue-703",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 703
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue": {
+            "number": 703,
+            "title": "Supplemental issue 703",
+            "state": "closed",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/issues/703",
+            "body": "The documentation link has been repaired."
+          }
+        },
+        "error": null
+      }
+    ],
+    "compaction": [
+      {
+        "id": "issue-704",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 704
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue": {
+            "number": 704,
+            "title": "Supplemental issue 704",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/issues/704",
+            "body": "The API text preview collapses repeated spaces and line breaks. The full GitHub text still contains them."
+          }
+        },
+        "error": null
+      }
+    ],
+    "normalizer-proposal": [
+      {
+        "id": "pr-705",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 705
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_request": {
+            "number": 705,
+            "title": "Drop connection query options",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/pull/705",
+            "body": "Proposal: remove every query parameter from the database URL.",
+            "merged": false
+          }
+        },
+        "error": null
+      },
+      {
+        "id": "pr-705-files",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 705,
+            "method": "get_files"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_number": 705,
+          "files": [
+            {
+              "filename": "apps/api/app/config.py",
+              "status": "modified",
+              "additions": 1,
+              "deletions": 1
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "id": "pr-705-diff",
+        "tool": "pull_request_read",
+        "arguments": [
+          {
+            "pull_number": 705,
+            "method": "get_diff"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "pull_number": 705,
+          "diff": "--- a/apps/api/app/config.py\n+++ b/apps/api/app/config.py\n@@\n-            query,\n+            '',\n"
+        },
+        "error": null
+      }
+    ],
+    "reproduction": [
+      {
+        "id": "issue-706",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 706
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue": {
+            "number": 706,
+            "title": "Upload reproduction",
+            "state": "open",
+            "url": "https://github.com/AdityaSaxena17/RepoMind/issues/706",
+            "body": "An upload failure is reported. The reproduction steps are described in a follow-up comment."
+          }
+        },
+        "error": null
+      },
+      {
+        "id": "comment-706",
+        "tool": "issue_read",
+        "arguments": [
+          {
+            "issue_number": 706,
+            "method": "get_comments"
+          }
+        ],
+        "result": {
+          "repository": "AdityaSaxena17/RepoMind",
+          "issue_number": 706,
+          "comments": [
+            {
+              "author": "reporter-w",
+              "body": "Reset the client, then retry the upload.",
+              "url": "https://github.com/AdityaSaxena17/RepoMind/issues/706#issuecomment-1706"
+            }
+          ]
+        },
+        "error": null
+      }
+    ]
+  }
+}

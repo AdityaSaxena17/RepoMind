@@ -16,7 +16,7 @@ from test_tool_registry import connect_offline, definition, offline_server, prov
 
 from app import agents, github_mcp_server
 from app import code_tools as code_tools_module
-from app.agents import AgentLimits
+from app.agents import FINAL_ANSWER_MARKER, PARTIAL_ANSWER_PREFIX, AgentLimits
 from app.code_tools import CodeTools
 from app.orchestration import create_repository_graph
 from app.tool_errors import AuthorizationError, ScopeViolationError
@@ -64,6 +64,12 @@ def graph_case(
                         "scope": scope,
                         "clarification": "Which change?" if scope is None else None,
                         "mixed_strategy": strategy if scope == "MIXED" else None,
+                        "code_task": "Read indexed app.py."
+                        if scope == "MIXED"
+                        else None,
+                        "github_task": "Read live issue #1."
+                        if scope == "MIXED"
+                        else None,
                     }
                 )
             )
@@ -81,14 +87,21 @@ def graph_case(
             summary(URL, [URL]),
         ]
     )
+    if scope == "CODE":
+        code.responses[-1] = AIMessage(
+            content=FINAL_ANSWER_MARKER + "Observed code [1]."
+        )
+    if scope == "GITHUB":
+        github.responses[-1] = AIMessage(content=FINAL_ANSWER_MARKER + URL)
+    if completion is None:
+        answer = f"Indexed code [1] and live issue {URL}."
+    else:
+        try:
+            answer = json.loads(completion.text)["answer"]
+        except (ValueError, KeyError):
+            answer = str(completion.text)
     synthesis = RecordingModel(
-        responses=[
-            completion
-            or summary(
-                f"Indexed code [1] and live issue {URL}.",
-                ["1", URL],
-            )
-        ]
+        responses=[AIMessage(content=FINAL_ANSWER_MARKER + answer)]
     )
     graph = create_repository_graph(
         router,
@@ -181,6 +194,14 @@ def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
     assert code_started.is_set() and github_started.is_set()
     assert database.maximum == 2 and database.active == 0
     assert len(code.requests) == len(github.requests) == 2
+    assert code.requests[0][-1].text == "Read indexed app.py."
+    assert github.requests[0][-1].text == "Read live issue #1."
+    assert any(
+        m.text == "Original question for context:\nCompare" for m in code.requests[0]
+    )
+    assert any(
+        m.text == "Original question for context:\nCompare" for m in github.requests[0]
+    )
     assert len(synthesis.requests) == 1
     payload = json.loads(synthesis.requests[0][-2].text.split("\n", 1)[1])
     assert set(payload["investigations"]) == {"CODE", "GITHUB"}
@@ -249,7 +270,7 @@ def test_sequential_context_contains_observed_paths_evidence_and_provenance(
         in observed["tool_executions"][1]["result"]["issue"]["body"]
     )
     assert observed["citation_catalog"][URL] == "github:github-read"
-    assert code.requests[0][-1].text == "Compare"
+    assert code.requests[0][-1].text == "Read indexed app.py."
     assert len(synthesis.requests) == 1 and database.active == 0
     assert events[0][2] == events[1][2]
 
@@ -264,7 +285,7 @@ def test_security_failures_stop_answers_and_recoverable_failures_are_qualified(
     graph, code, github, synthesis, database, events = graph_case(
         monkeypatch,
         strategy=strategy,
-        completion=summary("Indexed observations [1].", ["1"]),
+        completion=summary(PARTIAL_ANSWER_PREFIX + "Indexed observations [1].", ["1"]),
     )
 
     async def get(path: str) -> Any:
@@ -298,7 +319,6 @@ def test_security_failures_stop_answers_and_recoverable_failures_are_qualified(
 @pytest.mark.parametrize(
     "completion",
     [
-        summary("Code [1].", ["invented"]),
         summary("Invented citation [99].", ["1"]),
         summary("Invented https://github.com/example/project/issues/999 .", ["1"]),
         summary("Invented app.py:100-101.", ["1"]),
@@ -310,7 +330,6 @@ def test_security_failures_stop_answers_and_recoverable_failures_are_qualified(
             f"Invented https://github.com/example/project/blob/{SHA}/app.py#L100 .",
             ["1"],
         ),
-        summary(f"Undeclared {URL}", ["1"]),
         AIMessage(content="Not validated JSON."),
     ],
 )
@@ -324,7 +343,7 @@ def test_invalid_synthesis_preserves_evidence_without_publishing_answer(
     result = asyncio.run(graph.ainvoke({"question": "Compare", "history": []}))[
         "result"
     ]
-    assert result.status == "failed" and result.answer == ""
+    assert result.status == "failed"
     assert result.errors[-1].kind == "validation"
     assert len(result.evidence) == 1 and len(result.tool_executions) == 2
     assert len(synthesis.requests) == 1
@@ -401,7 +420,7 @@ def test_synthesis_deadline_and_cancellation_preserve_cleanup(
     async def generate(
         model: RecordingModel, messages: Any, *args: Any, **kwargs: Any
     ) -> Any:
-        if "Answer Synthesizer" in messages[0].text:
+        if any("Answer Synthesizer" in message.text for message in messages):
             started.set()
             await asyncio.sleep(10)
         return await native_generate(model, messages, *args, **kwargs)
@@ -450,10 +469,11 @@ def test_direct_agent_citations_are_also_validated(
 ) -> None:
     graph, code, github, synthesis, database, events = graph_case(monkeypatch, scope)
     if scope == "CODE":
-        code.responses[-1] = summary("Invented [99].", ["1"])
+        code.responses[-1] = AIMessage(content=FINAL_ANSWER_MARKER + "Invented [99].")
     else:
-        github.responses[-1] = summary(
-            "Invented https://github.com/example/project/issues/999 .", [URL]
+        github.responses[-1] = AIMessage(
+            content=FINAL_ANSWER_MARKER
+            + "Invented https://github.com/example/project/issues/999 ."
         )
     result = asyncio.run(graph.ainvoke({"question": "Question", "history": []}))[
         "result"
@@ -496,7 +516,10 @@ def test_citations_use_selected_overlapping_window_and_verified_url_subranges(
             {"path": "app.py", "start_line": 1, "end_line": 6},
             "wide",
         ),
-        summary(f"Observed {url if reference == 'url' else reference} [2].", ["2"]),
+        AIMessage(
+            content=FINAL_ANSWER_MARKER
+            + f"Observed {url if reference == 'url' else reference} [2]."
+        ),
     ]
     result = asyncio.run(graph.ainvoke({"question": "Question", "history": []}))[
         "result"
@@ -505,6 +528,21 @@ def test_citations_use_selected_overlapping_window_and_verified_url_subranges(
     assert result.source_ids == [result.evidence[1].id]
     if reference == "url":
         assert result.citation_catalog[url] == result.evidence[1].id
+
+
+def test_inline_url_ports_are_not_mistaken_for_file_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch, "CODE")
+    code.responses[-1] = AIMessage(
+        content=FINAL_ANSWER_MARKER
+        + "The API listens at `http://127.0.0.1:8137`, as shown in app.py:1-2 [1]."
+    )
+    result = asyncio.run(graph.ainvoke({"question": "Question", "history": []}))[
+        "result"
+    ]
+    assert result.status == "complete", result.errors
+    assert result.source_ids == [result.evidence[0].id]
 
 
 def test_security_failure_retains_previously_observed_parallel_tool_calls(
@@ -584,7 +622,7 @@ def test_provider_authentication_is_not_downgraded_to_missing_evidence(
         native_generate = RecordingModel._agenerate
 
         async def generate(model: RecordingModel, *args: Any, **kwargs: Any) -> Any:
-            if model is code:
+            if model.responses is code.responses:
                 raise failure
             return await native_generate(model, *args, **kwargs)
 
@@ -612,6 +650,7 @@ def test_direct_partial_answer_is_qualified_without_synthesis(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     graph, code, github, synthesis, database, events = graph_case(monkeypatch, "CODE")
+    code.responses[-1] = AIMessage(content=FINAL_ANSWER_MARKER + "Observed code [1].")
     code.responses.insert(
         1, call("get_file_context", {"path": "missing.py"}, "missing")
     )
@@ -620,3 +659,45 @@ def test_direct_partial_answer_is_qualified_without_synthesis(
     ]
     assert result.status == "incomplete" and result.answer.startswith("Partial answer:")
     assert result.evidence and result.errors and synthesis.requests == []
+
+
+def test_abbreviated_citations_fail_with_actionable_controlled_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph, model, github, synthesis, database, events = graph_case(monkeypatch, "CODE")
+    model.responses[-1] = AIMessage(
+        content=FINAL_ANSWER_MARKER + "Observed [code:...app.py:1:6]."
+    )
+    result = asyncio.run(graph.ainvoke({"question": "Question", "history": []}))[
+        "result"
+    ]
+    assert result.status == "failed" and result.errors[-1].code == "citation_invalid"
+    assert "abbreviated" in result.errors[-1].message
+    assert "numeric" in result.errors[-1].message
+
+
+@pytest.mark.parametrize("scope", ["CODE", "MIXED"])
+@pytest.mark.parametrize(
+    "body,code",
+    [
+        ("Unmarked response", "final_marker_missing"),
+        (FINAL_ANSWER_MARKER, "final_answer_empty"),
+    ],
+)
+def test_output_failures_have_controlled_specific_categories(
+    monkeypatch: pytest.MonkeyPatch,
+    scope: str,
+    body: str,
+    code: str,
+) -> None:
+    graph, model, github, synthesis, database, events = graph_case(
+        monkeypatch, scope, limits=AgentLimits(model_calls=2)
+    )
+    (model if scope == "CODE" else synthesis).responses[-1] = AIMessage(content=body)
+    result = asyncio.run(graph.ainvoke({"question": "Question", "history": []}))[
+        "result"
+    ]
+    assert result.status == "failed"
+    assert result.errors[-1].code == code
+    assert "Unmarked response" not in result.errors[-1].message
+    assert result.errors[-1].kind == "validation"

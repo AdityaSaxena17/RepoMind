@@ -1,8 +1,4 @@
-import {
-  ChatMessageRole,
-  ChatMessageStatus,
-  prisma,
-} from "@repo/db";
+import { ChatMessageRole, ChatMessageStatus, prisma } from "@repo/db";
 import type { NextRequest } from "next/server";
 import {
   findConnectedRepositoryForUser,
@@ -21,9 +17,10 @@ function readMessage(value: unknown) {
   }
 
   const message = typeof value.message === "string" ? value.message.trim() : "";
-  const conversationId = typeof value.conversation_id === "string"
-    ? value.conversation_id.trim()
-    : null;
+  const conversationId =
+    typeof value.conversation_id === "string"
+      ? value.conversation_id.trim()
+      : null;
 
   if (message.length === 0 || message.length > 4000) {
     return null;
@@ -31,9 +28,8 @@ function readMessage(value: unknown) {
 
   return {
     message,
-    conversationId: conversationId && conversationId.length > 0
-      ? conversationId
-      : null,
+    conversationId:
+      conversationId && conversationId.length > 0 ? conversationId : null,
   };
 }
 
@@ -207,16 +203,20 @@ export async function POST(
     headers["X-RepoMind-Internal-Credential"] = credential;
   }
 
-  const response = await fetch(`${apiBaseUrl}/api/v1/repositories/chat/stream`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      repository_id: scope.repository.id,
-      conversation_id: conversation.id,
-      user_id: scope.user.id,
-      message_id: userMessage.id,
-    }),
-  });
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/repositories/chat/stream`,
+    {
+      method: "POST",
+      signal: request.signal,
+      headers,
+      body: JSON.stringify({
+        repository_id: scope.repository.id,
+        conversation_id: conversation.id,
+        user_id: scope.user.id,
+        message_id: userMessage.id,
+      }),
+    },
+  );
 
   if (!response.ok || !response.body) {
     const detail = await response.text();

@@ -176,6 +176,17 @@ class GroundingJudgment(Model):
     )
 
 
+class GroundingSection(GroundingJudgment):
+    """Account for one bounded answer section, including nonfactual prose."""
+
+    section_id: str
+    nonfactual_reason: str | None = Field(default=None, min_length=1)
+
+
+class GroundingBatch(Model):
+    sections: list[GroundingSection]
+
+
 class FactJudgment(Model):
     fact_id: str
     status: Literal["matched", "missing", "contradicted"]
@@ -209,6 +220,7 @@ class CaseReport(Model):
     result: EvaluationResult = Field(default_factory=EvaluationResult)
     citations: list[Citation] = Field(default_factory=list)
     grounding: GroundingJudgment | None = None
+    grounding_sections: list[GroundingSection] = Field(default_factory=list)
     correctness: CorrectnessJudgment | None = None
     judge_validation_errors: list[str] = Field(default_factory=list)
     metrics: dict[str, Metric] = Field(default_factory=dict)

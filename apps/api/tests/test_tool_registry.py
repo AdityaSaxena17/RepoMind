@@ -588,7 +588,7 @@ def test_local_authorization_cannot_outlive_scope() -> None:
     asyncio.run(run())
 
 
-def test_fresh_catalog_and_legacy_loader_configuration(
+def test_fresh_catalog_and_trusted_provider_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     catalog = [definition("initial")]
@@ -609,7 +609,9 @@ def test_fresh_catalog_and_legacy_loader_configuration(
             assert [tool.name for tool in tools] == ["initial"]
         async with registry.scoped_tools(GITHUB) as tools:
             assert [tool.name for tool in tools] == ["initial", "new_reader"]
-        async with chat.scoped_mcp_tools("user", "repo") as tools:
+        async with ToolRegistry(
+            request(), (chat.create_github_provider("user", "repo"),)
+        ).scoped_tools(GITHUB) as tools:
             assert [tool.name for tool in tools] == ["initial", "new_reader"]
 
     asyncio.run(run())
@@ -619,61 +621,3 @@ def test_fresh_catalog_and_legacy_loader_configuration(
     assert github["args"] == ["-m", "app.github_mcp_server"]
     assert github["env"]["REPOMIND_MCP_USER_ID"] == "user"
     assert github["env"]["REPOMIND_MCP_REPOSITORY_ID"] == "repo"
-
-
-def test_required_discovery_failure_preserves_chat_status_and_sse(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    writes: list[tuple[object, ...]] = []
-    events = connect_offline(monkeypatch, {"github": offline_server([], [])})
-
-    class Connection:
-        async def fetchrow(self, sql: str, *_args: object) -> dict[str, object]:
-            if 'FROM "Repository"' in sql:
-                return {
-                    "id": "repo",
-                    "htmlUrl": "https://example.test/repo",
-                    "indexedCommitSha": "a" * 40,
-                    "defaultBranch": "main",
-                    "indexStatus": "READY",
-                    "indexedChunkCount": 1,
-                }
-            return {"content": "question"}
-
-        async def fetch(self, *_args: object) -> list[object]:
-            return []
-
-        async def execute(self, *args: object) -> str:
-            writes.append(args)
-            return "OK"
-
-    class Retriever:
-        def __init__(self, **_kwargs: object) -> None:
-            return None
-
-        async def ainvoke(self, _question: str) -> list[object]:
-            return []
-
-    def unexpected_agent(*_args: object, **_kwargs: object) -> None:
-        pytest.fail("Investigation must not run after required discovery fails.")
-
-    monkeypatch.setattr(chat, "RepoMindParentHybridRetriever", Retriever)
-    monkeypatch.setattr(chat, "create_embedding_model", lambda: object())
-    monkeypatch.setattr(chat, "stream_repository_answer", unexpected_agent)
-
-    async def run() -> list[str]:
-        return [
-            event
-            async for event in chat.stream_repository_chat(
-                Connection(), "repo", "conversation", "user", "message"
-            )
-        ]
-
-    result = asyncio.run(run())
-    assert [event.splitlines()[0] for event in result] == [
-        "event: assistant_message",
-        "event: error",
-    ]
-    assert "Required tool discovery failed" in result[-1]
-    assert "'FAILED'" in str(writes[-1][0])
-    assert [event[:2] for event in events] == [("open", "github"), ("close", "github")]

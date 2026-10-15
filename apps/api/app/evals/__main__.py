@@ -15,8 +15,14 @@ from pathlib import Path
 from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from .. import retrieval
-from ..agents import CODE_AGENT_PROMPT, GITHUB_AGENT_PROMPT, AgentLimits
-from ..chat import CHAT_SYSTEM_PROMPT, agent_messages, create_chat_model
+from ..agents import (
+    CODE_AGENT_PROMPT,
+    DIRECT_ANSWER_PROMPT,
+    FINAL_ANSWER_PROMPT,
+    GITHUB_AGENT_PROMPT,
+    AgentLimits,
+)
+from ..chat import create_chat_model
 from ..config import get_settings
 from ..orchestration import SYNTHESIS_PROMPT, WorkflowResult, create_query_router
 from ..reranking import (
@@ -34,8 +40,8 @@ from .execution import (
     JSON_OBJECT,
     ROOT,
     CachedEmbeddings,
-    SingleAgentRunner,
-    SpecializedAgentRunner,
+    GraphRunner,
+    RetrievalRunner,
     connect_evaluation_database,
     corpus_documents,
     digest,
@@ -54,7 +60,8 @@ from .scoring import (
     score_semantics,
 )
 
-SCORER_VERSION = "1"
+SCORER_VERSION = "2"
+SCORER_V1_SHA256 = "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb"
 
 
 def aggregate(report: RunReport, category: str | None = None) -> dict[str, JsonValue]:
@@ -185,6 +192,9 @@ def write_report(report: RunReport, path: Path) -> None:
                         "grounding": case.grounding.model_dump()
                         if case.grounding
                         else None,
+                        "grounding_sections": [
+                            s.model_dump() for s in case.grounding_sections
+                        ],
                         "correctness": case.correctness.model_dump()
                         if case.correctness
                         else None,
@@ -396,7 +406,7 @@ def judge_agreement(before: RunReport, after: RunReport) -> dict[str, JsonValue]
     calibration = after.metadata.get("judge_calibration")
     calibration_passes = (
         isinstance(calibration, list)
-        and len(calibration) == 12
+        and len(calibration) == new_config.get("calibration_example_count", 12)
         and all(
             isinstance(row, dict) and row.get("passed") is True for row in calibration
         )
@@ -441,6 +451,9 @@ async def grade_report(
     dataset_path: Path,
     fixtures_path: Path,
     corpus_root: Path = ROOT,
+    *,
+    rescore: bool = False,
+    calibration_from: Path | None = None,
 ) -> None:
     """Calibrate and grade saved answers, retaining checkpoints after each case."""
     benchmark = load_benchmark(dataset_path, fixtures_path, corpus_root)
@@ -448,32 +461,103 @@ async def grade_report(
         report.metadata.get("dataset_sha256") != digest(dataset_path.read_text("utf-8"))
         or report.metadata.get("fixture_sha256")
         != digest(fixtures_path.read_text("utf-8"))
-        or report.metadata.get("scorer_sha256")
-        != digest(
-            (Path(__file__).parent / "scoring.py").read_text("utf-8"),
-        )
         or report.metadata.get("mode") != "full"
     ):
         raise ValueError("Saved run is not a compatible full-run artifact.")
+    scorer_hash = digest((Path(__file__).parent / "scoring.py").read_text("utf-8"))
+    old_scorer = report.metadata.get("scorer_sha256")
+    if old_scorer != scorer_hash and not (
+        rescore
+        and old_scorer == SCORER_V1_SHA256
+        and report.metadata.get("scorer_version") == "1"
+    ):
+        raise ValueError(
+            "Saved scorer differs; --rescore only accepts the known v1 scorer."
+        )
+    if rescore:
+        report.metadata["rescored_from"] = {
+            "scorer_version": report.metadata.get("scorer_version"),
+            "scorer_sha256": old_scorer,
+            "judge_configuration": report.metadata.get("judge_configuration"),
+        }
+        report.metadata["scorer_version"] = SCORER_VERSION
+        report.metadata["scorer_sha256"] = scorer_hash
     report.metadata["judge_configuration"] = judge.configuration
     report.metadata["judge_calibrated"] = False
     for case in report.cases:
         case.grounding, case.correctness = None, None
+        case.grounding_sections = []
+        case.judge_validation_errors = []
         for name in METRIC_NAMES[2:]:
             if name != "citation_validity":
                 case.metrics[name] = Metric()
         if case.error and case.error.startswith("grading:"):
             case.status, case.error = "completed", None
     write_report(report, path)
-    calibration = await judge.calibrate()
+    if calibration_from is None:
+        calibration = await judge.calibrate()
+    else:
+        previous = RunReport.model_validate_json(calibration_from.read_text("utf-8"))
+        calibration = TypeAdapter(list[dict[str, JsonValue]]).validate_python(
+            previous.metadata.get("judge_calibration")
+        )
+        if (
+            previous.metadata.get("judge_configuration") != judge.configuration
+            or previous.metadata.get("judge_calibrated") is not True
+            or len(calibration) != judge.configuration.get("calibration_example_count")
+            or not all(row.get("passed") is True for row in calibration)
+        ):
+            raise ValueError(
+                "Calibration reuse requires a complete passing run with "
+                "identical judge configuration."
+            )
+        report.metadata["judge_calibration_reused_from"] = {
+            "path": str(calibration_from),
+            "sha256": digest(calibration_from.read_text("utf-8")),
+        }
     report.metadata["judge_calibration"] = TypeAdapter(JsonValue).validate_python(
         calibration,
     )
-    if not all(row["passed"] is True for row in calibration):
+    if (
+        not calibration
+        or not all(row.get("passed") is True for row in calibration)
+        or (
+            "calibration_example_count" in judge.configuration
+            and len(calibration) != judge.configuration["calibration_example_count"]
+        )
+    ):
         write_report(report, path)
         raise ValueError("Judge failed calibration; semantic grades were not accepted.")
     report.metadata["judge_calibrated"] = True
     questions = {q.id: q for q in benchmark.dataset.questions}
+    if rescore:
+        for case in report.cases:
+            question = questions.get(case.case_id)
+            if question is None or question.question != case.question:
+                raise ValueError("Saved question does not match the dataset.")
+            retrieval_metrics, case.partial_overlap = score_retrieval(
+                question,
+                case.result,
+                benchmark.corpus,
+                benchmark.dataset.corpus_commit_sha,
+            )
+            case.metrics.update(retrieval_metrics)
+            case.metrics["final_evidence_coverage"], _ = score_final_evidence_coverage(
+                question,
+                case.result,
+                benchmark.corpus,
+                benchmark.dataset.corpus_commit_sha,
+            )
+            case.citations = referenced_citations(
+                case.result,
+                benchmark.corpus,
+                benchmark.dataset.corpus_commit_sha,
+                benchmark.dataset.repository,
+            )
+            case.metrics["citation_validity"] = score_semantics(
+                question, case.result, case.citations, None, None
+            )["citation_validity"]
+        write_report(report, path)
     report.metadata["grading_case_concurrency"] = 3
     semaphore = asyncio.Semaphore(3)
 
@@ -582,6 +666,11 @@ async def run(args: argparse.Namespace) -> int:
         raise ValueError("Timeout must be positive.")
     output = args.output or ARTIFACTS / f"{args.experiment}.json"
     if args.command == "grade":
+        if args.rescore and args.input.resolve() == output.resolve():
+            raise ValueError(
+                "Rescoring requires a distinct output path; preserve the "
+                "historical report."
+            )
         report = RunReport.model_validate_json(args.input.read_text("utf-8"))
         await grade_report(
             report,
@@ -594,6 +683,8 @@ async def run(args: argparse.Namespace) -> int:
             args.dataset,
             args.fixtures,
             args.corpus_root,
+            rescore=args.rescore,
+            calibration_from=args.calibration_from,
         )
         return int(any(c.status == "error" for c in report.cases))
     benchmark = load_benchmark(args.dataset, args.fixtures, args.corpus_root)
@@ -616,15 +707,6 @@ async def run(args: argparse.Namespace) -> int:
         ]
         if selected - {q.id for q in benchmark.dataset.questions}:
             raise ValueError("Unknown selected case ID.")
-        specialist = getattr(args, "agent", "single")
-        if specialist in {"code", "github"}:
-            expected_scope = "CODE" if specialist == "code" else "GITHUB"
-            if selected and any(q.evidence_scope != expected_scope for q in questions):
-                raise ValueError(
-                    "Selected cases must match the requested specialist; "
-                    "Use --agent graph for MIXED cases."
-                )
-            questions = [q for q in questions if q.evidence_scope == expected_scope]
         retrieval_mode = (
             args.retrieval_mode if args.command == "retrieval" else "hybrid"
         )
@@ -659,7 +741,9 @@ async def run(args: argparse.Namespace) -> int:
             "experiment_name": args.experiment,
             "mode": args.command,
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "architecture": "single_agent",
+            "architecture": "multi_agent_graph"
+            if args.command == "full"
+            else "hybrid_retrieval",
             "retrieval_mode": retrieval_mode,
             "dataset_version": benchmark.dataset.version,
             "dataset_sha256": digest(args.dataset.read_text("utf-8")),
@@ -686,7 +770,12 @@ async def run(args: argparse.Namespace) -> int:
                 )
             ),
             "prompt_sha256": digest(
-                CHAT_SYSTEM_PROMPT + inspect.getsource(agent_messages)
+                CODE_AGENT_PROMPT
+                + GITHUB_AGENT_PROMPT
+                + SYNTHESIS_PROMPT
+                + DIRECT_ANSWER_PROMPT
+                + FINAL_ANSWER_PROMPT
+                + inspect.getsource(create_query_router)
             ),
             "scorer_version": SCORER_VERSION,
             "scorer_sha256": digest(
@@ -750,20 +839,7 @@ async def run(args: argparse.Namespace) -> int:
             if isinstance(versions, dict):
                 for name in ("sentence-transformers", "transformers", "torch"):
                     versions[name] = importlib.metadata.version(name)
-        if specialist != "single":
-            metadata["architecture"] = (
-                "multi_agent_graph" if specialist == "graph" else f"{specialist}_agent"
-            )
-            metadata["prompt_sha256"] = digest(
-                CODE_AGENT_PROMPT
-                + GITHUB_AGENT_PROMPT
-                + SYNTHESIS_PROMPT
-                + inspect.getsource(create_query_router)
-                if specialist == "graph"
-                else CODE_AGENT_PROMPT
-                if specialist == "code"
-                else GITHUB_AGENT_PROMPT
-            )
+        if args.command == "full":
             metadata["agent_limits"] = AgentLimits(
                 tool_calls=args.tool_call_limit,
                 model_calls=args.model_call_limit,
@@ -772,12 +848,14 @@ async def run(args: argparse.Namespace) -> int:
             metadata["retrieval_evaluation_policy"] = "first_search_batch_at_6"
             metadata["final_evidence_policy"] = "all_observed_searches_and_file_reads"
             metadata["investigations"] = {}
-            if specialist == "graph":
-                metadata["timeout_policy"] = (
-                    "per_investigation_and_synthesis; "
-                    "router/discovery deadlines are separate"
-                )
-                metadata["max_synthesis_calls"] = 1
+            metadata["timeout_policy"] = (
+                "per_investigation_and_synthesis; "
+                "separate_router_and_discovery_deadlines"
+            )
+            metadata["max_synthesis_calls"] = 1
+            metadata["specialist_final_answer_calls"] = (
+                "native_final_generation; no_extra_call"
+            )
         report = RunReport(metadata=metadata)
         write_report(report, output)
         for question in questions:
@@ -796,35 +874,30 @@ async def run(args: argparse.Namespace) -> int:
                         question.fixture_scenario,
                         records,
                     )
-                    if args.command == "full" and specialist != "code"
+                    if args.command == "full"
                     else []
                 )
-                if specialist == "single":
-                    runner = SingleAgentRunner(
+                if args.command == "retrieval":
+                    runner = RetrievalRunner(
                         connection,
                         embedding,
                         repository_id,
                         benchmark.dataset.corpus_commit_sha,
                         benchmark.dataset.repository,
-                        tools,
-                        records,
-                        retrieval_only=args.command == "retrieval",
                         vector_k=vector_k,
                         keyword_k=keyword_k,
                         rerank=rerank,
                     )
+                    case.result = await asyncio.wait_for(
+                        runner.run(question.question), timeout=args.timeout
+                    )
                 else:
-                    runner = SpecializedAgentRunner(
+                    runner = GraphRunner(
                         connection,
                         embedding,
                         repository_id,
                         benchmark.dataset.corpus_commit_sha,
                         benchmark.dataset.repository,
-                        "GRAPH"
-                        if specialist == "graph"
-                        else "CODE"
-                        if specialist == "code"
-                        else "GITHUB",
                         create_chat_model(),
                         tools,
                         records,
@@ -834,19 +907,8 @@ async def run(args: argparse.Namespace) -> int:
                             model_calls=args.model_call_limit,
                             timeout_seconds=args.timeout,
                         ),
-                        router_model=create_chat_model(purpose="router")
-                        if specialist == "graph"
-                        else None,
+                        router_model=create_chat_model(purpose="router"),
                     )
-                if specialist == "single":
-                    case.result = await asyncio.wait_for(
-                        runner.run(question.question),
-                        timeout=args.timeout,
-                    )
-                else:
-                    # The specialist owns its deadline inside the MCP scope and
-                    # returns partial findings. An outer timeout would cancel it
-                    # before those findings and evidence could be retained.
                     case.result = await runner.run(question.question)
                 retrieval_metrics, case.partial_overlap = score_retrieval(
                     question,
@@ -855,7 +917,7 @@ async def run(args: argparse.Namespace) -> int:
                     benchmark.dataset.corpus_commit_sha,
                 )
                 case.metrics.update(retrieval_metrics)
-                if specialist in {"code", "graph"}:
+                if args.command == "full":
                     coverage, overlaps = score_final_evidence_coverage(
                         question,
                         case.result,
@@ -890,19 +952,20 @@ async def run(args: argparse.Namespace) -> int:
                     )
             except Exception as error:
                 case.status, case.error = "error", f"execution: {type(error).__name__}"
-                if isinstance(runner, SpecializedAgentRunner):
+                if isinstance(runner, GraphRunner):
                     case.result = runner.last_result
                 else:
                     case.result.tool_executions = list(records)
                 for name, metric in case.metrics.items():
                     if metric.status == "unscored":
                         case.metrics[name] = Metric(status="error")
-            if isinstance(runner, SpecializedAgentRunner) and runner.last_findings:
+            if isinstance(runner, GraphRunner) and runner.last_findings:
                 findings = runner.last_findings
                 investigations = report.metadata.get("investigations")
                 if isinstance(investigations, dict):
                     details = investigations.get(question.id, {})
                     if isinstance(details, dict):
+                        details["execution"] = runner.statistics
                         details.update(
                             JSON_OBJECT.validate_python(
                                 {
@@ -991,7 +1054,7 @@ def main() -> int:
         command.add_argument("--dataset", type=Path, default=DATA / "dataset.json")
         command.add_argument("--fixtures", type=Path, default=DATA / "github.json")
         command.add_argument("--corpus-root", type=Path, default=ROOT)
-        command.add_argument("--experiment", default="single-agent-v1")
+        command.add_argument("--experiment", default="graph-v1")
         command.add_argument("--output", type=Path)
         command.add_argument("--timeout", type=float, default=120)
         if name in {"retrieval", "full"}:
@@ -1023,15 +1086,20 @@ def main() -> int:
                 choices=("none", "low", "medium", "high", "xhigh"),
             )
         if name == "full":
-            command.add_argument(
-                "--agent",
-                choices=("single", "code", "github", "graph"),
-                default="single",
-            )
             command.add_argument("--tool-call-limit", type=int, default=6)
             command.add_argument("--model-call-limit", type=int, default=8)
         if name == "grade":
             command.add_argument("input", type=Path)
+            command.add_argument(
+                "--rescore",
+                action="store_true",
+                help="Recompute deterministic metrics from the known v1 scorer",
+            )
+            command.add_argument(
+                "--calibration-from",
+                type=Path,
+                help="Reuse passing calibration with identical judge configuration",
+            )
     comparison = commands.add_parser("compare")
     comparison.add_argument("before", type=Path)
     comparison.add_argument("after", type=Path)

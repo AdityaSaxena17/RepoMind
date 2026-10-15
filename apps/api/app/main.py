@@ -1,6 +1,8 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import asyncpg
 from fastapi import FastAPI
 
 from .config import get_settings
@@ -10,11 +12,21 @@ from .routers.repositories import router as repositories_router
 
 
 @asynccontextmanager
-async def redis_lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Own the queue/cache client and database pool for this API process."""
     app.state.redis = await create_redis_pool()
-
     try:
-        yield
+        app.state.database_pool = await asyncpg.create_pool(
+            get_settings().database_url,
+            min_size=1,
+            max_size=10,
+            timeout=10,
+            command_timeout=60,
+        )
+        try:
+            yield
+        finally:
+            await asyncio.wait_for(app.state.database_pool.close(), timeout=10)
     finally:
         await app.state.redis.aclose()
 
@@ -23,7 +35,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="RepoMind API",
         version="0.1.0",
-        lifespan=redis_lifespan,
+        lifespan=application_lifespan,
     )
 
     app.include_router(repositories_router, prefix="/api/v1")

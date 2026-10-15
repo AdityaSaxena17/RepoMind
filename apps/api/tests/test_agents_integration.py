@@ -15,11 +15,12 @@ from test_evals import FakeEmbeddings
 from test_repository_graph import RouterModel
 
 from app import worker
+from app.agents import FINAL_ANSWER_MARKER, PARTIAL_ANSWER_PREFIX
 from app.code_tools import CodeTools
 from app.config import get_settings, normalize_asyncpg_database_url
 from app.evals.execution import (
     Benchmark,
-    SpecializedAgentRunner,
+    GraphRunner,
     connect_evaluation_database,
     fixture_tools,
     prepare_index,
@@ -105,23 +106,29 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                 repository_id,
             )
             before = await connection.fetchval('SELECT count(*) FROM "User"')
-            code_runner = SpecializedAgentRunner(
+            code_runner = GraphRunner(
                 connection,
                 embeddings,
                 repository_id,
                 sha,
                 dataset.repository,
-                "CODE",
                 ScriptedModel(
                     responses=[
                         call(
                             "search_repository_code", {"query": "unique_agent_symbol"}
                         ),
-                        summary(),
+                        AIMessage(content=FINAL_ANSWER_MARKER + "Observed code [1]."),
                     ]
                 ),
                 [],
                 [],
+                router_model=RouterModel(
+                    responses=[
+                        AIMessage(
+                            content=json.dumps({"scope": "CODE", "clarification": None})
+                        )
+                    ]
+                ),
             )
             code_result = await code_runner.run("Explain unique_agent_symbol.")
             assert len(code_result.final_contexts) == 1
@@ -149,37 +156,55 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                 },
             )
             records = []
-            github_runner = SpecializedAgentRunner(
+            github_runner = GraphRunner(
                 connection,
                 embeddings,
                 repository_id,
                 sha,
                 dataset.repository,
-                "GITHUB",
                 ScriptedModel(
                     responses=[
                         call("issue_read", {"issue_number": 1}),
-                        summary(url, [url]),
+                        AIMessage(content=FINAL_ANSWER_MARKER + url),
                     ]
                 ),
                 await fixture_tools(fixtures, "one", records),
                 records,
+                router_model=RouterModel(
+                    responses=[
+                        AIMessage(
+                            content=json.dumps(
+                                {"scope": "GITHUB", "clarification": None}
+                            )
+                        )
+                    ]
+                ),
             )
             github_result = await github_runner.run("Read issue 1.")
             assert github_result.final_contexts == []
             assert github_result.tool_executions[0].arguments["method"] == "get"
             assert github_result.tool_executions[0].arguments["per_page"] == 10
             assert github_runner.last_findings.status == "complete"
-            failed_runner = SpecializedAgentRunner(
+            failed_runner = GraphRunner(
                 connection,
                 embeddings,
                 repository_id,
                 sha,
                 dataset.repository,
-                "CODE",
-                ScriptedModel(responses=[summary(sources=["invented"])]),
+                ScriptedModel(
+                    responses=[
+                        AIMessage(content=FINAL_ANSWER_MARKER + "Invented [999].")
+                    ]
+                ),
                 [],
                 [],
+                router_model=RouterModel(
+                    responses=[
+                        AIMessage(
+                            content=json.dumps({"scope": "CODE", "clarification": None})
+                        )
+                    ]
+                ),
             )
             with pytest.raises(RuntimeError, match="Specialized investigation failed"):
                 await failed_runner.run("question")
@@ -202,6 +227,10 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                                 "code",
                             )
                             if initial
+                            else AIMessage(
+                                content=FINAL_ANSWER_MARKER + "Observed code [1]."
+                            )
+                            if "<final_answer>" in prompt
                             else summary()
                         )
                     elif prompt.startswith("You are RepoMind's GitHub Agent."):
@@ -216,12 +245,19 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                                 "github",
                             )
                             if initial
+                            else AIMessage(content=FINAL_ANSWER_MARKER + url)
+                            if "<final_answer>" in prompt
                             else summary(url, [url])
                         )
                     else:
-                        message = summary(
-                            f"Code [1] and issue {url}.",
-                            ["invented"] if self.broken_summary else ["1", url],
+                        message = AIMessage(
+                            content=FINAL_ANSWER_MARKER
+                            + (PARTIAL_ANSWER_PREFIX if self.missing_fixture else "")
+                            + (
+                                "Invented [999]."
+                                if self.broken_summary
+                                else f"Code [1] and issue {url}."
+                            )
                         )
                     return ChatResult(generations=[ChatGeneration(message=message)])
 
@@ -234,13 +270,12 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                 ("MIXED", "PARALLEL", False, True),
             ):
                 graph_records = []
-                graph_runner = SpecializedAgentRunner(
+                graph_runner = GraphRunner(
                     connection,
                     embeddings,
                     repository_id,
                     sha,
                     dataset.repository,
-                    "GRAPH",
                     RoleModel(
                         responses=[],
                         broken_summary=broken,
@@ -256,6 +291,12 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                                         "scope": scope,
                                         "clarification": None,
                                         "mixed_strategy": strategy,
+                                        "code_task": "Read indexed app.py."
+                                        if scope == "MIXED"
+                                        else None,
+                                        "github_task": "Read live issue #1."
+                                        if scope == "MIXED"
+                                        else None,
                                     }
                                 )
                             )
@@ -268,7 +309,9 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                     ):
                         await graph_runner.run("Explain the indexed code and issue.")
                     graph_result = graph_runner.last_result
-                    assert graph_result.evidence_seen and not graph_result.answer
+                    assert graph_result.evidence_seen
+                    assert graph_runner.last_findings.status == "failed"
+                    assert graph_runner.last_findings.errors[-1].kind == "validation"
                 else:
                     graph_result = await graph_runner.run(
                         "Explain the indexed code and issue."
@@ -304,13 +347,12 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
                     cancel_started.set()
                     await asyncio.sleep(10)
 
-            cancel_runner = SpecializedAgentRunner(
+            cancel_runner = GraphRunner(
                 connection,
                 embeddings,
                 repository_id,
                 sha,
                 dataset.repository,
-                "GRAPH",
                 BlockingModel(responses=[]),
                 [],
                 [],
