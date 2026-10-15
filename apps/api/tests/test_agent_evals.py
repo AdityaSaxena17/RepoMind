@@ -20,6 +20,7 @@ from app.evals.models import (
     Span,
 )
 from app.evals.scoring import referenced_citations, score_retrieval
+from app.orchestration import RouteDecision, WorkflowResult
 
 
 def test_iterative_coverage_is_separate_from_unchanged_first_pass_at_six() -> None:
@@ -95,7 +96,7 @@ def test_iterative_coverage_is_separate_from_unchanged_first_pass_at_six() -> No
         score_final_evidence_coverage(question, result, corpus, sha)
 
 
-@pytest.mark.parametrize("role", ["code", "github"])
+@pytest.mark.parametrize("role", ["code", "github", "graph"])
 @pytest.mark.parametrize("fail_first", [False, True])
 def test_specialist_cli_records_findings_and_continues_after_failure(
     monkeypatch: pytest.MonkeyPatch,
@@ -123,11 +124,20 @@ def test_specialist_cli_records_findings_and_continues_after_failure(
             assert args[5] == role.upper()
             self.last_result = EvaluationResult()
             self.first_query = None
-            self.last_findings = AgentFindings(
-                role=role.upper(),
-                status="incomplete",
-                missing_information=["No supporting evidence was found."],
-            )
+            if role == "graph":
+                self.last_findings = WorkflowResult(
+                    decision=RouteDecision(
+                        scope="MIXED", clarification=None, mixed_strategy="PARALLEL"
+                    ),
+                    status="incomplete",
+                    missing_information=["No supporting evidence was found."],
+                )
+            else:
+                self.last_findings = AgentFindings(
+                    role=role.upper(),
+                    status="incomplete",
+                    missing_information=["No supporting evidence was found."],
+                )
 
         async def run(self, question: str) -> EvaluationResult:
             prompts.append(question)
@@ -154,27 +164,31 @@ def test_specialist_cli_records_findings_and_continues_after_failure(
         dataset=DATA / "dataset.json",
         fixtures=DATA / "github.json",
         corpus_root=ROOT,
-        case=[f"{role}-01", f"{role}-02"],
+        case=["code-01", "github-01", "mixed-01"]
+        if role == "graph"
+        else [f"{role}-01", f"{role}-02"],
         rerank=False,
         judge_model=None,
     )
     try:
         assert asyncio.run(cli.run(args)) == int(fail_first)
         report = RunReport.model_validate_json(output.read_text("utf-8"))
-        assert report.metadata["architecture"] == f"{role}_agent"
+        assert report.metadata["architecture"] == (
+            "multi_agent_graph" if role == "graph" else f"{role}_agent"
+        )
         assert report.metadata["agent_limits"]["tool_calls"] == 2
         assert [case.question for case in report.cases] == prompts
         assert [case.status for case in report.cases] == [
             "error" if fail_first else "completed",
-            "completed",
+            *["completed"] * (len(args.case) - 1),
         ]
         details = report.metadata["investigations"]
-        assert details[f"{role}-01"]["status"] == (
+        assert details[args.case[0]]["status"] == (
             "failed" if fail_first else "incomplete"
         )
-        assert details[f"{role}-02"]["missing_information"]
+        assert details[args.case[-1]]["missing_information"]
         assert ("final_evidence_coverage" in report.cases[1].metrics) == (
-            role == "code"
+            role in {"code", "graph"}
         )
         assert closed == [True]
     finally:

@@ -28,6 +28,7 @@ from ..chat import stream_repository_answer
 from ..code_tools import CodeTools
 from ..config import get_settings, normalize_asyncpg_database_url
 from ..github_mcp_server import mcp, search_query, validate_page
+from ..orchestration import WorkflowResult, create_repository_graph
 from ..retrieval import (
     KEYWORD_CANDIDATES,
     VECTOR_CANDIDATES,
@@ -676,13 +677,14 @@ class SpecializedAgentRunner:
         repository_id: str,
         commit_sha: str,
         repository: str,
-        role: Literal["CODE", "GITHUB"],
+        role: Literal["CODE", "GITHUB", "GRAPH"],
         model: BaseChatModel,
         tools: list[BaseTool],
         tool_records: list[ToolExecution],
         *,
         limits: AgentLimits | None = None,
         rerank: bool = False,
+        router_model: BaseChatModel | None = None,
     ) -> None:
         self.connection, self.embeddings = connection, embeddings
         self.repository_id, self.commit_sha, self.repository = (
@@ -693,7 +695,10 @@ class SpecializedAgentRunner:
         self.role, self.model, self.tools = role, model, tools
         self.tool_records, self.rerank = tool_records, rerank
         self.limits = limits or AgentLimits()
-        self.last_findings: AgentFindings | None = None
+        self.router_model = router_model
+        if role == "GRAPH" and router_model is None:
+            raise ValueError("Graph evaluation requires the configured router model.")
+        self.last_findings: AgentFindings | WorkflowResult | None = None
         self.last_result = EvaluationResult()
         self.first_query: str | None = None
 
@@ -708,6 +713,7 @@ class SpecializedAgentRunner:
                 "Specialist evaluation requires the dedicated eval database and role."
             )
         user_id = f"eval_agent_{uuid.uuid4().hex}"
+        pool = None
         try:
             async with connection.transaction():
                 await connection.execute(
@@ -730,14 +736,50 @@ class SpecializedAgentRunner:
                     capabilities=frozenset({"code.read", "github.read"}),
                 )
             )
+            if self.role == "GRAPH":
+                # Revalidate the configured URL/role before opening independent
+                # pooled connections; never borrow the seeding connection in nodes.
+                probe = await connect_evaluation_database()
+                await probe.close()
+                pool = await asyncpg.create_pool(
+                    normalize_asyncpg_database_url(os.environ["EVAL_DATABASE_URL"]),
+                    min_size=1,
+                    max_size=4,
+                    timeout=10,
+                    command_timeout=60,
+                )
             code_tools = CodeTools(
                 registry,
                 self.embeddings,
                 self.commit_sha,
-                connection=connection,
+                connection=connection if pool is None else None,
+                pool=pool,
                 rerank=self.rerank,
             )
-            if self.role == "CODE":
+            if self.role != "CODE":
+                for tool in self.tools:
+                    metadata = tool.metadata or {}
+                    policy = parse_tool_policy(metadata.get("_meta"), metadata)
+                    if policy is None or policy.capability != "github.read":
+                        raise ValueError("GitHub fixture tool has an invalid policy.")
+                    registry.register_local(tool, policy, code_tools.authorize)
+            findings: AgentFindings | WorkflowResult
+            if self.role == "GRAPH":
+                if self.router_model is None:
+                    raise ValueError("Graph router model is unavailable.")
+                graph = create_repository_graph(
+                    self.router_model,
+                    self.model,
+                    self.model,
+                    self.model,
+                    registry=registry,
+                    code_tools=code_tools,
+                    limits=self.limits,
+                )
+                findings = (await graph.ainvoke({"question": question, "history": []}))[
+                    "result"
+                ]
+            elif self.role == "CODE":
                 findings = await investigate_code(
                     self.model,
                     registry,
@@ -746,12 +788,6 @@ class SpecializedAgentRunner:
                     limits=self.limits,
                 )
             else:
-                for tool in self.tools:
-                    metadata = tool.metadata or {}
-                    policy = parse_tool_policy(metadata.get("_meta"), metadata)
-                    if policy is None or policy.capability != "github.read":
-                        raise ValueError("GitHub fixture tool has an invalid policy.")
-                    registry.register_local(tool, policy, code_tools.authorize)
                 findings = await investigate_github(
                     self.model,
                     registry,
@@ -764,6 +800,58 @@ class SpecializedAgentRunner:
                 for source in findings.evidence
             ]
             visible_ids = {context.id for context in contexts}
+            fixture_defaults = {
+                tool.name: {
+                    name: definition["default"]
+                    for name, definition in tool.args.items()
+                    if "default" in definition
+                }
+                for tool in self.tools
+            }
+            executions: list[ToolExecution] = []
+            if self.role != "GITHUB":
+                for record in findings.tool_executions:
+                    arguments = record.arguments
+                    if record.name in fixture_defaults:
+                        registration = mcp._tool_manager.get_tool(record.name)
+                        if registration is None:
+                            raise ValueError(
+                                "GitHub fixture registration is unavailable."
+                            )
+                        try:
+                            arguments = JSON_OBJECT.validate_python(
+                                registration.fn_metadata.arg_model.model_validate(
+                                    record.arguments
+                                ).model_dump(mode="json")
+                            )
+                        except ValidationError:
+                            # Failed fixture validation retains the attempted input,
+                            # exactly as fixture_tools does in its execution record.
+                            arguments = {
+                                **fixture_defaults[record.name],
+                                **record.arguments,
+                            }
+                    error = (
+                        record.message.text
+                        if record.message.status == "error"
+                        else None
+                    )
+                    executions.append(
+                        ToolExecution(
+                            id=record.id,
+                            name=record.name,
+                            arguments=arguments,
+                            result=record.result,
+                            error=error,
+                            fixture_miss=any(
+                                entry.fixture_miss
+                                and entry.name == record.name
+                                and entry.arguments == arguments
+                                and entry.error == error
+                                for entry in self.tool_records
+                            ),
+                        )
+                    )
             self.last_result = EvaluationResult(
                 answer=findings.answer,
                 final_contexts=[
@@ -773,26 +861,13 @@ class SpecializedAgentRunner:
                 ],
                 evidence_seen=contexts,
                 tool_executions=(
-                    list(self.tool_records)
-                    if self.role == "GITHUB"
-                    else [
-                        ToolExecution(
-                            id=record.id,
-                            name=record.name,
-                            arguments=record.arguments,
-                            result=record.result,
-                            error=record.message.text
-                            if record.message.status == "error"
-                            else None,
-                        )
-                        for record in findings.tool_executions
-                    ]
+                    list(self.tool_records) if self.role == "GITHUB" else executions
                 ),
             )
             self.last_result.citation_catalog = build_catalog(
                 self.last_result, self.repository
             )
-            if self.role == "CODE":
+            if self.role in {"CODE", "GRAPH"}:
                 self.last_result.citation_catalog.update(findings.citation_catalog)
             if findings.status == "failed":
                 raise RuntimeError(
@@ -803,4 +878,10 @@ class SpecializedAgentRunner:
             # All agent/tool scopes have unwound before eval-only writes resume.
             # UserRepository cascades on delete, including cancellation paths.
             with anyio.CancelScope(shield=True):
-                await connection.execute('DELETE FROM "User" WHERE "id"=$1', user_id)
+                try:
+                    if pool is not None:
+                        await pool.close()
+                finally:
+                    await connection.execute(
+                        'DELETE FROM "User" WHERE "id"=$1', user_id
+                    )

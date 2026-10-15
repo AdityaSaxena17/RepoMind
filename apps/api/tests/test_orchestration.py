@@ -74,15 +74,29 @@ def provider(
         get_settings.cache_clear()
 
 
-@pytest.mark.parametrize("scope", ["CODE", "GITHUB", "MIXED", None])
+@pytest.mark.parametrize(
+    "scope,strategy",
+    [
+        ("CODE", None),
+        ("GITHUB", None),
+        ("MIXED", "PARALLEL"),
+        ("MIXED", "GITHUB_THEN_CODE"),
+        (None, None),
+    ],
+)
 def test_router_uses_validated_json_without_research(
     scope: str | None,
+    strategy: str | None,
     provider: Provider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     requests, replies = provider
     clarification = "Which problem and change do you mean?" if scope is None else None
-    replies.append(json.dumps({"scope": scope, "clarification": clarification}))
+    replies.append(
+        json.dumps(
+            {"scope": scope, "clarification": clarification, "mixed_strategy": strategy}
+        )
+    )
 
     def unexpected_research(*_args: object, **_kwargs: object) -> NoReturn:
         pytest.fail("Routing must not start retrieval, MCP, or answer generation.")
@@ -101,7 +115,9 @@ def test_router_uses_validated_json_without_research(
         router.ainvoke({"question": "What do its comments say?", "history": history})
     )
     assert result == {
-        "decision": RouteDecision(scope=scope, clarification=clarification)
+        "decision": RouteDecision(
+            scope=scope, clarification=clarification, mixed_strategy=strategy
+        )
     }
     assert len(requests) == 1
     request = requests[0]
@@ -132,6 +148,10 @@ def test_router_uses_validated_json_without_research(
         '{"scope":"CODE","clarification":null,"extra":true}',
         '{"scope":"CODE"}',
         '{"scope":null,"clarification":42}',
+        '{"scope":"MIXED","clarification":null}',
+        '{"scope":"MIXED","clarification":null,"mixed_strategy":"OTHER"}',
+        '{"scope":"CODE","clarification":null,"mixed_strategy":"PARALLEL"}',
+        '{"scope":null,"clarification":"Which?","mixed_strategy":"GITHUB_THEN_CODE"}',
     ],
 )
 def test_invalid_decisions_are_rejected(reply: str) -> None:
@@ -308,7 +328,15 @@ def test_benchmark_questions_use_question_only_contract(
 ) -> None:
     requests, replies = provider
     replies.append(
-        json.dumps({"scope": question.evidence_scope, "clarification": None})
+        json.dumps(
+            {
+                "scope": question.evidence_scope,
+                "clarification": None,
+                "mixed_strategy": "PARALLEL"
+                if question.evidence_scope == "MIXED"
+                else None,
+            }
+        )
     )
     router = create_query_router(chat.create_chat_model(purpose="router"))
     result = asyncio.run(router.ainvoke({"question": question.question, "history": []}))

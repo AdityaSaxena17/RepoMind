@@ -16,6 +16,8 @@ from langchain_mcp_adapters.sessions import Connection
 from langchain_mcp_adapters.tools import load_mcp_tools
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from .tool_errors import AUTHORIZATION_ERRORS, ScopeViolationError, ToolFailureKind
+
 Capability = Literal["code.read", "github.read"]
 DISCOVERY_TIMEOUT_SECONDS = 20
 INVOCATION_TIMEOUT_SECONDS = 30
@@ -135,7 +137,7 @@ class _GuardedTool(BaseTool):
         try:
             with anyio.fail_after(INVOCATION_TIMEOUT_SECONDS):
                 if not self.scope.active:
-                    raise ToolException("Tool scope is closed.")
+                    raise ScopeViolationError("Tool scope is closed.")
                 capability = self.descriptor.policy.capability
                 if (
                     capability not in self.scope.capabilities
@@ -145,28 +147,50 @@ class _GuardedTool(BaseTool):
                 if self.authorize is not None:
                     await self.authorize(self.scope.request)
                     if not self.scope.active:
-                        raise ToolException("Tool scope closed during authorization.")
+                        raise ScopeViolationError(
+                            "Tool scope closed during authorization."
+                        )
                 # Database ownership and concurrency belong to the local tool.
                 # Delegate the full native invocation to retain callbacks/artifacts.
-                return await invoke()
+                result = await invoke()
+                if isinstance(result, ToolMessage) and result.status == "error":
+                    # FastMCP serializes server exceptions as text; retain explicit
+                    # security markers from our trusted server for orchestration.
+                    kind: ToolFailureKind = "execution"
+                    if "[repomind:authorization]" in result.text:
+                        kind = "authorization"
+                    elif "[repomind:scope]" in result.text:
+                        kind = "scope"
+                    result.additional_kwargs["repomind_error_kind"] = kind
+                return result
         except Exception as error:
             context = f"Tool '{self.name}' from '{self.descriptor.provider}'"
             if isinstance(error, TimeoutError):
                 message = f"{context} timed out."
-            elif isinstance(error, PermissionError):
+                kind = "timeout"
+            elif isinstance(error, ScopeViolationError) or not self.scope.active:
+                message = (
+                    f"{context} cannot run after its scope closes."
+                    if not self.scope.active
+                    else f"{context} violated its request scope."
+                )
+                kind = "scope"
+            elif isinstance(error, AUTHORIZATION_ERRORS):
                 message = f"{context} is not authorized."
-            elif not self.scope.active:
-                message = f"{context} cannot run after its scope closes."
+                kind = "authorization"
             elif isinstance(error, ToolException) and self.authorize is not None:
                 message = f"{context}: {error}"
+                kind = "execution"
             else:
                 message = f"{context} failed."
+                kind = "execution"
             if call_id is not None:
                 return ToolMessage(
                     content=message,
                     tool_call_id=call_id,
                     name=self.name,
                     status="error",
+                    additional_kwargs={"repomind_error_kind": kind},
                 )
             raise ToolException(message) from error
 
@@ -275,7 +299,9 @@ class ToolRegistry:
                                 None,
                                 provider.name,
                             ):
-                                raise ValueError(f"Tool name collision: {tool.name}.")
+                                raise ScopeViolationError(
+                                    f"Tool name collision: {tool.name}."
+                                )
                             batch_names.add(tool.name)
                         self._names.update(
                             {name: provider.name for name in batch_names}

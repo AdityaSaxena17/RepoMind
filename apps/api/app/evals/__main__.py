@@ -18,6 +18,7 @@ from .. import retrieval
 from ..agents import CODE_AGENT_PROMPT, GITHUB_AGENT_PROMPT, AgentLimits
 from ..chat import CHAT_SYSTEM_PROMPT, agent_messages, create_chat_model
 from ..config import get_settings
+from ..orchestration import SYNTHESIS_PROMPT, WorkflowResult, create_query_router
 from ..reranking import (
     RERANKER_BATCH_SIZE,
     RERANKER_INSTRUCTION,
@@ -616,12 +617,12 @@ async def run(args: argparse.Namespace) -> int:
         if selected - {q.id for q in benchmark.dataset.questions}:
             raise ValueError("Unknown selected case ID.")
         specialist = getattr(args, "agent", "single")
-        if specialist != "single":
+        if specialist in {"code", "github"}:
             expected_scope = "CODE" if specialist == "code" else "GITHUB"
             if selected and any(q.evidence_scope != expected_scope for q in questions):
                 raise ValueError(
                     "Selected cases must match the requested specialist; "
-                    "MIXED is not implemented."
+                    "Use --agent graph for MIXED cases."
                 )
             questions = [q for q in questions if q.evidence_scope == expected_scope]
         retrieval_mode = (
@@ -750,9 +751,18 @@ async def run(args: argparse.Namespace) -> int:
                 for name in ("sentence-transformers", "transformers", "torch"):
                     versions[name] = importlib.metadata.version(name)
         if specialist != "single":
-            metadata["architecture"] = f"{specialist}_agent"
+            metadata["architecture"] = (
+                "multi_agent_graph" if specialist == "graph" else f"{specialist}_agent"
+            )
             metadata["prompt_sha256"] = digest(
-                CODE_AGENT_PROMPT if specialist == "code" else GITHUB_AGENT_PROMPT
+                CODE_AGENT_PROMPT
+                + GITHUB_AGENT_PROMPT
+                + SYNTHESIS_PROMPT
+                + inspect.getsource(create_query_router)
+                if specialist == "graph"
+                else CODE_AGENT_PROMPT
+                if specialist == "code"
+                else GITHUB_AGENT_PROMPT
             )
             metadata["agent_limits"] = AgentLimits(
                 tool_calls=args.tool_call_limit,
@@ -762,6 +772,12 @@ async def run(args: argparse.Namespace) -> int:
             metadata["retrieval_evaluation_policy"] = "first_search_batch_at_6"
             metadata["final_evidence_policy"] = "all_observed_searches_and_file_reads"
             metadata["investigations"] = {}
+            if specialist == "graph":
+                metadata["timeout_policy"] = (
+                    "per_investigation_and_synthesis; "
+                    "router/discovery deadlines are separate"
+                )
+                metadata["max_synthesis_calls"] = 1
         report = RunReport(metadata=metadata)
         write_report(report, output)
         for question in questions:
@@ -804,7 +820,11 @@ async def run(args: argparse.Namespace) -> int:
                         repository_id,
                         benchmark.dataset.corpus_commit_sha,
                         benchmark.dataset.repository,
-                        "CODE" if specialist == "code" else "GITHUB",
+                        "GRAPH"
+                        if specialist == "graph"
+                        else "CODE"
+                        if specialist == "code"
+                        else "GITHUB",
                         create_chat_model(),
                         tools,
                         records,
@@ -814,6 +834,9 @@ async def run(args: argparse.Namespace) -> int:
                             model_calls=args.model_call_limit,
                             timeout_seconds=args.timeout,
                         ),
+                        router_model=create_chat_model(purpose="router")
+                        if specialist == "graph"
+                        else None,
                     )
                 if specialist == "single":
                     case.result = await asyncio.wait_for(
@@ -832,7 +855,7 @@ async def run(args: argparse.Namespace) -> int:
                     benchmark.dataset.corpus_commit_sha,
                 )
                 case.metrics.update(retrieval_metrics)
-                if specialist == "code":
+                if specialist in {"code", "graph"}:
                     coverage, overlaps = score_final_evidence_coverage(
                         question,
                         case.result,
@@ -901,6 +924,26 @@ async def run(args: argparse.Namespace) -> int:
                             )
                         )
                         investigations[question.id] = details
+                        if isinstance(findings, WorkflowResult):
+                            details["decision"] = JSON_OBJECT.validate_python(
+                                findings.decision.model_dump(mode="json")
+                            )
+                            details["agents"] = {
+                                role: JSON_OBJECT.validate_python(
+                                    {
+                                        "status": value.status,
+                                        "answer": value.answer,
+                                        "missing_information": (
+                                            value.missing_information
+                                        ),
+                                        "errors": [
+                                            e.model_dump(mode="json")
+                                            for e in value.errors
+                                        ],
+                                    }
+                                )
+                                for role, value in findings.findings.items()
+                            }
             report.cases.append(case)
             write_report(report, output)
             print(f"Evaluated {question.id}: {case.status}", flush=True)
@@ -981,7 +1024,9 @@ def main() -> int:
             )
         if name == "full":
             command.add_argument(
-                "--agent", choices=("single", "code", "github"), default="single"
+                "--agent",
+                choices=("single", "code", "github", "graph"),
+                default="single",
             )
             command.add_argument("--tool-call-limit", type=int, default=6)
             command.add_argument("--model-call-limit", type=int, default=8)

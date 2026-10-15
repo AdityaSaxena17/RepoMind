@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from .config import get_settings
+from .tool_errors import AuthorizationError, ScopeViolationError
 
 GITHUB_API_BASE_URL = "https://api.github.com"
 GITHUB_TOOL_META = {
@@ -77,6 +78,24 @@ def github_headers(accept: str = "application/vnd.github+json") -> dict[str, str
     return headers
 
 
+def check_github_response(response: httpx.Response) -> None:
+    """Separate access denials from rate limits and unavailable resources."""
+    if response.status_code == 401:
+        raise AuthorizationError("GitHub rejected the configured token.")
+    if response.status_code == 403:
+        if (
+            response.headers.get("x-ratelimit-remaining") == "0"
+            or "retry-after" in response.headers
+            or "rate limit" in response.text.casefold()
+        ):
+            raise RuntimeError("GitHub rate limit blocked this request.")
+        raise AuthorizationError("GitHub denied access to this resource.")
+    if response.status_code == 404:
+        raise RuntimeError("GitHub resource was not found or is inaccessible.")
+    if response.status_code >= 400:
+        raise RuntimeError(f"GitHub request failed with status {response.status_code}.")
+
+
 async def github_json(path: str) -> Any:
     """Fetch JSON from public GitHub REST with redacted user-facing errors."""
     async with httpx.AsyncClient(timeout=20) as client:
@@ -85,18 +104,7 @@ async def github_json(path: str) -> Any:
             headers=github_headers(),
         )
 
-    if response.status_code == 401:
-        raise RuntimeError("GitHub rejected the configured token.")
-
-    if response.status_code == 403:
-        raise RuntimeError("GitHub rate limit blocked this request.")
-
-    if response.status_code == 404:
-        raise RuntimeError("GitHub resource was not found.")
-
-    if response.status_code >= 400:
-        raise RuntimeError(f"GitHub request failed with status {response.status_code}.")
-
+    check_github_response(response)
     return response.json()
 
 
@@ -108,18 +116,7 @@ async def github_text(path: str, accept: str) -> str:
             headers=github_headers(accept),
         )
 
-    if response.status_code == 401:
-        raise RuntimeError("GitHub rejected the configured token.")
-
-    if response.status_code == 403:
-        raise RuntimeError("GitHub rate limit blocked this request.")
-
-    if response.status_code == 404:
-        raise RuntimeError("GitHub resource was not found.")
-
-    if response.status_code >= 400:
-        raise RuntimeError(f"GitHub request failed with status {response.status_code}.")
-
+    check_github_response(response)
     return response.text[:12000]
 
 
@@ -129,7 +126,7 @@ async def repository_scope() -> dict[str, str]:
     repository_id = read_string(os.getenv("REPOMIND_MCP_REPOSITORY_ID"))
 
     if user_id is None or repository_id is None:
-        raise RuntimeError("MCP repository scope is missing.")
+        raise ScopeViolationError("MCP repository scope is missing.")
 
     settings = get_settings()
     connection = await asyncpg.connect(settings.database_url)
@@ -152,7 +149,7 @@ async def repository_scope() -> dict[str, str]:
         await connection.close()
 
     if not row:
-        raise RuntimeError("Repository is not active or no longer accessible.")
+        raise AuthorizationError("Repository is not active or no longer accessible.")
 
     return {
         "owner": str(row["owner"]),

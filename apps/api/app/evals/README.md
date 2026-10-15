@@ -1,7 +1,52 @@
 # RepoMind quality evaluations
 
+Component 4 adds the parent graph and MIXED synthesis without activating production
+chat/SSE integration:
+
+```powershell
+python scripts/uv_run.py python -m app.evals full --agent graph --experiment graph-v1
+```
+
+The graph evaluates all selected CODE, GITHUB and MIXED cases through the same
+`Runner.run(question)` contract. Gold scope annotations choose no runtime route;
+only the question and conversation history reach the router. Its existing model
+call now validates `mixed_strategy`: MIXED requires `PARALLEL` or
+`GITHUB_THEN_CODE`; all other outcomes require no strategy.
+
+CODE/GITHUB use their agent's answer directly; clarification starts neither agent.
+Parallel MIXED uses a native LangGraph fan-out and a barrier joining both results.
+Sequential MIXED passes structured GitHub observations and observed affected paths
+as untrusted context into indexed-code investigation. Both then use one tool-free
+synthesis call. The synthesizer sees actual evidence, commit provenance, catalogs,
+tool records, missing information and errors. Deterministic runtime validation
+rejects unknown citation IDs, URLs, source numbers and file ranges; production
+imports no evaluation scorer or judge.
+Commit-pinned code URLs may cite a contained subrange of an observed window;
+repository, commit, path and every cited line must match selected evidence.
+
+Authorization and scope errors fail the workflow without publishing a partial
+answer; sequential workflows also skip code investigation after such a GitHub
+failure. Cancellation propagates and closes each scope in its owning task.
+Recoverable failures can produce a clearly marked partial answer when observed
+citable evidence exists. Limitations cannot be erased by synthesis. With no
+citable evidence, or invalid synthesis, the workflow fails and retains findings.
+
+Graph evaluation uses independent pooled connections for code reads and fixture
+authorization. Temporary evaluation access and the pool close even on cancellation.
+`--timeout` applies separately to each investigation and the single synthesis call;
+router attempts and discovery retain their existing deadlines. There is no outer
+research loop. Reports record decisions, strategy, per-agent outcomes and errors.
+`model_calls` counts completed investigation calls and synthesis attempts, excluding
+the router's separately bounded attempts. Baseline scoring definitions and datasets
+remain unchanged; first-pass @6 metrics and final evidence coverage stay separate.
+
+The graph's fan-out/barrier follows the installed API and
+[LangGraph's graph documentation](https://docs.langchain.com/oss/python/langgraph/graph-api).
+GitHub access-denial/rate-limit classification follows its
+[REST troubleshooting documentation](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api).
+
 Component 3 adds standalone specialist runs. The default remains the existing
-single-agent baseline; production chat and MIXED orchestration are unchanged.
+single-agent baseline; production chat remains unchanged.
 
 ```powershell
 python scripts/uv_run.py python -m app.evals full --agent code --experiment code-agent-v1
@@ -9,7 +54,7 @@ python scripts/uv_run.py python -m app.evals full --agent github --experiment gi
 ```
 
 Each specialist runs only its evidence-scope cases. Explicit `--case` selections
-must match that scope; MIXED cases require the subsequent orchestration component.
+must match that scope; use `--agent graph` for MIXED cases.
 Both use the existing model factory. `--tool-call-limit` (default 6),
 `--model-call-limit` (default 8), and `--timeout` (default 120 seconds) bound each
 investigation. Final JSON completion is validated against a strict Pydantic schema

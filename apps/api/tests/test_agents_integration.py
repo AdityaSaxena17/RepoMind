@@ -1,13 +1,18 @@
 """Opt-in specialist mechanics against the isolated evaluation database."""
 
 import asyncio
+import json
 import os
 import uuid
+from typing import Any
 
 import asyncpg
 import pytest
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 from test_agents import ScriptedModel, call, summary
 from test_evals import FakeEmbeddings
+from test_repository_graph import RouterModel
 
 from app import worker
 from app.code_tools import CodeTools
@@ -179,6 +184,156 @@ def test_pooled_reads_reindexing_revocation_and_eval_access_cleanup(
             with pytest.raises(RuntimeError, match="Specialized investigation failed"):
                 await failed_runner.run("question")
             assert await connection.fetchval('SELECT count(*) FROM "User"') == before
+
+            class RoleModel(ScriptedModel):
+                broken_summary: bool = False
+                missing_fixture: bool = False
+
+                def _generate(
+                    self, messages: Any, *args: Any, **kwargs: Any
+                ) -> ChatResult:
+                    prompt = messages[0].text
+                    initial = not any(isinstance(m, AIMessage) for m in messages)
+                    if prompt.startswith("You are RepoMind's Code Agent."):
+                        message = (
+                            call(
+                                "search_repository_code",
+                                {"query": "unique_agent_symbol"},
+                                "code",
+                            )
+                            if initial
+                            else summary()
+                        )
+                    elif prompt.startswith("You are RepoMind's GitHub Agent."):
+                        message = (
+                            call(
+                                "issue_read",
+                                {
+                                    "issue_number": "999"
+                                    if self.missing_fixture
+                                    else "1"
+                                },
+                                "github",
+                            )
+                            if initial
+                            else summary(url, [url])
+                        )
+                    else:
+                        message = summary(
+                            f"Code [1] and issue {url}.",
+                            ["invented"] if self.broken_summary else ["1", url],
+                        )
+                    return ChatResult(generations=[ChatGeneration(message=message)])
+
+            for scope, strategy, broken, missing_fixture in (
+                ("CODE", None, False, False),
+                ("GITHUB", None, False, False),
+                ("MIXED", "PARALLEL", False, False),
+                ("MIXED", "GITHUB_THEN_CODE", False, False),
+                ("MIXED", "PARALLEL", True, False),
+                ("MIXED", "PARALLEL", False, True),
+            ):
+                graph_records = []
+                graph_runner = SpecializedAgentRunner(
+                    connection,
+                    embeddings,
+                    repository_id,
+                    sha,
+                    dataset.repository,
+                    "GRAPH",
+                    RoleModel(
+                        responses=[],
+                        broken_summary=broken,
+                        missing_fixture=missing_fixture,
+                    ),
+                    await fixture_tools(fixtures, "one", graph_records),
+                    graph_records,
+                    router_model=RouterModel(
+                        responses=[
+                            AIMessage(
+                                content=json.dumps(
+                                    {
+                                        "scope": scope,
+                                        "clarification": None,
+                                        "mixed_strategy": strategy,
+                                    }
+                                )
+                            )
+                        ]
+                    ),
+                )
+                if broken or missing_fixture:
+                    with pytest.raises(
+                        RuntimeError, match="Specialized investigation failed"
+                    ):
+                        await graph_runner.run("Explain the indexed code and issue.")
+                    graph_result = graph_runner.last_result
+                    assert graph_result.evidence_seen and not graph_result.answer
+                else:
+                    graph_result = await graph_runner.run(
+                        "Explain the indexed code and issue."
+                    )
+                assert graph_runner.last_findings.status == (
+                    "failed" if broken or missing_fixture else "complete"
+                ), graph_runner.last_findings.errors
+                assert len(graph_result.final_contexts) == (
+                    0 if scope == "GITHUB" else 1
+                )
+                if scope != "CODE":
+                    executed = next(
+                        r
+                        for r in graph_result.tool_executions
+                        if r.name == "issue_read"
+                    )
+                    assert executed.arguments["method"] == "get"
+                    assert executed.arguments["per_page"] == 10
+                    assert executed.arguments["issue_number"] == (
+                        999 if missing_fixture else 1
+                    )
+                    assert executed.fixture_miss == missing_fixture
+                    if not missing_fixture:
+                        assert graph_result.citation_catalog[url] == executed.id
+                assert (
+                    await connection.fetchval('SELECT count(*) FROM "User"') == before
+                )
+
+            cancel_started = asyncio.Event()
+
+            class BlockingModel(RoleModel):
+                async def _agenerate(self, *args: Any, **kwargs: Any) -> Any:
+                    cancel_started.set()
+                    await asyncio.sleep(10)
+
+            cancel_runner = SpecializedAgentRunner(
+                connection,
+                embeddings,
+                repository_id,
+                sha,
+                dataset.repository,
+                "GRAPH",
+                BlockingModel(responses=[]),
+                [],
+                [],
+                router_model=RouterModel(
+                    responses=[
+                        AIMessage(
+                            content=json.dumps(
+                                {
+                                    "scope": "CODE",
+                                    "clarification": None,
+                                }
+                            )
+                        )
+                    ]
+                ),
+            )
+            cancelled = asyncio.create_task(cancel_runner.run("Question"))
+            await asyncio.wait_for(cancel_started.wait(), 5)
+            cancelled.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await cancelled
+            assert await connection.fetchval('SELECT count(*) FROM "User"') == before
+
             url_config = os.environ["EVAL_DATABASE_URL"]
             pool = await asyncpg.create_pool(
                 normalize_asyncpg_database_url(url_config),

@@ -24,6 +24,7 @@ from .retrieval import (
     VECTOR_CANDIDATES,
     RepoMindParentHybridRetriever,
 )
+from .tool_errors import AuthorizationError, ScopeViolationError
 from .tool_registry import RequestScope, ToolPolicy, ToolRegistry
 
 Nonempty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -148,7 +149,7 @@ class CodeTools:
         self, scope: RequestScope
     ) -> AsyncIterator[tuple[asyncpg.Connection, str | None]]:
         if scope != self.request:
-            raise PermissionError("Code tool request identity does not match.")
+            raise ScopeViolationError("Code tool request identity does not match.")
         async with AsyncExitStack() as stack:
             if self.pool is not None:
                 connection = await stack.enter_async_context(
@@ -175,7 +176,7 @@ class CodeTools:
                     scope.user_id,
                 )
                 if not repository:
-                    raise PermissionError("Repository access is no longer active.")
+                    raise AuthorizationError("Repository access is no longer active.")
                 if (
                     repository["indexStatus"] != "READY"
                     or repository["indexedCommitSha"] != self.commit_sha
@@ -205,7 +206,7 @@ class CodeTools:
             existing = self.evidence.get(source_id)
             if existing is not None:
                 if existing.content != document.page_content:
-                    raise ToolException(
+                    raise ScopeViolationError(
                         "Indexed source changed without a new commit identity."
                     )
                 sources.append(existing)
