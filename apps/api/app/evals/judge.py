@@ -7,6 +7,7 @@ import importlib.metadata
 import inspect
 import json
 import os
+import unicodedata
 from pathlib import Path
 from typing import Literal, TypedDict
 
@@ -84,6 +85,9 @@ SECTION_PROMPT = (
     "must occur within that section's text. Include limitations as exact quotes. "
     "If a section has neither claims nor limitations, supply a nonempty "
     "nonfactual_reason explaining why it is a heading, formatting or suggestion. "
+    "A section containing only citation references and punctuation is formatting, "
+    "not a domain claim. Use the full answer to associate references with factual "
+    "claims; do not invent a claim from a reference token alone. "
     "Never use nonfactual_reason for factual prose, and never omit sections to "
     "fix another label. Claim IDs need only be unique within their section; "
     "the application assigns global IDs."
@@ -263,7 +267,7 @@ class SemanticJudge:
     def configuration(self) -> dict[str, JsonValue]:
         """Expose reproducibility settings without serializing credentials."""
         configuration: dict[str, JsonValue] = {
-            "version": "2",
+            "version": "3",
             "grounding_section_chars": 600,
             "grounding_batch_chars": 2400,
             "grounding_batch_sections": 12,
@@ -294,9 +298,10 @@ class SemanticJudge:
             ),
             "calibration_sha256": digest(
                 (DATA / "calibration.json").read_text(encoding="utf-8")
-                + (DATA / "calibration-v2-additions.json").read_text(encoding="utf-8"),
+                + (DATA / "calibration-v2-additions.json").read_text(encoding="utf-8")
+                + (DATA / "calibration-v3-additions.json").read_text(encoding="utf-8"),
             ),
-            "calibration_example_count": 14,
+            "calibration_example_count": 15,
         }
         if self.hive:
             configuration.update(
@@ -386,9 +391,28 @@ class SemanticJudge:
                                     "Every section needs claims, limitations or "
                                     "an exclusive nonfactual reason."
                                 )
-                            if section.nonfactual_reason and any(
-                                source["start"] <= c.start < source["end"]
+                            cited = [
+                                c
                                 for c in case.citations
+                                if source["start"] <= c.start < source["end"]
+                            ]
+                            # Citation-only fragments have no domain claim. Mask
+                            # original offsets so overlapping grouped refs stay safe.
+                            prose = list(text)
+                            for citation in cited:
+                                first = max(citation.start - source["start"], 0)
+                                last = min(citation.end - source["start"], len(text))
+                                prose[first:last] = " " * (last - first)
+                            if (
+                                section.nonfactual_reason
+                                and cited
+                                and any(
+                                    not character.isspace()
+                                    and not unicodedata.category(character).startswith(
+                                        "P"
+                                    )
+                                    for character in prose
+                                )
                             ):
                                 raise ValueError(
                                     "Cited prose must be classified as claims "
@@ -477,6 +501,11 @@ class SemanticJudge:
             examples.extend(
                 TypeAdapter(list[CalibrationExample]).validate_json(
                     (DATA / "calibration-v2-additions.json").read_text(encoding="utf-8")
+                )
+            )
+            examples.extend(
+                TypeAdapter(list[CalibrationExample]).validate_json(
+                    (DATA / "calibration-v3-additions.json").read_text(encoding="utf-8")
                 )
             )
         results: list[dict[str, JsonValue]] = []

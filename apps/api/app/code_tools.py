@@ -72,6 +72,7 @@ class _CachedRead(BaseModel):
     identity: str
     windows: list[_CachedWindow] = Field(default_factory=list)
     missing_information: list[Nonempty] = Field(default_factory=list)
+    context_notes: list[Nonempty] = Field(default_factory=list)
     file_line_count: int | None = Field(default=None, ge=0)
 
 
@@ -183,6 +184,8 @@ class CodeTools:
                 "Use a path observed in search results or supplied in the question. "
                 "Line numbers are inclusive and start at 1. Source IDs/numbers "
                 "remain stable for identical evidence windows. "
+                "context_notes describe optional unread context; missing_information "
+                "identifies an incomplete requested read. "
                 f"Return at most {PARENT_MAX_LINES} lines and "
                 f"{PARENT_MAX_CHARS} characters.",
             ),
@@ -296,7 +299,7 @@ class CodeTools:
         digest = hashlib.sha256(
             json.dumps(identity, sort_keys=True).encode()
         ).hexdigest()
-        return f"repomind:code-context:v2:{digest}"
+        return f"repomind:code-context:v3:{digest}"
 
     async def _cached_read(self, key: str | None) -> _CachedRead | None:
         if key is None or self.redis is None:
@@ -448,6 +451,7 @@ class CodeTools:
             "missing_information": []
             if sources
             else ["No indexed code matched this query."],
+            "context_notes": [],
         }
         return json.dumps(result, ensure_ascii=False), result
 
@@ -487,6 +491,7 @@ class CodeTools:
                 cached_result = {
                     "sources": [source.model_dump(mode="json") for source in sources],
                     "missing_information": entry.missing_information,
+                    "context_notes": entry.context_notes,
                 }
                 if entry.file_line_count is not None:
                     cached_result["file_line_count"] = entry.file_line_count
@@ -504,6 +509,7 @@ class CodeTools:
             result: dict[str, Any] = {
                 "sources": [],
                 "missing_information": ["The indexed file is empty."],
+                "context_notes": [],
             }
             await self._cache_write(
                 key,
@@ -539,20 +545,22 @@ class CodeTools:
             ],
             html_url,
         )
-        missing = []
-        if last < min(requested_end, len(lines)):
+        missing: list[str] = []
+        notes: list[str] = []
+        if end_line is not None and last < min(requested_end, len(lines)):
             missing.append(
                 f"Requested context ends at line {requested_end}; "
                 f"only lines through {last} were returned."
             )
-        elif end_line is None and last < len(lines):
-            missing.append(
+        if end_line is None and last < len(lines):
+            notes.append(
                 f"The file has {len(lines)} lines; "
                 "request another range to inspect the remainder."
             )
         result = {
             "sources": [source.model_dump(mode="json") for source in sources],
             "missing_information": missing,
+            "context_notes": notes,
             "file_line_count": len(lines),
         }
         await self._cache_write(
@@ -568,6 +576,7 @@ class CodeTools:
                     )
                 ],
                 missing_information=missing,
+                context_notes=notes,
                 file_line_count=len(lines),
             ),
         )

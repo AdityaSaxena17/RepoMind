@@ -194,13 +194,15 @@ def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
     assert code_started.is_set() and github_started.is_set()
     assert database.maximum == 2 and database.active == 0
     assert len(code.requests) == len(github.requests) == 2
-    assert code.requests[0][-1].text == "Read indexed app.py."
-    assert github.requests[0][-1].text == "Read live issue #1."
+    assert code.requests[0][-1].text == "Compare"
+    assert github.requests[0][-1].text == "Compare"
     assert any(
-        m.text == "Original question for context:\nCompare" for m in code.requests[0]
+        "Router scope suggestion" in m.text and "Read indexed app.py." in m.text
+        for m in code.requests[0]
     )
     assert any(
-        m.text == "Original question for context:\nCompare" for m in github.requests[0]
+        "Router scope suggestion" in m.text and "Read live issue #1." in m.text
+        for m in github.requests[0]
     )
     assert len(synthesis.requests) == 1
     payload = json.loads(synthesis.requests[0][-2].text.split("\n", 1)[1])
@@ -270,7 +272,7 @@ def test_sequential_context_contains_observed_paths_evidence_and_provenance(
         in observed["tool_executions"][1]["result"]["issue"]["body"]
     )
     assert observed["citation_catalog"][URL] == "github:github-read"
-    assert code.requests[0][-1].text == "Read indexed app.py."
+    assert code.requests[0][-1].text == "Compare"
     assert len(synthesis.requests) == 1 and database.active == 0
     assert events[0][2] == events[1][2]
 

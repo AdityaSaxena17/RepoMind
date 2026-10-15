@@ -8,7 +8,13 @@ import httpx
 import pytest
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_openai import ChatOpenAI
 from test_code_tools import Database, scripted_retriever, setup_tools
 from test_tool_registry import connect_offline, provider, request
@@ -52,6 +58,64 @@ def summary(
     )
 
 
+@pytest.mark.parametrize("split", range(len(agents.FINAL_ANSWER_CLOSER) + 1))
+def test_final_closer_is_buffered_across_native_chunks(
+    monkeypatch: pytest.MonkeyPatch, split: int
+) -> None:
+    deltas: list[str] = []
+
+    async def publish(name: str, data: Any, **kwargs: Any) -> None:
+        assert name == "repomind_answer_delta" and data["native"]
+        deltas.append(data["text"])
+
+    monkeypatch.setattr(agents, "adispatch_custom_event", publish)
+
+    async def run() -> None:
+        tokens = agents._FinalAnswerTokens("CODE", {})
+        await tokens.feed(AIMessageChunk(content="<final_answer>Answer [1]."))
+        assert deltas == ["Answer [1]."]
+        for part in (
+            agents.FINAL_ANSWER_CLOSER[:split],
+            agents.FINAL_ANSWER_CLOSER[split:],
+            "\n" * 300,
+        ):
+            await tokens.feed(AIMessageChunk(content=part))
+            assert len(tokens.pending) <= len(agents.FINAL_ANSWER_CLOSER)
+        assert await tokens.finish() == "Answer [1]."
+        assert "".join(deltas) == "Answer [1]."
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Use `</final_answer>` as an example.",
+        "```xml\n</final_answer>\n```",
+        "A literal </final_answer>   appears here.",
+        "A partial literal </final_ans",
+    ],
+)
+def test_literal_closers_in_answer_content_are_preserved(
+    monkeypatch: pytest.MonkeyPatch, body: str
+) -> None:
+    deltas: list[str] = []
+
+    async def publish(name: str, data: Any, **kwargs: Any) -> None:
+        deltas.append(data["text"])
+
+    monkeypatch.setattr(agents, "adispatch_custom_event", publish)
+
+    async def run() -> None:
+        tokens = agents._FinalAnswerTokens("CODE", {})
+        for character in "<final_answer>" + body:
+            await tokens.feed(AIMessageChunk(content=character))
+        assert await tokens.finish() == body
+        assert "".join(deltas) == body
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize("github", [False, True])
 @pytest.mark.parametrize("final_answer", [False, True])
 def test_few_shot_output_matches_the_active_protocol(
@@ -83,6 +147,44 @@ def test_few_shot_output_matches_the_active_protocol(
         assert "[7]" not in output
     else:
         assert "[7]" in output
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("followup", [False, True])
+def test_partial_status_tracks_requested_ranges_not_optional_context(
+    explicit: bool,
+    followup: bool,
+) -> None:
+    database = Database()
+    database.files["large.py"] = "x" * 8000 + "\n" + "y" * 8000 + "\ntail"
+
+    async def run() -> None:
+        registry, code = setup_tools(database)
+        arguments: dict[str, Any] = {"path": "large.py"}
+        if explicit:
+            arguments["end_line"] = 2
+        responses = [call("get_file_context", arguments, "first")]
+        if followup:
+            responses.append(
+                call(
+                    "get_file_context",
+                    {"path": "large.py", "start_line": 2, "end_line": 2},
+                    "second",
+                )
+            )
+        responses.append(summary("Observed content [1].", ["1"]))
+        findings = await investigate_code(
+            ScriptedModel(responses=responses),
+            registry,
+            code,
+            "Read requested context.",
+        )
+        assert findings.status == (
+            "incomplete" if explicit and not followup else "complete"
+        )
+        assert bool(findings.missing_information) is (explicit and not followup)
+
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize("github", [False, True])

@@ -543,3 +543,23 @@ verifies shared-connection serialization, idempotent seeding, parent retrieval a
 corruption rejection. Those vectors demonstrate mechanics, not retrieval quality.
 Only explicitly executed evaluations with real embeddings and generated answers
 produce quality measurements.
+
+### Evaluator version 3 and reliability verification
+
+Judge version 3 accepts citation-only punctuation sections as formatting while
+retaining factual-prose, exact-quote, evidence and complete-section validation.
+It adds one separate synthetic calibration case (15 total); original calibration
+files and the 24-case benchmark remain unchanged. Recalibrate and grade saved
+baseline answers and new answers with the same v3 configuration. Old judge grades
+are not reusable across the configuration change.
+
+Code-tool results distinguish optional unread `context_notes` from genuinely
+incomplete requested reads in `missing_information`. Redis entries use the v3
+namespace, so v2 entries expire without a flush. The streaming gate removes an
+optional terminal closing marker across native chunks while preserving literal
+examples within answer content. No additional final-answer model call is needed.
+
+Verification repeats the previously failing MIXED case and both necessary-comment
+cases five times, followed by one full benchmark and the existing supplemental set.
+Execution failures, judge failures and qualified partial outcomes are reported
+separately. These development regressions do not constitute an independent holdout.

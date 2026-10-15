@@ -161,6 +161,57 @@ def test_failed_grounding_batch_cancels_and_awaits_other_batches(
     asyncio.run(run())
 
 
+@pytest.mark.parametrize("references", ["[1][1].", "([1], [1]);"])
+def test_citation_only_sections_are_formatting_without_dropping_claims(
+    monkeypatch: pytest.MonkeyPatch, references: str
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-offline-test")
+    value = result("alpha is 1 [1].\n\n" + references)
+    q = question()
+    case = CaseReport(
+        case_id=q.id, category=q.category, question=q.question, result=value
+    )
+    case.citations = referenced_citations(value, CORPUS, SHA, "owner/repo")
+
+    async def label(self: Any, schema: Any, messages: Any) -> Any:
+        if schema is CorrectnessJudgment:
+            return CorrectnessJudgment(
+                facts=[FactJudgment(fact_id="f1", status="matched", reason="Test")],
+                material_errors=[],
+                abstention="none",
+                reason="Test",
+            )
+        sections = json.loads(messages[1][1])["sections"]
+        return GroundingBatch(
+            sections=[
+                GroundingSection(
+                    section_id=s["id"],
+                    claims=[
+                        Claim(
+                            id="c1",
+                            quote=s["text"],
+                            supported=True,
+                            evidence_ids=[value.evidence_seen[0].id],
+                            citations=[],
+                            citations_fully_support=False,
+                            reason="Observed code",
+                        )
+                    ]
+                    if i == 0
+                    else [],
+                    nonfactual_reason=None if i == 0 else "Citation-only formatting",
+                )
+                for i, s in enumerate(sections)
+            ]
+        )
+
+    monkeypatch.setattr(SemanticJudge, "_label", label)
+    asyncio.run(SemanticJudge("offline-test").grade(case, q))
+    assert case.grounding is not None and len(case.grounding.claims) == 1
+    assert len(case.grounding_sections) == 2
+    assert not case.judge_validation_errors
+
+
 @pytest.mark.parametrize("fault", [None, "unknown_scorer", "changed_calibration"])
 def test_versioned_rescore_and_exact_calibration_reuse(
     tmp_path: Path, fault: str | None

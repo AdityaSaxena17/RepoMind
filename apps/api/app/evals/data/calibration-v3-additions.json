@@ -1,0 +1,15 @@
+[
+  {
+    "id": "citation-only-formatting",
+    "question": "Show the available citation labels.",
+    "source": "VALUE = 5",
+    "answer": "[1][1].",
+    "reference_facts": [],
+    "expected_missing": [],
+    "expected_metrics": {
+      "groundedness": null,
+      "citation_precision": 0.0,
+      "citation_coverage": null
+    }
+  }
+]

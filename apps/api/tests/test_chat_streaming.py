@@ -178,6 +178,7 @@ def wire_chunks(
         "transport",
         "heartbeat",
         "whitespace",
+        "closing_marker",
         "truncated",
         "missing_stop",
         "disconnect",
@@ -323,6 +324,14 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                         None,
                     ),
                 ]
+                if fault == "closing_marker":
+                    deltas.extend(
+                        [
+                            ({"content": "</final_"}, None),
+                            ({"content": "answer>"}, None),
+                            ({"content": "\n"}, None),
+                        ]
+                    )
                 if fault == "late_tool":
                     call["tool_calls"][0]["id"] = "forbidden-2"
                     deltas.extend([(call, None), ({}, "tool_calls")])
@@ -441,6 +450,7 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                 None,
                 "heartbeat",
                 "whitespace",
+                "closing_marker",
                 "partial",
                 "corrected_range",
                 "last_turn",
@@ -622,6 +632,8 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                             ({"content": "nal_answer>"}, None),
                             ({"content": "Code [1] and "}, None),
                             ({"content": url}, None),
+                            ({"content": "</final_"}, None),
+                            ({"content": "answer>\n"}, None),
                             ({}, "stop"),
                         ]
                     ),

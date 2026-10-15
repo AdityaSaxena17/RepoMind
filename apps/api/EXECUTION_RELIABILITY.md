@@ -487,3 +487,257 @@ repository build and whitespace checks passed. The unchanged web build used its
 cache. Frozen benchmark, fixtures, original calibration, retriever, reranker and
 dependency locks are unchanged. No production judge, extra router intents, legacy
 fallback or additional specialist final-answer call was added.
+
+## Reliability and completeness pass, evaluator v3 (2026-10-16)
+
+The final capture completed **24/24 executions and 24/24 accepted judge grades**.
+It meets the requested single-capture correctness, completeness and citation-validity
+thresholds. **The overall acceptance gate is not met:** targeted repetitions
+completed 14/15, and investigation status/provenance defects remain. This is not a
+claim that all failures are fixed or that the system generalizes beyond these
+development regressions.
+
+### Changes
+
+- Accept citation-only punctuation sections as formatting in the offline judge,
+  while continuing to reject cited factual prose labeled nonfactual. Citation
+  masking uses original offsets, including overlapping grouped references. Exact
+  quotations, evidence validation and full section accounting remain enforced.
+  Judge configuration v3 adds one separate synthetic calibration example; original
+  and v2 calibration files are unchanged.
+- Remove an optional terminal `</final_answer>` across native token boundaries.
+  Hold only a possible protocol suffix, stream ordinary content immediately, and
+  preserve literal interior marker examples. Streamed, validated and persisted
+  text must agree. Direct specialists still use their existing final generation;
+  no extra answer call or simulated streaming was introduced.
+- Keep the original question as the final user message during MIXED investigation.
+  Present generated router assignments as scope suggestions that cannot add user
+  requirements. Short shared guidance checks requested parts, relevant conditions
+  and effects, supporting citations, and when further tool calls are useful.
+  Fictional few-shot examples distinguish a live report handed to the Code Agent
+  from a request that actually needs discussion comments. They contain no benchmark
+  answers, paths or gold values.
+- Distinguish optional unread `context_notes` from incomplete requested ranges in
+  code tools. Cache the distinction under Redis namespace v3; old entries expire
+  without a flush. Corrected/follow-up reads can resolve the original requested
+  interval without requiring the rest of the file. Preserve an observed unresolved
+  read gap even if an LLM summary omits it.
+- Prompt both specialists and synthesis to compare live proposals with indexed
+  behavior as different observed versions. Evaluation still exposes cases where
+  this guidance fails to prevent false missing-information/status reports.
+
+Authorization, scoped MCP ownership, database pooling, embedding behavior, models,
+agent limits, retriever, reranker, scorers and fixtures are unchanged. Judging remains
+offline. The existing [evaluation guidance](https://docs.langchain.com/langsmith/evaluation-types)
+distinguishes benchmark comparisons, regression checks and deterministic validators;
+those results are reported separately here.
+
+### Captures and execution reliability
+
+All final artifacts use prefix `component-5-reliability-v3-scoped` under
+`.eval-artifacts/`:
+
+- `-pipeline.json`: every completed capture and grading outcome.
+- `-full.json`: the single frozen 24-case execution capture.
+- `-before.json`: saved `component-5-quality-v2-simple-full.json` answers, freshly
+  graded with v3; no v2 grades reused.
+- `-after.json`: new benchmark answers graded with the same v3 configuration.
+- `-repeat-{1..5}-{mixed,comments}.json`: all five repetitions of each selected case.
+- `-supplemental.json` and `-supplemental-judged.json`: existing supplemental seven.
+- `-comments-judged.json`: the preselected first repetition of both necessary-comment
+  cases; not the best repetition chosen afterward.
+- `-comparison.json` and `-analysis.json`: paired metrics and execution trajectories.
+
+| Category              | Before execution | New execution | New execution failures |
+| --------------------- | ---------------- | ------------- | ---------------------- |
+| Single-file code      | 6/6              | 6/6           | 0                      |
+| Architecture          | 6/6              | 6/6           | 0                      |
+| GitHub                | 4/4              | 4/4           | 0                      |
+| MIXED                 | 3/4              | 4/4           | 0                      |
+| Insufficient evidence | 4/4              | 4/4           | 0                      |
+| Total                 | 23/24            | 24/24         | 0                      |
+
+All 24 new router scopes match the unchanged offline annotations; annotations were
+not passed to the router. The new workflow reports 18 complete and six qualified
+incomplete results, versus 19 and five previously. Execution completion means a
+returned, validated answer, including a useful partial answer; it does not mean
+every specialist succeeded or every question was fully supported.
+
+| Targeted regression        | Execution completion | Failures |
+| -------------------------- | -------------------- | -------- |
+| `mixed-03`                 | 4/5                  | 1        |
+| `method-mixed-discussion`   | 5/5                  | 0        |
+| `method-mixed-fact-finding` | 5/5                  | 0        |
+| Total                      | 14/15                | 1        |
+
+In MIXED repetition 2, the GitHub Agent read issue details successfully, then
+unnecessarily requested `issue_read(method="get_comments")` for issue 103. The
+strict frozen fixture does not cover this call. It is a valid API operation but
+unnecessary to explain the reported byte size using indexed worker code, so the
+failure is retained rather than extending the fixture. The other four repetitions
+and the full capture used only `get` for that issue. Both necessary-comment cases
+executed successful fixture-backed `get_comments` calls in **every** repetition.
+Their ten executions returned answers but were all marked incomplete, exposing
+the separate scope/limitation problem. All 176 extracted references across the
+15 repetitions were valid, including those in the failed execution's partial answer.
+
+Earlier attempts with prefixes `component-5-reliability-v3` and
+`component-5-reliability-v3-final` were stopped during targeted repetitions to
+correct scope guidance before the final capture. Each has four case records in
+checkpointed captures: one failed MIXED repetition, one successful MIXED repetition, and two
+successful comment cases. The second also has one completed discussion case in a
+partially written next capture; the first's next capture has no case records.
+Those artifacts and failures remain intact. They use earlier application hashes,
+are not pooled with the final repetitions, and are not hidden as successful trials.
+
+### Fresh offline judging and metrics
+
+Fresh v3 calibration passed **15/15**. Baseline and new judge configuration objects
+match exactly, including rubric, implementation, schemas, calibration hashes,
+provider, model, limits and reasoning effort. Only this new calibration was reused
+for subsequent grading, with its source report hash recorded.
+
+The new benchmark has **24/24 accepted grades**, with no unscored or errored semantic
+metrics. `mixed-04` needed one bounded exact-quote repair, which succeeded. The saved
+baseline has **22/24 accepted grades**: its original `mixed-03` execution failure
+remains ungraded, and `architecture-05` still exhausts cited-prose validation. Its
+isolated `[7][6].` section now satisfies the deterministic formatting rule; this
+remaining error means another cited section was labeled nonfactual. Invalid model
+labels are not retained with a section ID, so the precise offending section cannot
+be established from the saved report. The historical answer, including its leaked
+closing tag, was not rewritten to make it pass. No synthetic score fills either gap.
+
+All values below are case macro averages, not pooled claim/fact ratios. S/N/U/E means
+scored / not applicable / unscored execution failures / judge errors. Deterministic
+evidence and citation metrics can score observed evidence in an execution failure;
+that does not change its failed execution status.
+
+| Metric                  | Saved baseline, v3 | New answers, v3 | Before S/N/U/E | After S/N/U/E |
+| ----------------------- | ------------------ | --------------- | -------------- | ------------- |
+| Recall@6                | 81.86%             | 77.45%          | 17/7/0/0       | 17/7/0/0      |
+| Precision@6             | 41.18%             | 38.24%          | 17/7/0/0       | 17/7/0/0      |
+| Final evidence coverage | 95.59%             | 100%            | 17/7/0/0       | 17/7/0/0      |
+| Groundedness            | 96.45%             | 97.80%          | 22/0/1/1       | 24/0/0/0      |
+| Answer correctness      | 95.00%             | 95.45%          | 20/2/1/1       | 22/2/0/0      |
+| Fact completeness       | 97.50%             | 97.73%          | 20/2/1/1       | 22/2/0/0      |
+| Citation precision      | 81.86%             | 90.19%          | 21/1/1/1       | 23/1/0/0      |
+| Citation coverage       | 75.27%             | 74.20%          | 22/0/1/1       | 24/0/0/0      |
+| Citation validity       | 100%               | 100%            | 23/1/0/0       | 23/1/0/0      |
+| Correct abstention      | 100%               | 100%            | 4/18/1/1       | 4/20/0/0      |
+| Unnecessary abstention  | 0%                 | 0%              | 18/4/1/1       | 20/4/0/0      |
+
+New correctness is 21/22 fully correct applicable answers. Completeness covers
+42/43 reference facts; its reported 97.73% is the mean per-case fraction. All
+334/334 extracted references are valid, versus 274/274 previously. Final code
+evidence covers 40/40 required units versus 38/40; it is explicitly separate from
+Recall@6. Recall@6 and Precision@6 still use the first search's six contexts.
+
+Restricting comparison to identical scored cases avoids attributing restored judge
+coverage to answer-quality improvement:
+
+| Paired metric      | Cases | Before | After  |
+| ------------------ | ----- | ------ | ------ |
+| Groundedness       | 22    | 96.45% | 97.72% |
+| Answer correctness | 20    | 95.00% | 95.00% |
+| Fact completeness  | 20    | 97.50% | 97.50% |
+| Citation precision | 21    | 81.86% | 90.08% |
+| Citation coverage  | 22    | 75.27% | 74.68% |
+
+The observed improvements are execution/judge coverage, final evidence coverage,
+grounding and citation precision. Paired correctness and completeness are unchanged.
+First-pass retrieval and citation coverage regress, so this is not an improvement
+in every metric. Lower first-pass Recall@6 comes from the repository-connection
+case's changed initial search; later retrieval recovers its required evidence.
+Additional file reads recover the previous final-evidence gaps in architecture
+cases 3 and 4. No retriever/reranker or gold annotation was changed.
+
+The supplemental set completed and graded **7/7**: correctness/completeness 100%
+on six applicable cases, groundedness 100%, citation precision 89.47%, citation
+coverage 88.95%, citation validity 100% (68/68 references), Recall@6 100% and
+Precision@6 25% on four applicable cases, final evidence coverage 100%.
+The two preselected necessary-comment answers graded **2/2**, with correctness and
+completeness 100%, groundedness 97.56%, citation precision 98.48%, citation coverage
+86.25%, citation validity 100%, Recall@6 100% and Precision@6 16.67%.
+One exact limitation quote needed a successful bounded repair. These authored
+regressions are not an independent holdout.
+
+### Remaining diagnoses and acceptance
+
+- The zero-failure repeated-execution gate fails because of the extra comment read.
+  Prompt changes improve observed selection but do not enforce minimal sufficient
+  investigation. Necessary comment reads still work; globally blocking comments
+  would conceal this defect and break legitimate questions.
+- Agents still sometimes call a fact belonging to the other specialist missing,
+  or say a live PR cannot be compared because it is absent from the indexed commit.
+  Synthesis can answer from both catalogs, but graph status still aggregates those
+  model-authored limitations. This causes false qualified partials even in otherwise
+  correct answers. Prompt guidance alone has not repaired status semantics reliably.
+- The new `mixed-02` answer completes from observed evidence, but its GitHub
+  investigation has a controlled `summary_schema` validation error after the
+  fixture's 503 and a blocked repeated request. The graph retains that error and
+  returns a qualified partial; 24/24 execution must not hide this specialist failure.
+  The 503s in MIXED PR cases and the unavailable PR in `missing-04` remain real
+  observed limitations, independently of spurious provenance notes.
+- `architecture-01` still omits the active status of the user-repository link despite
+  observing the source. This is the one missing reference fact and the only
+  applicable answer failing the all-required-facts correctness criterion. Do not
+  insert that benchmark-specific fact into production prompts.
+- Citation coverage remains the largest measured answer-quality gap: some supported
+  claims lack their own supporting reference or attach the wrong window. Valid
+  source IDs alone do not prove support. Unsupported additions also remain, such as
+  universal commit-pinning despite a branch fallback. The judge additionally flags
+  incomplete section fragments and reasonable library-semantic inferences (e.g.
+  transaction rollback and the MiB conversion); these are retained for review rather
+  than post-hoc relabeling.
+- The historical judge failure remains, although the citation-only regression and
+  calibration pass. More precise saved rejected-section diagnostics are needed to
+  identify its remaining model misclassification without relaxing factual-prose
+  validation.
+
+The requested 24/24 execution, 24/24 new grades, correctness >=95%, completeness
+>=97.5%, and citation validity 100% gates pass for the final single capture. The
+zero-failure repetition gate does not. Models, budgets and strict fixtures were not
+changed to satisfy a gate. Keep these failures as development regressions; an
+independently authored holdout is still required before claiming generalization.
+
+### Latency and usage
+
+These are recorded production-workflow observations across all 24 cases, including
+the failed baseline execution; judge calls are excluded. Offline judge token usage
+is not recorded by the existing runner. Single captures do not establish a causal
+latency or cost improvement.
+
+| Measurement                    | Before    | After     |
+| ------------------------------ | --------- | --------- |
+| Mean workflow seconds          | 19.17     | 22.54     |
+| Median workflow seconds        | 18.45     | 22.02     |
+| Maximum workflow seconds       | 35.20     | 50.89     |
+| Mean seconds to first delta    | 16.45     | 18.23     |
+| Median seconds to first delta  | 15.23     | 16.04     |
+| Completed model calls          | 104       | 110       |
+| Tool calls                     | 76        | 78        |
+| Repository searches            | 49        | 46        |
+| File reads                     | 4         | 11        |
+| Input tokens                   | 1,210,825 | 1,249,142 |
+| Output tokens                  | 27,951    | 40,107    |
+
+The additional reads improve final evidence coverage but do not guarantee complete
+answers. Redis hit behavior is verified by regressions/integration tests; these
+offline benchmark captures do not measure a Redis cache speedup. No closing marker
+leaked in the new 24-case or supplemental capture, versus 18 historical answers.
+
+### Verification actually run
+
+- Full API suite with all opt-in integrations: **401 passed, 1 failed** out of 402.
+  The new explicit-read regression exposed a real summary-erases-observed-gap bug.
+  After fixing it, the affected agent/graph/native-streaming tests passed **123/123**.
+- After correcting original-question authority, affected agent/graph/streaming/router
+  tests passed **181/181**. The final few-shot string change passed **6/6** focused
+  protocol tests. Thus all 402 distinct tests passed across the full run and focused
+  reruns; there was no fresh single full-suite `402 passed` output after the fix.
+- Final Ruff on `app tests`, formatting checks on all nine changed Python files,
+  mypy (25 source files), `uv_lock.py --check` (151 packages), `pnpm build`, and
+  diff whitespace checks passed. The unchanged web build used its existing cache.
+- Frozen benchmark, fixtures, supplemental/method datasets, original/v2 calibration,
+  scorer, retrieval/reranking and dependency locks have no diff. Tracked generated
+  bytecode was restored after the build. No frontend or migration was changed.

@@ -103,6 +103,51 @@ def test_cross_request_hits_keep_request_labels_and_first_pass(
     assert queries == ["initial"] and creations == [True]
 
 
+@pytest.mark.parametrize("explicit", [False, True])
+def test_cached_context_notes_preserve_required_read_gaps(explicit: bool) -> None:
+    database, redis = Database(), Redis()
+    database.files["large.py"] = "x" * 8000 + "\n" + "y" * 8000 + "\ntail"
+
+    async def run() -> None:
+        results = []
+        for _ in range(2):
+            registry, code = request_tools(database, redis)
+            async with registry.scoped_tools(frozenset({"code.read"})) as tools:
+                arguments: dict[str, Any] = {"path": "large.py"}
+                if explicit:
+                    arguments["end_line"] = 2
+                results.append(json.loads(await tools[1].ainvoke(arguments)))
+        assert results[0] == results[1]
+        assert bool(results[1]["missing_information"]) is explicit
+        assert bool(results[1]["context_notes"]) is not explicit
+        assert results[1]["file_line_count"] == 3
+        assert code.cache_stats["hits"] == 1
+        assert all(key.startswith("repomind:code-context:v3:") for key in redis.values)
+        assert sum('FROM "RepositoryFile"' in sql for sql, *_ in database.queries) == 1
+
+    asyncio.run(run())
+
+
+def test_context_cache_v3_does_not_consume_old_namespace_entries() -> None:
+    database, redis = Database(), Redis()
+
+    async def run() -> None:
+        registry, code = request_tools(database, redis)
+        async with registry.scoped_tools(frozenset({"code.read"})) as tools:
+            await tools[1].ainvoke({"path": "app.py"})
+        key, raw = next(iter(redis.values.items()))
+        old_key = key.replace(":v3:", ":v2:")
+        redis.values[old_key] = raw.replace(key.encode(), old_key.encode())
+        del redis.values[key]
+        registry, code = request_tools(database, redis)
+        async with registry.scoped_tools(frozenset({"code.read"})) as tools:
+            await tools[1].ainvoke({"path": "app.py"})
+        assert code.cache_stats["hits"] == 0
+        assert sum('FROM "RepositoryFile"' in sql for sql, *_ in database.queries) == 2
+
+    asyncio.run(run())
+
+
 def test_cache_cannot_bypass_revocation_or_repository_isolation() -> None:
     database, redis = Database(), Redis()
 
