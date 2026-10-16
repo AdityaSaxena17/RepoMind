@@ -1877,3 +1877,148 @@ Artifacts: `targeted-v11-github.json`, `targeted-v11-calibration.json`,
 `targeted-v11-judge-traces.json`; the two one-shot diagnostic drivers are alongside
 them. Historical captures, datasets, fixtures, original calibration files and
 scorers remain unchanged. The production judge remains absent.
+
+## Final reranked checkpoint v12
+
+### Frozen configuration and scope
+
+At the user's request, stop tuning and run the unchanged 24-case graph benchmark
+once with the existing reranker enabled. No application code, prompt, retrieval
+parameter, budget, fixture, dataset, scorer or judge is changed in this pass.
+Ten focused existing reranker regression tests pass; the previously completed
+205 affected v11 tests and static checks are not repeated. Production's reranker
+default is unchanged; this checkpoint uses the existing evaluation override.
+
+The configured reranker is the official `Qwen/Qwen3-Reranker-0.6B`, pinned to
+`e61197ed45024b0ed8a2d74b80b4d909f1255473`. Existing cached weights run on
+`cuda:0` in float16 on the 6GB RTX 3050 laptop GPU, with batch size four,
+32,768-token limit, complete-window scoring, no tokenizer truncation and no KV
+cache. The [official model card](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B)
+is cross-checked against the repository implementation. There is no model download,
+new provider or RRF fallback. As in the existing CLI, reranker loading happens
+before case timing; this is not a cold-production-start measurement.
+
+Specialists and synthesis retain high reasoning, the router retains none, and
+embedding residency remains 300 seconds. Tool/model limits remain 6/8 and each
+investigation/synthesis deadline remains 120 seconds. Reranking is applied to
+all expanded deduplicated parent candidates before selecting the final six.
+First-pass Recall@6/Precision@6 and all-search final evidence coverage retain
+their existing definitions. Gold annotations never reach routing or generation.
+
+The unchanged v4 judge uses high reasoning and its existing bounded retries.
+Its exact configuration matches the saved v11 **15/15 passing calibration**,
+which is reused without further calibration calls. All 24 new answers are graded
+uniformly; no grades from v3 or from targeted v11 regrades are merged into this run.
+
+### Final execution and quality results
+
+The checkpoint exits **0**, with **24/24 execution completions** and **24/24
+accepted judge grades**. There are **zero final execution or grading failures**.
+The 24/24 completion gates and the requested >=95% correctness, >=97.5%
+completeness and 100% citation-validity gates are met in this single run.
+
+| Category | Attempts | Execution completions | Accepted grades |
+| --- | ---: | ---: | ---: |
+| Single file | 6 | 6 | 6 |
+| Architecture | 6 | 6 | 6 |
+| Insufficient evidence | 4 | 4 | 4 |
+| GitHub | 4 | 4 | 4 |
+| MIXED | 4 | 4 | 4 |
+| Total | 24 | 24 | 24 |
+
+| Metric | Macro score | Applicable cases / observed count |
+| --- | ---: | --- |
+| Recall@6 | 83.82% | 17 cases; 32/40 evidence units |
+| Precision@6 | 44.12% | 17 cases; 45/102 windows |
+| Final evidence coverage | 100% | 17 cases; 40/40 evidence units |
+| Answer correctness | 100% | 22 cases; two not applicable |
+| Fact completeness | 100% | 22 cases; 43/43 reference facts |
+| Groundedness | 99.52% | 23 cases; one not applicable, 607/611 claims |
+| Citation precision | 92.10% | 23 cases; one not applicable |
+| Citation coverage | 82.37% | 23 cases; one not applicable, 495/611 claims |
+| Citation validity | 100% | 364/364 references across 23 cited answers |
+| Correct abstention | 100% | 4/4 applicable cases |
+| Unnecessary abstention | 0% | 20 applicable cases |
+
+No reference fact is missing or contradicted, and the judge reports no material
+answer errors. Four extracted claims remain unsupported by consumed evidence;
+not every supported claim has a complete attached citation. Passing correctness
+and validity therefore does not imply perfect groundedness or citation coverage.
+
+Workflow status remains explicit: **21 complete investigations and three with
+limitations**, rather than relabeling all investigation statuses complete.
+`code-03`, `missing-03` and `missing-04` are the limited cases. Saved records
+retain an unsuccessful file read, unavailable GitHub resource, deferred searches
+and a missing terminal declaration recovered within the existing format-repair
+budget. These do not become hidden failures or manufactured answers. Expected
+missing evidence is acknowledged and the applicable reference facts are covered.
+
+The judge rejects nine invalid labeling attempts across five cases before
+accepting repairs under its existing retry policy: `code-05` (1),
+`architecture-01` (1), `architecture-03` (2), `architecture-05` (4 across batches)
+and `mixed-04` (1). Problems include section coverage, exact quotes, cited prose
+classification and an invented judge citation reference. No invalid label is
+counted; the generated answer references themselves all validate. One SDK request
+retry is also observed and recovers. There is no case regeneration, additional
+benchmark attempt, relaxed validation or post-run tuning.
+
+### Latency and cost observations
+
+Across all 24 attempts, median first actual user-facing delta is **30.328s**,
+and median full workflow duration is **34.633s**. The slowest case is
+`mixed-04`: **96.797s** to first answer and **103.750s** total. `missing-02`
+takes 74.250s total and `architecture-03` 54.813s. Genuine token streaming,
+heartbeat behavior and final citation validation remain unchanged. These timings
+exclude offline judge execution and the CLI's initial reranker preload.
+
+| Category | Median complete workflow |
+| --- | ---: |
+| Single file | 27.344s |
+| Architecture | 44.078s |
+| Insufficient evidence | 40.766s |
+| GitHub | 11.156s |
+| MIXED | 48.946s |
+
+The graph completes 102 native model calls and records 72 tool executions.
+Returned provider usage totals **957,829 input tokens** and **45,736 output
+tokens**, including **20,917 reasoning tokens**; **121,088 input tokens** are
+reported cached. These figures exclude local embeddings/reranker tokenization
+and offline judge calls, whose token usage is not instrumented. They are not a
+complete monetary bill estimate.
+
+For historical reference, the non-reranked v10 run has Recall@6 81.86%,
+Precision@6 40.20%, and final evidence coverage 100%, versus 83.82%, 44.12% and
+100% here on the same 17 applicable retrieval cases. Median workflow time rises
+from 25.336s to 34.633s (+9.297s, about 36.7%), and median first answer from
+20.406s to 30.328s (+9.922s). The current run has 49 retriever invocation spans
+with median duration 7.953s, versus 50 spans with median 0.657s in v10. Retriever
+spans include SQL, embeddings, parent assembly and optional reranking; this is
+not a separately instrumented reranker timer.
+
+This is **not a controlled reranker-only A/B comparison**: v10 also predates the
+GitHub selection fixes and uses low synthesis reasoning, while queries, tool
+trajectories, caches and provider load vary. Its judge is v3, so its semantic
+scores cannot be presented as directly comparable v4 quality improvements. No
+second non-reranked run or historical full-report regrading is started to create
+that comparison.
+
+### Decision
+
+Freeze this implementation and retain this as the final reranked development
+benchmark checkpoint. The requested quality/completion gates pass, while latency,
+unsupported extra claims and citation coverage retain measured limitations.
+Given the latency preference and observed overhead, keep reranking as an explicit
+opt-in rather than silently changing the production default on one confounded
+run. The evaluated configuration is reranking enabled with high synthesis effort;
+these results must not be described as a new full-run score for reranking disabled.
+
+No further prompt tuning, model changes, retrieval modifications, trials or full
+evaluations are performed. This is one run of questions used during development.
+It does not establish a production failure rate or generalization to unseen
+repositories/questions; independently authored holdout validation belongs to the
+next release checkpoint, not another automatic optimization cycle here.
+
+Artifacts: `final-v12-reranked.json` (complete execution),
+`final-v12-reranked-judged.json` (uniform v4 grades), `final-v12-summary.json`
+(counts, applicability, tokens and latency), with the one-shot driver and offline
+summary script alongside them. All prior failures and reports remain intact.
