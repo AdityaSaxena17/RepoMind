@@ -150,6 +150,32 @@ class ScriptedModel(FakeMessagesListChatModel):
         return self
 
 
+@pytest.mark.parametrize("role", ["CODE", "GITHUB", "SYNTHESIS"])
+def test_missing_final_marker_reports_actual_generation_role(role: Any) -> None:
+    model = ScriptedModel(
+        responses=[
+            AIMessage(
+                content="Private unmarked output",
+                response_metadata={"finish_reason": "stop"},
+            )
+        ]
+    )
+    with pytest.raises(agents.OutputValidationError) as caught:
+        asyncio.run(
+            agents.stream_final_answer(
+                model,
+                [],
+                role=role,
+                config=None,
+                timeout=1,
+                partial=False,
+            )
+        )
+    assert caught.value.code == "final_marker_missing"
+    assert str(caught.value) == f"{role} omitted its terminal answer declaration."
+    assert "Private" not in str(caught.value)
+
+
 def test_specialist_context_deduplicates_exact_sources_without_changing_records() -> (
     None
 ):
@@ -339,6 +365,35 @@ def call(name: str, arguments: dict[str, Any], call_id: str = "call") -> AIMessa
             }
         ],
     )
+
+
+def test_snapshot_evidence_does_not_erase_an_unsuccessful_code_search() -> None:
+    missing, unresolved = agents._tool_limitations(
+        [
+            ToolMessage(
+                name="search_repository_code",
+                tool_call_id="search",
+                content=json.dumps(
+                    {
+                        "sources": [],
+                        "missing_information": ["No indexed code matched this query."],
+                    }
+                ),
+            ),
+            ToolMessage(
+                name="get_repository_snapshot",
+                tool_call_id="snapshot",
+                content=json.dumps(
+                    {
+                        "indexed_commit_sha": "a" * 40,
+                        "url": "https://github.com/example/project/tree/" + "a" * 40,
+                    }
+                ),
+            ),
+        ]
+    )
+    assert missing == ["No indexed code matched this query."]
+    assert unresolved == set()
 
 
 def summary(

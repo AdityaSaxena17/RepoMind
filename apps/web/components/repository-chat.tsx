@@ -1,8 +1,10 @@
 "use client";
 
-import { Bot, ExternalLink, Loader2, Send, User } from "lucide-react";
+import { Bot, ExternalLink, Loader2, Send, Trash2, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RepositoryView } from "../lib/repository-view";
+import { readSseBlocks } from "../lib/chat-stream";
+import { MarkdownMessage } from "./markdown-message";
 
 type MessageRole = "ASSISTANT" | "USER";
 type MessageStatus = "FAILED" | "PENDING" | "STREAMING" | "SUCCEEDED";
@@ -41,8 +43,16 @@ interface ChatResponse {
 interface StreamPayload {
   message_id?: string;
   text?: string;
+  native?: boolean;
   message?: string;
   name?: string;
+  request_id?: string;
+  stage?: string;
+  operation?: string;
+  status?: string;
+  role?: string;
+  route?: string;
+  duration_ms?: number;
   citations?: Citation[];
 }
 
@@ -94,9 +104,21 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [streaming, setStreaming] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [toolActivity, setToolActivity] = useState<string[]>([]);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [route, setRoute] = useState<string | null>(null);
+  const [progressEvents, setProgressEvents] = useState<string[]>([]);
+  const [timing, setTiming] = useState<{
+    startedAt: number;
+    elapsedMs: number;
+    firstTokenMs: number | null;
+  } | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const historyRequest = useRef(0);
 
   const activeConversation = useMemo(
     () =>
@@ -112,6 +134,7 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
   const chatReady = repository.status === "READY" && repository.embeddings > 0;
 
   const loadConversations = useCallback(async () => {
+    const request = ++historyRequest.current;
     setLoading(true);
     setError(null);
 
@@ -126,6 +149,7 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
       }
 
       const nextConversations = readConversations(await response.json());
+      if (request !== historyRequest.current) return;
       setConversations(nextConversations);
       setActiveConversationId((current) =>
         current &&
@@ -134,23 +158,44 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
           : (nextConversations[0]?.id ?? null),
       );
     } catch (loadError) {
+      if (request !== historyRequest.current) return;
       setError(
         loadError instanceof Error
           ? loadError.message
           : "Could not load chat history.",
       );
     } finally {
-      setLoading(false);
+      if (request === historyRequest.current) setLoading(false);
     }
   }, [repository.name, repository.owner]);
 
   useEffect(() => {
     void loadConversations();
+    return () => {
+      historyRequest.current += 1;
+    };
   }, [loadConversations]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const pane = messagesRef.current;
+    if (pane) pane.scrollTop = pane.scrollHeight;
   }, [messages, streaming]);
+
+  const timingStartedAt = timing?.startedAt;
+  const firstTokenMs = timing?.firstTokenMs;
+  useEffect(() => {
+    if (!streaming || timingStartedAt === undefined || firstTokenMs != null) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setTiming((current) =>
+        current && current.firstTokenMs === null
+          ? { ...current, elapsedMs: performance.now() - current.startedAt }
+          : current,
+      );
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [streaming, timingStartedAt, firstTokenMs]);
 
   function updateAssistantMessage(
     messageId: string,
@@ -174,6 +219,46 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
     );
   }
 
+  async function deleteConversation(conversation: Conversation) {
+    if (
+      streaming ||
+      deletingConversationId ||
+      !window.confirm(
+        `Delete chat "${conversation.title}" and all its messages?`,
+      )
+    )
+      return;
+    setDeletingConversationId(conversation.id);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/repositories/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/chat`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation_id: conversation.id }),
+        },
+      );
+      if (!response.ok) {
+        const payload: unknown = await response.json();
+        throw new Error(
+          isRecord(payload) && typeof payload.error === "string"
+            ? payload.error
+            : "Chat deletion failed.",
+        );
+      }
+      await loadConversations();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Chat deletion failed.",
+      );
+    } finally {
+      setDeletingConversationId(null);
+    }
+  }
+
   async function sendMessage() {
     const message = input.trim();
 
@@ -181,10 +266,22 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
       return;
     }
 
+    // A history response started before this turn must not replace live messages.
+    historyRequest.current += 1;
+    setLoading(false);
+
     setInput("");
     setError(null);
     setToolActivity([]);
+    setRequestId(null);
+    setRoute(null);
+    setProgressEvents(["Connecting to RepoMind…"]);
     setStreaming(true);
+    setTiming({
+      startedAt: performance.now(),
+      elapsedMs: 0,
+      firstTokenMs: null,
+    });
     const streamController = new AbortController();
 
     const createdAt = new Date().toISOString();
@@ -193,7 +290,7 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
     let assistantMessageId = `assistant-${createdAt}`;
 
     if (!activeConversation) {
-      setConversations([
+      setConversations((current) => [
         {
           id: optimisticConversationId,
           title: message.slice(0, 80),
@@ -201,6 +298,7 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
           updated_at: createdAt,
           messages: [],
         },
+        ...current,
       ]);
       setActiveConversationId(optimisticConversationId);
     }
@@ -258,6 +356,22 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
       const realConversationId = response.headers.get(
         "X-RepoMind-Conversation-Id",
       );
+      const realUserMessageId = response.headers.get(
+        "X-RepoMind-User-Message-Id",
+      );
+      if (realUserMessageId) {
+        setConversations((current) =>
+          current.map((conversation) => ({
+            ...conversation,
+            messages: conversation.messages.map((entry) =>
+              entry.id === optimisticUserId
+                ? { ...entry, id: realUserMessageId }
+                : entry,
+            ),
+          })),
+        );
+      }
+      setRequestId(response.headers.get("X-RepoMind-Request-Id"));
 
       if (
         realConversationId &&
@@ -273,83 +387,109 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
         );
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
       let completed = false;
 
-      for (;;) {
-        const { value, done } = await reader.read();
+      for await (const block of readSseBlocks(response.body)) {
+        const parsed = parseSseEvent(block);
 
-        if (done) {
-          break;
+        if (!parsed || !parsed.payload) {
+          continue;
         }
 
-        buffer += decoder.decode(value, { stream: true });
-        const blocks = buffer.split("\n\n");
-        buffer = blocks.pop() ?? "";
+        if (
+          parsed.event === "assistant_message" &&
+          typeof parsed.payload.message_id === "string"
+        ) {
+          const realAssistantId = parsed.payload.message_id;
+          if (typeof parsed.payload.request_id === "string")
+            setRequestId(parsed.payload.request_id);
+          const previousAssistantId = assistantMessageId;
+          assistantMessageId = realAssistantId;
+          updateAssistantMessage(previousAssistantId, (assistant) => ({
+            ...assistant,
+            id: realAssistantId,
+          }));
+        }
 
-        for (const block of blocks) {
-          const parsed = parseSseEvent(block);
-
-          if (!parsed || !parsed.payload) {
-            continue;
-          }
-
+        if (
+          parsed.event === "progress" &&
+          typeof parsed.payload.stage === "string" &&
+          typeof parsed.payload.operation === "string" &&
+          typeof parsed.payload.status === "string"
+        ) {
           if (
-            parsed.event === "assistant_message" &&
-            typeof parsed.payload.message_id === "string"
+            ["CODE", "GITHUB", "MIXED", "CLARIFICATION"].includes(
+              parsed.payload.route ?? "",
+            )
           ) {
-            const realAssistantId = parsed.payload.message_id;
-            const previousAssistantId = assistantMessageId;
-            assistantMessageId = realAssistantId;
-            updateAssistantMessage(previousAssistantId, (assistant) => ({
-              ...assistant,
-              id: realAssistantId,
-            }));
+            setRoute(parsed.payload.route ?? null);
           }
-
+          const entry = [
+            parsed.payload.role,
+            parsed.payload.stage,
+            parsed.payload.operation,
+            parsed.payload.status,
+            parsed.payload.route ? `→ ${parsed.payload.route}` : null,
+            typeof parsed.payload.duration_ms === "number"
+              ? `${(parsed.payload.duration_ms / 1000).toFixed(1)}s`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          setProgressEvents((current) => [...current, entry].slice(-20));
+        }
+        if (
+          parsed.event === "delta" &&
+          typeof parsed.payload.text === "string"
+        ) {
           if (
-            parsed.event === "delta" &&
-            typeof parsed.payload.text === "string"
+            parsed.payload.text.length > 0 &&
+            parsed.payload.native !== false
           ) {
-            updateAssistantMessage(assistantMessageId, (assistant) => ({
-              ...assistant,
-              content: assistant.content + parsed.payload?.text,
-            }));
-          }
-
-          if (
-            parsed.event === "citations" &&
-            Array.isArray(parsed.payload.citations)
-          ) {
-            updateAssistantMessage(assistantMessageId, (assistant) => ({
-              ...assistant,
-              citations: parsed.payload?.citations ?? [],
-            }));
-          }
-
-          if (
-            parsed.event === "tool" &&
-            typeof parsed.payload.name === "string"
-          ) {
-            const toolName = parsed.payload.name;
-            setToolActivity((current) =>
-              current.includes(toolName)
-                ? current
-                : [...current, toolName].slice(-4),
+            const receivedAt = performance.now();
+            setTiming((current) =>
+              current && current.firstTokenMs === null
+                ? { ...current, firstTokenMs: receivedAt - current.startedAt }
+                : current,
             );
           }
+          updateAssistantMessage(assistantMessageId, (assistant) => ({
+            ...assistant,
+            content: assistant.content + parsed.payload?.text,
+          }));
+        }
 
-          if (parsed.event === "error") {
-            throw new Error(parsed.payload.message ?? "Chat failed.");
-          }
-          if (
-            parsed.event === "done" &&
-            parsed.payload.message_id === assistantMessageId
-          ) {
-            completed = true;
-          }
+        if (
+          parsed.event === "citations" &&
+          Array.isArray(parsed.payload.citations)
+        ) {
+          updateAssistantMessage(assistantMessageId, (assistant) => ({
+            ...assistant,
+            citations: parsed.payload?.citations ?? [],
+          }));
+        }
+
+        if (
+          parsed.event === "tool" &&
+          typeof parsed.payload.name === "string"
+        ) {
+          const toolName = parsed.payload.name;
+          setToolActivity((current) =>
+            current.includes(toolName)
+              ? current
+              : [...current, toolName].slice(-4),
+          );
+        }
+
+        if (parsed.event === "error") {
+          throw new Error(parsed.payload.message ?? "Chat failed.");
+        }
+        if (
+          parsed.event === "done" &&
+          parsed.payload.message_id === assistantMessageId
+        ) {
+          completed = true;
+          break;
         }
       }
 
@@ -362,11 +502,18 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
         ...assistant,
         status: "SUCCEEDED",
       }));
-      await loadConversations();
+      setProgressEvents((current) =>
+        [...current, "Response validated and saved"].slice(-20),
+      );
+      // SSE done follows validation and persistence; socket EOF is not required.
+      streamController.abort();
+      // The validated stream already contains the saved answer and citations.
+      // Replacing it with a separate history snapshot can erase the visible turn.
     } catch (sendError) {
       const messageText =
         sendError instanceof Error ? sendError.message : "Chat request failed.";
       setError(messageText);
+      setProgressEvents((current) => [...current, "Request failed"].slice(-20));
       updateAssistantMessage(assistantMessageId, (assistant) => ({
         ...assistant,
         status: "FAILED",
@@ -375,13 +522,18 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
       }));
     } finally {
       streamController.abort();
+      setTiming((current) =>
+        current
+          ? { ...current, elapsedMs: performance.now() - current.startedAt }
+          : current,
+      );
       setStreaming(false);
     }
   }
 
   return (
-    <section className="flex min-h-[calc(100svh-4rem)] min-w-0 flex-col">
-      <div className="border-b border-white/10 px-5 py-5 md:px-8">
+    <section className="flex h-[calc(100svh-4rem)] min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-white/10 px-5 py-5 md:px-8">
         <p className="text-sm text-zinc-500">
           {repository.owner}/{repository.name}
         </p>
@@ -389,34 +541,57 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
           AI Codebase Chat
         </h1>
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <aside className="border-b border-white/10 p-4 lg:border-b-0 lg:border-r">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[15rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+        <aside className="max-h-40 overflow-y-auto border-b border-white/10 p-4 lg:max-h-none lg:border-b-0 lg:border-r">
           <button
             className="w-full rounded-md border border-white/10 px-3 py-2 text-left text-sm text-zinc-200 hover:border-white/20"
             onClick={() => setActiveConversationId(null)}
+            disabled={streaming || deletingConversationId !== null}
             type="button"
           >
             New chat
           </button>
           <div className="mt-4 space-y-2">
             {conversations.map((conversation) => (
-              <button
-                className={`w-full truncate rounded-md px-3 py-2 text-left text-sm ${
-                  conversation.id === activeConversation?.id
-                    ? "bg-white/10 text-zinc-50"
-                    : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200"
-                }`}
+              <div
                 key={conversation.id}
-                onClick={() => setActiveConversationId(conversation.id)}
-                type="button"
+                className="flex min-w-0 items-center gap-1"
               >
-                {conversation.title}
-              </button>
+                <button
+                  className={`min-w-0 flex-1 truncate rounded-md px-3 py-2 text-left text-sm ${
+                    conversation.id === activeConversation?.id
+                      ? "bg-white/10 text-zinc-50"
+                      : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200"
+                  }`}
+                  disabled={streaming || deletingConversationId !== null}
+                  onClick={() => setActiveConversationId(conversation.id)}
+                  type="button"
+                >
+                  {conversation.title}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete chat ${conversation.title}`}
+                  className="rounded-md p-2 text-zinc-500 hover:bg-red-400/10 hover:text-red-300 disabled:opacity-40"
+                  disabled={streaming || deletingConversationId !== null}
+                  onClick={() => void deleteConversation(conversation)}
+                >
+                  {deletingConversationId === conversation.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             ))}
           </div>
         </aside>
         <div className="flex min-h-0 flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-6 md:px-8">
+          <div
+            ref={messagesRef}
+            aria-label="Chat messages"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-6 md:px-8"
+          >
             {!chatReady ? (
               <div className="max-w-2xl rounded-lg border border-amber-400/20 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
                 Repository chat is available after indexing succeeds. Current
@@ -462,9 +637,16 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
                   {message.role === "USER" ? "You" : "RepoMind"}
                   {message.status === "STREAMING" ? " · streaming" : ""}
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-100">
-                  {message.content || "Thinking..."}
-                </p>
+                {message.role === "ASSISTANT" && message.content ? (
+                  <MarkdownMessage
+                    content={message.content}
+                    streaming={message.status === "STREAMING"}
+                  />
+                ) : (
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-100">
+                    {message.content || "Thinking..."}
+                  </p>
+                )}
                 {message.error_message ? (
                   <p className="mt-3 text-sm text-red-300">
                     {message.error_message}
@@ -494,9 +676,32 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
                 ) : null}
               </article>
             ))}
-            <div ref={bottomRef} />
           </div>
-          <div className="border-t border-white/10 p-4 md:px-8">
+          <div className="shrink-0 border-t border-white/10 p-4 md:px-8">
+            {progressEvents.length > 0 ? (
+              <details className="mb-3 rounded-md border border-white/10 px-3 py-2 text-xs text-zinc-400">
+                <summary className="cursor-pointer">
+                  {route ? `${route} · ` : ""}
+                  {progressEvents.at(-1)}
+                  {requestId ? ` · request ${requestId}` : ""}
+                </summary>
+                <ol className="mt-2 max-h-28 space-y-1 overflow-y-auto">
+                  {progressEvents.map((entry, index) => (
+                    <li key={index}>{entry}</li>
+                  ))}
+                </ol>
+              </details>
+            ) : null}
+            {timing ? (
+              <p
+                className="mb-3 text-xs tabular-nums text-zinc-400"
+                role="timer"
+              >
+                {timing.firstTokenMs !== null
+                  ? `First token: ${(timing.firstTokenMs / 1000).toFixed(1)}s`
+                  : `${streaming ? "Waiting for first token" : "No answer token received"}: ${(timing.elapsedMs / 1000).toFixed(1)}s`}
+              </p>
+            ) : null}
             {error ? (
               <p className="mb-3 rounded-md border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">
                 {error}
@@ -504,7 +709,7 @@ export function RepositoryChat({ repository }: { repository: RepositoryView }) {
             ) : null}
             {streaming && toolActivity.length > 0 ? (
               <p className="mb-3 rounded-md border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-xs text-sky-100">
-                Using GitHub MCP: {toolActivity.join(", ")}
+                Using tools: {toolActivity.join(", ")}
               </p>
             ) : null}
             <div className="flex gap-3">

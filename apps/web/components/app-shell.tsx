@@ -45,7 +45,12 @@ const globalNavigationItems: {
   href: string;
   icon: typeof LayoutDashboard;
 }[] = [
-  { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
   {
     id: "repositories",
     label: "Repositories",
@@ -82,8 +87,8 @@ export async function AppShell({
     ? `${repository.owner}/${repository.name}`
     : "No repository selected";
   const shellGridClass = rightPanel
-    ? "grid min-h-[calc(100svh-4rem)] grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)_336px]"
-    : "grid min-h-[calc(100svh-4rem)] grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]";
+    ? "grid grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[232px_minmax(0,1fr)_336px]"
+    : "grid grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]";
 
   return (
     <div className="min-h-svh bg-[#09090b] text-zinc-100">
@@ -107,8 +112,10 @@ export async function AppShell({
           <UserButton />
         </div>
       </header>
-      <div className={shellGridClass}>
-        <aside className="hidden border-r border-white/10 bg-[#0c0c0f] p-3 md:block">
+      <div
+        className={`${shellGridClass} ${activeItem === "chat" ? "h-[calc(100svh-4rem)] min-h-0 overflow-hidden" : "min-h-[calc(100svh-4rem)]"}`}
+      >
+        <aside className="hidden min-h-0 overflow-y-auto border-r border-white/10 bg-[#0c0c0f] p-3 md:block">
           <nav className="space-y-1">
             {globalNavigationItems.map((item) => {
               const Icon = item.icon;
@@ -166,9 +173,9 @@ export async function AppShell({
             </p>
           </div>
         </aside>
-        <main className="min-w-0">{children}</main>
+        <main className="min-h-0 min-w-0">{children}</main>
         {rightPanel ? (
-          <aside className="hidden border-l border-white/10 bg-[#0c0c0f] p-5 xl:block">
+          <aside className="hidden min-h-0 overflow-y-auto border-l border-white/10 bg-[#0c0c0f] p-5 xl:block">
             {rightPanel}
           </aside>
         ) : null}

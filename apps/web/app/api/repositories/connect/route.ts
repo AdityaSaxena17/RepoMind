@@ -62,12 +62,15 @@ export async function POST(request: NextRequest) {
       RepositoryIndexJobTrigger.CONNECT,
     );
 
-    await enqueueFastApiJob(repository.id, job.id, user.id);
+    if (job) {
+      await enqueueFastApiJob(repository.id, job.id, user.id);
+    }
 
     return Response.json({
       repository_id: repository.id,
-      job_id: job.id,
+      job_id: job?.id ?? null,
       status,
+      up_to_date: job === null,
     });
   } catch (error) {
     console.error("Repository connection failed", error);
@@ -75,7 +78,9 @@ export async function POST(request: NextRequest) {
     return Response.json(
       {
         error:
-          error instanceof Error ? error.message : "Repository connection failed.",
+          error instanceof Error
+            ? error.message
+            : "Repository connection failed.",
       },
       { status: 400 },
     );

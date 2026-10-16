@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import aclosing
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -35,6 +36,7 @@ async def stream_chat(
         str | None,
         Header(alias="X-RepoMind-Internal-Credential"),
     ] = None,
+    request_id: Annotated[UUID | None, Header(alias="X-RepoMind-Request-Id")] = None,
 ) -> StreamingResponse:
     settings = get_settings()
 
@@ -56,6 +58,7 @@ async def stream_chat(
                 payload.user_id,
                 payload.message_id,
                 redis=request.app.state.redis,
+                request_id=str(request_id) if request_id is not None else None,
             )
         ) as stream:
             async for event in stream:

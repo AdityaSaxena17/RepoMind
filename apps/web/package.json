@@ -8,16 +8,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "check-types": "next typegen && tsc --noEmit",
+    "test": "node --experimental-transform-types --experimental-test-module-mocks --test tests/*.test.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.6.2",
     "@repo/db": "workspace:*",
     "@repo/ui": "workspace:*",
     "lucide-react": "1.27.0",
+    "mermaid": "^12.2.0",
     "next": "16.2.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

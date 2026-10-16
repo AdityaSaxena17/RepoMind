@@ -27,6 +27,7 @@ from .agents import (
     stream_final_answer,
 )
 from .code_tools import CodeEvidence, CodeTools
+from .observability import progress
 from .tool_errors import AUTHORIZATION_ERRORS, ScopeViolationError
 from .tool_registry import ToolRegistry
 
@@ -94,13 +95,23 @@ def create_query_router(
     instruction = SystemMessage(
         content=(
             "Classify the last user question by the evidence needed to answer it. "
-            "All questions concern the one already connected repository; its "
-            "identity is established, so do not ask which repository is meant. "
+            "Evidence investigations are limited to the one already connected "
+            "repository; its identity is established, so do not ask which "
+            "repository is meant. Classify the latest message itself. Use history "
+            "only to resolve references in that message, never to invent a request "
+            "or resume an earlier investigation after a standalone greeting. "
+            "For a greeting or acknowledgement without a repository question, "
+            "return a brief conversational reply and ask what help is wanted in "
+            "clarification, with scope null. A greeting followed by a real question "
+            "must route that question normally. "
             "CODE requires indexed repository implementation, configuration, or "
-            "documentation, including project facts and metrics, how GitHub or "
+            "documentation, including the snapshot RepoMind is currently using "
+            "(indexed commit, branch, index status and embedding metadata), "
+            "project facts and metrics, how GitHub or "
             "MCP tools are implemented, and workflows that use external services. "
             "GITHUB requires live GitHub issues, pull requests, diffs, status, or "
-            "comments. MIXED requires both indexed code and live GitHub evidence. "
+            "comments, or the latest live branch/commit. MIXED requires both "
+            "indexed code and live GitHub evidence. "
             "For MIXED set mixed_strategy to PARALLEL when the question identifies "
             "the indexed component, symbol or behavior to investigate independently; "
             "an exact file path is not required. Use GITHUB_THEN_CODE only when "
@@ -180,6 +191,27 @@ def create_query_router(
     )
 
     async def query_router(state: RouterInput, config: RunnableConfig) -> RouterOutput:
+        await progress("routing", "classification", "started", config)
+        # Match the entire message so a greeting cannot swallow a real question.
+        if re.fullmatch(
+            r"(?:(?:hi|hello|hey)(?:[,\s]+(?:there|again|repomind))?"
+            r"|good\s+(?:morning|afternoon|evening))[!?,.\s]*",
+            state["question"].strip(),
+            flags=re.IGNORECASE,
+        ):
+            decision = RouteDecision(
+                scope=None,
+                clarification="Hi! What would you like to know about this repository?",
+            )
+            await progress(
+                "routing",
+                "classification",
+                "completed",
+                config,
+                route="CLARIFICATION",
+                method="standalone_greeting",
+            )
+            return {"decision": decision}
         messages = [
             instruction,
             *state["history"],
@@ -198,9 +230,19 @@ def create_query_router(
                 if not isinstance(raw, AIMessage):
                     raise ValueError("The router did not return an assistant message.")
                 # LangChain's parser repairs partial JSON; require the complete body.
-                return {"decision": RouteDecision.model_validate_json(raw.text)}
+                decision = RouteDecision.model_validate_json(raw.text)
+                await progress(
+                    "routing",
+                    "classification",
+                    "completed",
+                    config,
+                    route=decision.scope or "CLARIFICATION",
+                    strategy=decision.mixed_strategy,
+                )
+                return {"decision": decision}
             except Exception as error:
                 if attempt == 2:
+                    await progress("routing", "classification", "failed", config)
                     # Provider/parser errors can contain prompts; keep SSE errors safe.
                     raise RuntimeError(
                         "Query routing failed after two attempts. Please try again."
@@ -525,6 +567,7 @@ def create_repository_graph(
         }
         try:
             result.model_calls += 1
+            await progress("agent", "synthesis", "started", config, role="SYNTHESIS")
             partial = bool(
                 any(not error.recovered for error in result.errors)
                 or result.missing_information
@@ -589,6 +632,7 @@ def create_repository_graph(
                     else None,
                 )
             )
+        await progress("agent", "synthesis", result.status, config, role="SYNTHESIS")
         return {"result": result}
 
     def after_github(state: WorkflowState) -> str:

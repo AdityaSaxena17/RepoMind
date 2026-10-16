@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 import pytest
 from langchain_core.callbacks import AsyncCallbackHandler
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 from openai import AuthenticationError
 from test_agents import ScriptedModel, call, github_scope, summary
@@ -137,6 +137,41 @@ def test_single_routes_and_clarification_skip_unneeded_work(
     if scope is None:
         assert result.answer == "Which change?"
         assert result.citation_catalog == {} and result.tool_executions == []
+
+
+@pytest.mark.parametrize("invented_url", [False, True])
+def test_snapshot_question_returns_sha_without_retrieval_or_github(
+    monkeypatch: pytest.MonkeyPatch, invented_url: bool
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch, "CODE")
+    url = f"https://github.com/example/project/tree/{SHA}"
+    code.responses = [
+        call("get_repository_snapshot", {}, "snapshot"),
+        AIMessage(
+            content=FINAL_ANSWER_MARKER
+            + f"I'm using indexed commit `{SHA}` "
+            + f"({url.replace(SHA, 'b' * 40) if invented_url else url})."
+        ),
+    ]
+    result = asyncio.run(
+        graph.ainvoke(
+            {"question": "What commit are you currently using?", "history": []}
+        )
+    )["result"]
+    assert result.status == ("failed" if invented_url else "complete"), result.errors
+    if invented_url:
+        assert result.errors[-1].code == "citation_invalid"
+    else:
+        assert SHA in result.answer and not result.answer.startswith(
+            PARTIAL_ANSWER_PREFIX
+        )
+        assert result.source_ids == ["code:snapshot"]
+        assert result.citation_catalog[url] == "code:snapshot"
+        assert result.tool_executions[0].result["indexed_commit_sha"] == SHA
+        assert result.model_calls == 2
+    assert result.evidence == []
+    assert not any('FROM "RepositoryFile"' in query[0] for query in database.queries)
+    assert github.requests == [] and synthesis.requests == [] and events == []
 
 
 def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
@@ -756,3 +791,29 @@ def test_output_failures_have_controlled_specific_categories(
     assert result.errors[-1].code == code
     assert "Unmarked response" not in result.errors[-1].message
     assert result.errors[-1].kind == "validation"
+
+
+@pytest.mark.parametrize("question", ["hi", "hi again"])
+def test_greeting_after_mixed_history_starts_no_investigation(
+    monkeypatch: pytest.MonkeyPatch,
+    question: str,
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch)
+    result = asyncio.run(
+        graph.ainvoke(
+            {
+                "question": question,
+                "history": [
+                    HumanMessage(
+                        content="Compare a live PR with the indexed architecture."
+                    ),
+                    AIMessage(content="Previous investigation."),
+                ],
+            }
+        )
+    )["result"]
+    assert result.status == "clarification" and result.decision.scope is None
+    assert result.answer == "Hi! What would you like to know about this repository?"
+    assert code.requests == github.requests == synthesis.requests == []
+    assert database.queries == events == result.tool_executions == result.evidence == []
+    assert result.model_calls == 0 and result.findings == {} and result.errors == []

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Literal
 from urllib.parse import urlencode
@@ -10,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from .config import get_settings
+from .observability import log_event, request_id_context
 from .tool_errors import AuthorizationError, ScopeViolationError
 
 GITHUB_API_BASE_URL = "https://api.github.com"
@@ -21,7 +23,8 @@ GITHUB_TOOL_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, destructiveHint=Fal
 mcp = FastMCP(
     "RepoMind GitHub",
     instructions=(
-        "Read public GitHub issues and pull requests for exactly one connected "
+        "Read public GitHub issues, pull requests and the live default-branch HEAD "
+        "for exactly one connected "
         "RepoMind repository. Repository scope is enforced by the server."
     ),
 )
@@ -129,6 +132,7 @@ async def repository_scope() -> dict[str, str]:
         raise ScopeViolationError("MCP repository scope is missing.")
 
     settings = get_settings()
+    log_event("database", "github_authorization", "started")
     connection = await asyncpg.connect(settings.database_url)
 
     try:
@@ -150,6 +154,7 @@ async def repository_scope() -> dict[str, str]:
 
     if not row:
         raise AuthorizationError("Repository is not active or no longer accessible.")
+    log_event("database", "github_authorization", "completed")
 
     return {
         "owner": str(row["owner"]),
@@ -233,6 +238,38 @@ def search_query(
 
 def query_string(values: dict[str, object]) -> str:
     return urlencode({key: str(value) for key, value in values.items()})
+
+
+@mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
+async def get_repository_head() -> dict[str, Any]:
+    """Read the latest live commit on the connected repository's default branch.
+
+    Use for GitHub's current/latest commit, not the snapshot RepoMind has indexed.
+    Repository and user identity are server-owned; there are no arguments.
+    """
+    scope = await repository_scope()
+    payload = await github_json(
+        f"/repos/{scope['owner']}/{scope['repo']}/commits?per_page=1"
+    )
+    if not isinstance(payload, list) or not payload or not isinstance(payload[0], dict):
+        raise ValueError("GitHub did not return a default-branch commit.")
+    sha, url = (
+        read_string(payload[0].get("sha")),
+        read_string(payload[0].get("html_url")),
+    )
+    if (
+        sha is None
+        or len(sha) != 40
+        or any(c not in "0123456789abcdef" for c in sha)
+        or url != f"https://github.com/{scope['owner']}/{scope['repo']}/commit/{sha}"
+    ):
+        raise ValueError("GitHub returned invalid commit metadata.")
+    return {
+        "repository": f"{scope['owner']}/{scope['repo']}",
+        "ref": "live default branch",
+        "commit_sha": sha,
+        "url": url,
+    }
 
 
 @mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
@@ -507,6 +544,9 @@ async def pull_request_read(
 
 def main() -> None:
     """Run the scoped GitHub MCP server over stdio."""
+    logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.getLogger("app").setLevel(logging.INFO)
+    request_id_context.set(os.getenv("REPOMIND_MCP_REQUEST_ID", "-"))
     mcp.run(transport="stdio")
 
 

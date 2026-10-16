@@ -8,6 +8,7 @@ import {
   Search,
   ShieldCheck,
   TriangleAlert,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -28,6 +29,7 @@ interface RepositorySummary {
   status: RepositoryStatus;
   indexed_file_count: number;
   indexed_chunk_count: number;
+  indexed_commit_sha: string | null;
   last_indexed_at: string | null;
   last_index_error: string | null;
 }
@@ -61,10 +63,12 @@ export function RepositoryPicker() {
   const [busyRepository, setBusyRepository] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function loadRepositories() {
     setLoading(true);
     setMessage(null);
+    setNotice(null);
 
     try {
       const response = await fetch("/api/repositories", {
@@ -135,7 +139,9 @@ export function RepositoryPicker() {
 
     try {
       const response = await fetch(
-        retryRepository ? "/api/repositories/reindex" : "/api/repositories/connect",
+        retryRepository
+          ? "/api/repositories/reindex"
+          : "/api/repositories/connect",
         {
           method: "POST",
           headers: {
@@ -155,13 +161,66 @@ export function RepositoryPicker() {
 
       setOwner("");
       setRepo("");
+      const payload: unknown = await response.json();
       await loadRepositories();
+      if (
+        typeof payload === "object" &&
+        payload !== null &&
+        "up_to_date" in payload &&
+        payload.up_to_date === true
+      ) {
+        setNotice(
+          "Already up to date: GitHub's latest commit matches the indexed commit.",
+        );
+      }
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Repository connection failed.",
+        error instanceof Error
+          ? error.message
+          : "Repository connection failed.",
       );
     } finally {
       setConnecting(false);
+      setBusyRepository(null);
+    }
+  }
+
+  async function deleteRepository(repository: RepositorySummary) {
+    if (
+      busyRepository ||
+      !window.confirm(
+        `Remove ${repository.full_name} from RepoMind and delete your chats for it? This does not delete the repository on GitHub.`,
+      )
+    )
+      return;
+    setBusyRepository(repository.id);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/repositories", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner: repository.owner,
+          repo: repository.name,
+        }),
+      });
+      if (!response.ok) {
+        const payload: unknown = await response.json();
+        throw new Error(
+          typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof payload.error === "string"
+            ? payload.error
+            : "Repository deletion failed.",
+        );
+      }
+      await loadRepositories();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Repository deletion failed.",
+      );
+    } finally {
       setBusyRepository(null);
     }
   }
@@ -235,6 +294,11 @@ export function RepositoryPicker() {
           value={query}
         />
       </div>
+      {notice ? (
+        <p className="mt-4 rounded-md border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm text-emerald-200">
+          {notice}
+        </p>
+      ) : null}
       {message ? (
         <p className="mt-4 flex items-start gap-2 rounded-md border border-rose-400/20 bg-rose-400/10 p-3 text-sm text-rose-200">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
@@ -277,6 +341,15 @@ export function RepositoryPicker() {
                   <h3 className="mt-2 truncate text-base font-semibold text-zinc-50">
                     {repository.full_name}
                   </h3>
+                  {repository.indexed_commit_sha ? (
+                    <p className="mt-2 text-xs text-zinc-500">
+                      Indexed commit{" "}
+                      {repository.indexed_commit_sha.slice(0, 12)}
+                      {repository.last_indexed_at
+                        ? ` · last indexed ${new Date(repository.last_indexed_at).toLocaleString()}`
+                        : ""}
+                    </p>
+                  ) : null}
                   {repository.last_index_error ? (
                     <p className="mt-2 line-clamp-2 text-xs text-rose-200">
                       {repository.last_index_error}
@@ -302,7 +375,8 @@ export function RepositoryPicker() {
                       <ArrowUpRight className="h-4 w-4" />
                     </a>
                   ) : null}
-                  {repository.status === "FAILED" ? (
+                  {repository.status === "FAILED" ||
+                  repository.status === "READY" ? (
                     <button
                       className="inline-flex h-9 items-center gap-2 rounded-md bg-zinc-100 px-3 text-sm font-medium text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={isBusy}
@@ -314,9 +388,20 @@ export function RepositoryPicker() {
                       ) : (
                         <CheckCircle2 className="h-4 w-4" />
                       )}
-                      Retry indexing
+                      {repository.status === "FAILED"
+                        ? "Retry indexing"
+                        : "Reindex"}
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    aria-label={`Delete ${repository.full_name} from RepoMind`}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-red-400/20 px-3 text-sm text-red-300 disabled:opacity-40"
+                    disabled={busyRepository !== null}
+                    onClick={() => void deleteRepository(repository)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
                 </div>
               </div>
             </article>

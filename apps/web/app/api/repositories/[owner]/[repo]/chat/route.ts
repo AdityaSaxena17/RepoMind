@@ -1,5 +1,6 @@
 import { ChatMessageRole, ChatMessageStatus, prisma } from "@repo/db";
 import type { NextRequest } from "next/server";
+import { deleteConversationForUser } from "../../../../../../lib/deletion";
 import {
   findConnectedRepositoryForUser,
   requireRepoMindUser,
@@ -131,7 +132,24 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ owner: string; repo: string }> },
 ) {
+  const requestId = crypto.randomUUID();
+  console.info(
+    JSON.stringify({
+      request_id: requestId,
+      stage: "request",
+      operation: "chat",
+      status: "started",
+    }),
+  );
   const { owner, repo } = await context.params;
+  console.info(
+    JSON.stringify({
+      request_id: requestId,
+      stage: "database",
+      operation: "chat_prepare",
+      status: "started",
+    }),
+  );
   const scope = await requireRepository(owner, repo);
 
   if (!scope) {
@@ -192,11 +210,20 @@ export async function POST(
     where: { id: conversation.id },
     data: { updatedAt: new Date() },
   });
+  console.info(
+    JSON.stringify({
+      request_id: requestId,
+      stage: "database",
+      operation: "chat_prepare",
+      status: "completed",
+    }),
+  );
 
   const apiBaseUrl = process.env.FASTAPI_BASE_URL ?? "http://127.0.0.1:8137";
   const credential = process.env.INTERNAL_API_CREDENTIAL;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-RepoMind-Request-Id": requestId,
   };
 
   if (credential) {
@@ -236,6 +263,80 @@ export async function POST(
       "Content-Type": "text/event-stream",
       "X-RepoMind-Conversation-Id": conversation.id,
       "X-RepoMind-User-Message-Id": userMessage.id,
+      "X-RepoMind-Request-Id": requestId,
     },
   });
+}
+
+/** Delete an owned conversation and its messages after any response has finished. */
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ owner: string; repo: string }> },
+) {
+  const { owner, repo } = await context.params;
+  const scope = await requireRepository(owner, repo);
+  if (!scope)
+    return Response.json({ error: "Repository not found." }, { status: 404 });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+  if (
+    !isRecord(body) ||
+    typeof body.conversation_id !== "string" ||
+    body.conversation_id.trim().length === 0 ||
+    body.conversation_id.length > 128
+  ) {
+    return Response.json(
+      { error: "A valid conversation ID is required." },
+      { status: 400 },
+    );
+  }
+  try {
+    console.info(
+      JSON.stringify({
+        stage: "database",
+        operation: "chat_delete",
+        status: "started",
+      }),
+    );
+    const result = await deleteConversationForUser(
+      scope.user.id,
+      scope.repository.id,
+      body.conversation_id.trim(),
+    );
+    console.info(
+      JSON.stringify({
+        stage: "database",
+        operation: "chat_delete",
+        status: result,
+      }),
+    );
+    if (result === "not_found")
+      return Response.json(
+        { error: "Conversation not found." },
+        { status: 404 },
+      );
+    if (result === "busy")
+      return Response.json(
+        { error: "Wait for the response to finish before deleting this chat." },
+        { status: 409 },
+      );
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        stage: "database",
+        operation: "chat_delete",
+        status: "failed",
+        error_type: error instanceof Error ? error.name : "UnknownError",
+      }),
+    );
+    return Response.json(
+      { error: "Chat deletion failed. Try again." },
+      { status: 500 },
+    );
+  }
 }

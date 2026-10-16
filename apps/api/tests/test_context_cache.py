@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from datetime import timedelta
 from typing import Any
 
@@ -67,7 +68,9 @@ def request_tools(
 
 def test_cross_request_hits_keep_request_labels_and_first_pass(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.INFO, logger="app.observability")
     database, redis = Database(), Redis()
     queries = scripted_retriever(monkeypatch, database)
     creations = []
@@ -101,6 +104,24 @@ def test_cross_request_hits_keep_request_labels_and_first_pass(
 
     asyncio.run(run())
     assert queries == ["initial"] and creations == [True]
+    events = [
+        json.loads(record.message)
+        for record in caplog.records
+        if record.name == "app.observability"
+    ]
+    assert (
+        sum(event["stage"] == "redis" and event["status"] == "hit" for event in events)
+        == 2
+    )
+    assert (
+        sum(event["stage"] == "redis" and event["status"] == "miss" for event in events)
+        == 2
+    )
+    assert any(
+        event["stage"] == "database" and event["operation"] == "file_context"
+        for event in events
+    )
+    assert "app.py" not in caplog.text and "initial" not in caplog.text
 
 
 @pytest.mark.parametrize("explicit", [False, True])

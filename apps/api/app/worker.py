@@ -379,7 +379,7 @@ async def index_repository(
     try:
         repository = await connection.fetchrow(
             """
-            SELECT "owner", "name", "defaultBranch", "indexStatus"
+            SELECT "owner", "name", "defaultBranch", "indexStatus", "indexedCommitSha"
             FROM "Repository"
             WHERE "id" = $1 AND "accessStatus" = 'ACTIVE'
             """,
@@ -405,6 +405,28 @@ async def index_repository(
                 str(repository["name"]),
                 str(repository["defaultBranch"]),
             )
+            if repository["indexedCommitSha"] == commit_sha:
+                # HEAD can change between the web check and dequeuing. Do not
+                # replace files, embeddings, timestamps or cache revisions here.
+                async with connection.transaction():
+                    await connection.execute(
+                        'UPDATE "Repository" SET "indexStatus"=\'READY\', '
+                        '"targetCommitSha"=$2, "lastIndexError"=NULL, '
+                        '"updatedAt"=now() '
+                        'WHERE "id"=$1',
+                        repository_id,
+                        commit_sha,
+                    )
+                    await connection.execute(
+                        'UPDATE "RepositoryIndexJob" SET "status"=\'SUCCEEDED\', '
+                        '"finishedAt"=now(), "updatedAt"=now() WHERE "id"=$1',
+                        job_id,
+                    )
+                return {
+                    "repository_id": repository_id,
+                    "status": "unchanged",
+                    "commit_sha": commit_sha,
+                }
             tree = await fetch_tree(
                 client,
                 str(repository["owner"]),

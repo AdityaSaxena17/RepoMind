@@ -23,6 +23,7 @@ class ChatDatabase(Database):
         self.citations: list[Any] = []
         self.fail_persistence = False
         self.revision = datetime(2026, 10, 15, tzinfo=timezone.utc)
+        self.question = "Read the code."
 
 
 class ChatConnection(Connection):
@@ -42,7 +43,7 @@ class ChatConnection(Connection):
 
     async def fetchrow(self, sql: str, *args: Any) -> Any:
         if 'FROM "ChatMessage"' in sql:
-            return {"content": "Read the code."}
+            return {"content": self.database.question}
         if 'FROM "Repository"' in sql:
             return (
                 {
@@ -363,7 +364,12 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
             events = []
             saw_live = False
             stream = chat.stream_repository_chat(
-                ChatPool(database), "repo", "conversation", "user", "message"
+                ChatPool(database),
+                "repo",
+                "conversation",
+                "user",
+                "message",
+                request_id="trace-test",
             )
             if fault == "disconnect":
                 from starlette.requests import ClientDisconnect
@@ -403,6 +409,18 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                         assert fault == "heartbeat"
                         if saw_live:
                             pause.set()
+            answer_deltas = [
+                json.loads(event.split("data: ")[1])
+                for event in events
+                if event.startswith("event: delta")
+            ]
+            assert all(isinstance(delta["native"], bool) for delta in answer_deltas)
+            if fault == "partial":
+                assert answer_deltas[0] == {
+                    "text": PARTIAL_ANSWER_PREFIX,
+                    "native": False,
+                }
+                assert all(delta["native"] for delta in answer_deltas[1:])
             text = "".join(
                 json.loads(event.split("data: ")[1])["text"]
                 for event in events
@@ -413,6 +431,22 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                 and "final_answer" not in text
                 and "scope" not in text
             )
+            progress_events = [
+                json.loads(event.split("data: ")[1])
+                for event in events
+                if event.startswith("event: progress")
+            ]
+            assert any(
+                event["stage"] == "routing" and event.get("route") == "CODE"
+                for event in progress_events
+            )
+            assert all(event["request_id"] == "trace-test" for event in progress_events)
+            assert all(
+                "content" not in event and "arguments" not in event
+                for event in progress_events
+            )
+            if fault != "initial_transport_repeat":
+                assert any(event["stage"] == "database" for event in progress_events)
             assert saw_live == (
                 fault
                 not in {
@@ -480,6 +514,75 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
 
     try:
         asyncio.run(asyncio.wait_for(run(), timeout=10))
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("question", ["hi", "hi again"])
+def test_greeting_persists_without_model_tools_or_investigation_deltas(
+    monkeypatch: pytest.MonkeyPatch,
+    question: str,
+) -> None:
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    monkeypatch.setenv("HIVE_API_KEY", "offline")
+    get_settings.cache_clear()
+    database = ChatDatabase()
+    database.question = question
+
+    async def history(*args: Any) -> Any:
+        return [
+            HumanMessage(content="Compare this repository with another."),
+            AIMessage(content="Previous mixed investigation."),
+        ]
+
+    def unexpected(*args: Any, **kwargs: Any) -> Any:
+        pytest.fail("A standalone greeting must not invoke a model, MCP or embeddings.")
+
+    monkeypatch.setattr(chat, "load_history", history)
+    monkeypatch.setattr("app.tool_registry.MultiServerMCPClient", unexpected)
+    monkeypatch.setattr("app.code_tools.create_embedding_model", unexpected)
+
+    async def run() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(unexpected)
+        ) as client:
+            native = chat.ChatOpenAI
+            monkeypatch.setattr(
+                chat,
+                "ChatOpenAI",
+                lambda **kwargs: native(http_async_client=client, **kwargs),
+            )
+            events = [
+                event
+                async for event in chat.stream_repository_chat(
+                    ChatPool(database),
+                    "repo",
+                    "conversation",
+                    "user",
+                    "message",
+                )
+            ]
+        greeting = "Hi! What would you like to know about this repository?"
+        assert next(iter(database.messages.values())) == {
+            "status": "SUCCEEDED",
+            "content": greeting,
+        }
+        assert not database.queries and not database.citations
+        assert [
+            json.loads(event.split("data: ")[1])["text"]
+            for event in events
+            if event.startswith("event: delta")
+        ] == [greeting]
+        assert not any(
+            event.startswith(("event: tool", "event: error")) for event in events
+        )
+        assert any('"route": "CLARIFICATION"' in event for event in events)
+        assert events[-1].startswith("event: done")
+        assert database.active == 0
+
+    try:
+        asyncio.run(run())
     finally:
         get_settings.cache_clear()
 

@@ -19,6 +19,7 @@ from pydantic import ConfigDict
 
 from .config import get_settings
 from .embeddings import create_embedding_model as create_embedding_model
+from .observability import log_event, trace_operation
 from .reranking import score_passages
 
 VECTOR_CANDIDATES = 24
@@ -67,6 +68,7 @@ async def verify_embedding_profile(
     repository_id: str,
 ) -> None:
     """Reject mixed, legacy or stale vector spaces before embedding a query."""
+    log_event("database", "verify_embedding_profile", "started")
     if await connection.fetchval(
         'SELECT EXISTS (SELECT 1 FROM "RepositoryChunk" '
         'WHERE "repositoryId"=$1 AND ("embeddingProfile" IS DISTINCT FROM $2 '
@@ -78,6 +80,7 @@ async def verify_embedding_profile(
         raise ValueError(
             "Repository embedding model changed; reindex this repository before chat."
         )
+    log_event("database", "verify_embedding_profile", "completed")
 
 
 class RepoMindRepositoryVectorStore(VectorStore):
@@ -244,8 +247,10 @@ class RepoMindRepositoryVectorStore(VectorStore):
         await verify_embedding_profile(self.connection, self.repository_id)
         settings = get_settings()
         dimensions = settings.embedding_dimensions
-        query_vector = await self.embeddings.aembed_query(query)
+        with trace_operation("embedding", "query"):
+            query_vector = await self.embeddings.aembed_query(query)
         vector = "[" + ",".join(str(float(value)) for value in query_vector) + "]"
+        log_event("database", "vector_search", "started")
         rows = await self.connection.fetch(
             f"""
             SELECT "path", "startLine", "endLine", "content", "contentSha",
@@ -263,6 +268,7 @@ class RepoMindRepositoryVectorStore(VectorStore):
             k,
             settings.embedding_profile,
         )
+        log_event("database", "vector_search", "completed", rows=len(rows))
 
         return [
             Document(
@@ -360,8 +366,10 @@ class RepoMindParentHybridRetriever(BaseRetriever):
         await verify_embedding_profile(self.connection, self.repository_id)
         settings = get_settings()
         dimensions = settings.embedding_dimensions
-        query_vector = await self.embeddings.aembed_query(query)
+        with trace_operation("embedding", "query"):
+            query_vector = await self.embeddings.aembed_query(query)
         vector = "[" + ",".join(str(float(value)) for value in query_vector) + "]"
+        log_event("database", "vector_search", "started")
         rows = await self.connection.fetch(
             f"""
             SELECT "id", "fileId", "path", "startLine", "endLine",
@@ -380,6 +388,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             self.vector_k,
             settings.embedding_profile,
         )
+        log_event("database", "vector_search", "completed", rows=len(rows))
 
         return [
             {
@@ -416,6 +425,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             f"(^|[^[:alnum:]_]){word}([^[:alnum:]_]|$)" for word in identifiers
         ]
         paths = sorted(set(re.findall(r"[\w@./\[\]-]+\.[A-Za-z][A-Za-z0-9]*", query)))
+        log_event("database", "keyword_search", "started")
         rows = await self.connection.fetch(
             """
             WITH terms AS (
@@ -460,6 +470,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             paths,
             identifiers,
         )
+        log_event("database", "keyword_search", "completed", rows=len(rows))
 
         return [
             {
@@ -516,6 +527,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             return []
 
         file_ids = sorted({str(candidate["file_id"]) for candidate in candidates})
+        log_event("database", "parent_windows", "started")
         rows = await self.connection.fetch(
             """
             SELECT "id", "path", "content", "lineCount"
@@ -525,6 +537,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
             self.repository_id,
             file_ids,
         )
+        log_event("database", "parent_windows", "completed", rows=len(rows))
         files = {str(row["id"]): row for row in rows}
         windows: list[dict[str, Any]] = []
         original: list[Document] | None = None

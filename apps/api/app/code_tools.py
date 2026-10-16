@@ -30,6 +30,7 @@ from redis.exceptions import RedisError
 
 from .config import get_settings
 from .embeddings import create_embedding_model
+from .observability import progress, trace_operation
 from .reranking import RERANKER_INSTRUCTION, RERANKER_MAX_LENGTH, RERANKER_REVISION
 from .retrieval import (
     FINAL_PARENT_CONTEXTS,
@@ -100,6 +101,10 @@ class CodeEvidence(BaseModel):
 class SearchCodeArguments(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     query: Nonempty
+
+
+class SnapshotArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
 
 
 class FileContextArguments(BaseModel):
@@ -192,6 +197,17 @@ class CodeTools:
                 f"Return at most {PARENT_MAX_LINES} lines and "
                 f"{PARENT_MAX_CHARS} characters.",
             ),
+            (
+                "get_repository_snapshot",
+                self.get_repository_snapshot,
+                SnapshotArguments,
+                "Read the connected repository's authorized indexed snapshot metadata: "
+                "repository name, default branch, indexed commit SHA, indexing time, "
+                "file/chunk counts and stored embedding profiles. Use for questions "
+                "about the commit RepoMind is using or its index status. No arguments, "
+                "code search or embedding call is needed. Cite metadata using the "
+                "returned snapshot URL. This does not fetch GitHub's latest commit.",
+            ),
         ):
             registry.register_local(
                 StructuredTool(
@@ -217,8 +233,8 @@ class CodeTools:
 
     @asynccontextmanager
     async def _read(
-        self, scope: RequestScope
-    ) -> AsyncIterator[tuple[asyncpg.Connection, str | None]]:
+        self, scope: RequestScope, config: RunnableConfig | None = None
+    ) -> AsyncIterator[tuple[asyncpg.Connection, dict[str, Any]]]:
         if scope != self.request:
             raise ScopeViolationError("Code tool request identity does not match.")
         async with AsyncExitStack() as stack:
@@ -234,19 +250,22 @@ class CodeTools:
             async with connection.transaction(
                 isolation="repeatable_read", readonly=True
             ):
-                repository = await connection.fetchrow(
-                    """
+                await progress("database", "code_snapshot_read", "started", config)
+                with trace_operation("database", "code_authorization"):
+                    repository = await connection.fetchrow(
+                        """
                     SELECT r."indexedCommitSha", r."indexStatus", r."htmlUrl",
-                           r."lastIndexedAt"
+                           r."lastIndexedAt", r."owner", r."name", r."defaultBranch",
+                           r."indexedFileCount", r."indexedChunkCount"
                     FROM "Repository" r
                     JOIN "UserRepository" ur ON ur."repositoryId" = r."id"
                     WHERE r."id" = $1 AND ur."userId" = $2
                       AND r."accessStatus" = 'ACTIVE'
                       AND ur."accessStatus" = 'ACTIVE'
                     """,
-                    scope.repository_id,
-                    scope.user_id,
-                )
+                        scope.repository_id,
+                        scope.user_id,
+                    )
                 if not repository:
                     raise AuthorizationError("Repository access is no longer active.")
                 if (
@@ -261,13 +280,57 @@ class CodeTools:
                         "Indexed snapshot changed or is not ready; "
                         "restart the investigation."
                     )
-                html_url = repository["htmlUrl"]
-                yield connection, str(html_url) if html_url else None
+                yield connection, dict(repository)
+                await progress("database", "code_snapshot_read", "completed", config)
 
     async def authorize(self, scope: RequestScope) -> None:
         """Check access before invocation and again within the execution snapshot."""
         async with self._read(scope):
             pass
+
+    async def get_repository_snapshot(
+        self, config: RunnableConfig
+    ) -> tuple[str, dict[str, Any]]:
+        """Read current authorized metadata without retrieval or model inference."""
+        async with self._read(self.request, config) as (connection, repository):
+            with trace_operation("database", "embedding_profiles"):
+                profiles = await connection.fetch(
+                    'SELECT "embeddingProfile", '
+                    'vector_dims("embedding") AS dimensions, '
+                    'count(*) AS chunks FROM "RepositoryChunk" WHERE "repositoryId"=$1 '
+                    "GROUP BY 1,2 ORDER BY 2,1",
+                    self.request.repository_id,
+                )
+        indexed_at = repository["lastIndexedAt"]
+        result = {
+            "repository": f"{repository['owner']}/{repository['name']}",
+            "default_branch": repository["defaultBranch"],
+            "indexed_commit_sha": self.commit_sha,
+            "index_status": repository["indexStatus"],
+            "last_indexed_at": indexed_at.isoformat() if indexed_at else None,
+            "indexed_file_count": repository["indexedFileCount"],
+            "indexed_chunk_count": repository["indexedChunkCount"],
+            "embedding_profiles": [
+                {
+                    "profile": json.loads(row["embeddingProfile"])
+                    if row["embeddingProfile"]
+                    else None,
+                    "dimensions": row["dimensions"],
+                    "chunks": row["chunks"],
+                }
+                for row in profiles
+            ],
+            "url": (
+                f"https://github.com/{quote(repository['owner'], safe='')}/"
+                f"{quote(repository['name'], safe='')}/tree/{self.commit_sha}"
+            ),
+            "context_notes": [
+                "This is the indexed snapshot, not a live GitHub HEAD check. "
+                "The indexing timestamp may also reflect re-embedding stored files."
+            ],
+            "missing_information": [],
+        }
+        return json.dumps(result, ensure_ascii=False), result
 
     def _cache_key(self, name: str, arguments: dict[str, JsonValue]) -> str | None:
         settings = get_settings()
@@ -304,9 +367,12 @@ class CodeTools:
         ).hexdigest()
         return f"repomind:code-context:v4:{digest}"
 
-    async def _cached_read(self, key: str | None) -> _CachedRead | None:
+    async def _cached_read(
+        self, key: str | None, config: RunnableConfig
+    ) -> _CachedRead | None:
         if key is None or self.redis is None:
             return None
+        await progress("redis", "context_get", "started", config)
         try:
             raw = await asyncio.wait_for(self.redis.get(key), CACHE_TIMEOUT_SECONDS)
             if raw is not None:
@@ -316,6 +382,7 @@ class CodeTools:
                 if entry.identity != key:
                     raise ValueError("Cache identity mismatch.")
                 self.cache_stats["hits"] += 1
+                await progress("redis", "context_get", "hit", config)
                 return entry
         except (RedisError, TimeoutError, asyncio.TimeoutError, ValueError) as error:
             self.cache_stats["errors"] += 1
@@ -323,15 +390,26 @@ class CodeTools:
                 error, (RedisError, TimeoutError, asyncio.TimeoutError)
             )
             logger.warning("Code context cache read failed (%s).", type(error).__name__)
+            await progress(
+                "redis",
+                "context_get",
+                "failed",
+                config,
+                error_type=type(error).__name__,
+            )
         self.cache_stats["misses"] += 1
+        await progress("redis", "context_get", "miss", config)
         return None
 
-    async def _cache_write(self, key: str | None, entry: _CachedRead) -> None:
+    async def _cache_write(
+        self, key: str | None, entry: _CachedRead, config: RunnableConfig
+    ) -> None:
         if key is None or self.redis is None or self._cache_unavailable:
             return
         raw = entry.model_dump_json().encode()
         if len(raw) > CACHE_MAX_BYTES:
             return
+        await progress("redis", "context_set", "started", config)
         try:
             await asyncio.wait_for(
                 self.redis.set(
@@ -339,11 +417,19 @@ class CodeTools:
                 ),
                 CACHE_TIMEOUT_SECONDS,
             )
+            await progress("redis", "context_set", "completed", config)
         except (RedisError, TimeoutError, asyncio.TimeoutError) as error:
             self.cache_stats["errors"] += 1
             self._cache_unavailable = True
             logger.warning(
                 "Code context cache write failed (%s).", type(error).__name__
+            )
+            await progress(
+                "redis",
+                "context_set",
+                "failed",
+                config,
+                error_type=type(error).__name__,
             )
 
     def _sources(
@@ -393,8 +479,9 @@ class CodeTools:
         if first_pass:
             self.first_query = query
         key = self._cache_key("search_repository_code", {"query": query})
-        async with self._read(self.request) as (connection, html_url):
-            entry = await self._cached_read(key)
+        async with self._read(self.request, config) as (connection, repository):
+            html_url = repository["htmlUrl"]
+            entry = await self._cached_read(key, config)
             cache_hit = entry is not None
             if entry is None:
                 if self.embeddings is None:
@@ -433,7 +520,7 @@ class CodeTools:
                     ],
                 )
         if not cache_hit:
-            await self._cache_write(key, entry)
+            await self._cache_write(key, entry, config)
         documents = [
             Document(
                 page_content=window.content,
@@ -459,15 +546,21 @@ class CodeTools:
         return json.dumps(result, ensure_ascii=False), result
 
     async def get_file_context(
-        self, path: str, start_line: int = 1, end_line: int | None = None
+        self,
+        path: str,
+        start_line: int = 1,
+        end_line: int | None = None,
+        *,
+        config: RunnableConfig,
     ) -> tuple[str, dict[str, Any]]:
         """Read whole indexed lines, reporting the actual range and truncation."""
         arguments = FileContextArguments(
             path=path, start_line=start_line, end_line=end_line
         )
         key = self._cache_key("get_file_context", arguments.model_dump(mode="json"))
-        async with self._read(self.request) as (connection, html_url):
-            entry = await self._cached_read(key)
+        async with self._read(self.request, config) as (connection, repository):
+            html_url = repository["htmlUrl"]
+            entry = await self._cached_read(key, config)
             if entry is not None and any(
                 w.path != path or w.start_line != start_line for w in entry.windows
             ):
@@ -499,12 +592,13 @@ class CodeTools:
                 if entry.file_line_count is not None:
                     cached_result["file_line_count"] = entry.file_line_count
                 return json.dumps(cached_result, ensure_ascii=False), cached_result
-            row = await connection.fetchrow(
-                'SELECT "content" FROM "RepositoryFile" '
-                'WHERE "repositoryId"=$1 AND "path"=$2',
-                self.request.repository_id,
-                arguments.path,
-            )
+            with trace_operation("database", "file_context"):
+                row = await connection.fetchrow(
+                    'SELECT "content" FROM "RepositoryFile" '
+                    'WHERE "repositoryId"=$1 AND "path"=$2',
+                    self.request.repository_id,
+                    arguments.path,
+                )
             if row is None:
                 raise ToolException("File is not present in the indexed repository.")
             lines = str(row["content"]).splitlines()
@@ -520,6 +614,7 @@ class CodeTools:
                     identity=key or "",
                     missing_information=result["missing_information"],
                 ),
+                config,
             )
             return json.dumps(result), result
         if start_line > len(lines):
@@ -582,5 +677,6 @@ class CodeTools:
                 context_notes=notes,
                 file_line_count=len(lines),
             ),
+            config,
         )
         return json.dumps(result, ensure_ascii=False), result

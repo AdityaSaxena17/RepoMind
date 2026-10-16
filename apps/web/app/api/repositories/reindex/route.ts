@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
   const payload = readPublicRepoInput(await request.json());
 
   if (!payload) {
-    return Response.json({ error: "Invalid reindex payload." }, { status: 400 });
+    return Response.json(
+      { error: "Invalid reindex payload." },
+      { status: 400 },
+    );
   }
 
   try {
@@ -59,18 +62,24 @@ export async function POST(request: NextRequest) {
       RepositoryIndexJobTrigger.RETRY,
     );
 
-    await enqueueFastApiJob(repository.id, job.id, user.id);
+    if (job) {
+      await enqueueFastApiJob(repository.id, job.id, user.id);
+    }
 
     return Response.json({
       repository_id: repository.id,
-      job_id: job.id,
+      job_id: job?.id ?? null,
       status,
+      up_to_date: job === null,
     });
   } catch (error) {
     console.error("Repository reindex failed", error);
 
     return Response.json(
-      { error: error instanceof Error ? error.message : "Repository reindex failed." },
+      {
+        error:
+          error instanceof Error ? error.message : "Repository reindex failed.",
+      },
       { status: 400 },
     );
   }

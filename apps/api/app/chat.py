@@ -25,6 +25,7 @@ from redis.asyncio import Redis
 from .agents import AgentLimits
 from .code_tools import CodeTools
 from .config import get_settings
+from .observability import RequestLoggingCallback, log_event, request_id_context
 from .orchestration import (
     ROUTER_TIMEOUT_SECONDS,
     WorkflowResult,
@@ -117,11 +118,15 @@ def create_chat_model(
     )
 
 
-def create_github_provider(user_id: str, repository_id: str) -> MCPProvider:
+def create_github_provider(
+    user_id: str, repository_id: str, request_id: str | None = None
+) -> MCPProvider:
     """Configure our MCP provider; the registry opens its request-owned sessions."""
     env = dict(os.environ)
     env["REPOMIND_MCP_USER_ID"] = user_id
     env["REPOMIND_MCP_REPOSITORY_ID"] = repository_id
+    if request_id is not None:
+        env["REPOMIND_MCP_REQUEST_ID"] = request_id
     connection: Connection = {
         "transport": "stdio",
         "command": sys.executable,
@@ -194,13 +199,17 @@ async def stream_repository_chat(
     message_id: str,
     *,
     redis: Redis | None = None,
+    request_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream only final answer tokens, then validate and persist the completed turn."""
     assistant_id = uuid.uuid4().hex
+    trace_id = request_id or assistant_id
+    log_event("request", "chat", "started", request_id=trace_id)
     parts: list[str] = []
     created = committed = False
     producer: asyncio.Task[None] | None = None
     try:
+        log_event("database", "chat_prepare", "started", request_id=trace_id)
         async with pool.acquire(timeout=10) as connection:
             user_message = await connection.fetchrow(
                 """
@@ -250,13 +259,16 @@ async def stream_repository_chat(
                 conversation_id,
             )
             created = True
-        yield sse_event("assistant_message", {"message_id": assistant_id})
+        log_event("database", "chat_prepare", "completed", request_id=trace_id)
+        yield sse_event(
+            "assistant_message", {"message_id": assistant_id, "request_id": trace_id}
+        )
         capabilities: frozenset[Capability] = frozenset({"code.read", "github.read"})
         registry = ToolRegistry(
             RequestScope(
                 user_id=user_id, repository_id=repository_id, capabilities=capabilities
             ),
-            (create_github_provider(user_id, repository_id),),
+            (create_github_provider(user_id, repository_id, trace_id),),
         )
         code_tools = CodeTools(
             registry,
@@ -265,6 +277,9 @@ async def stream_repository_chat(
             pool=pool,
             redis=redis,
             last_indexed_at=repository["lastIndexedAt"],
+            # Interactive reranking is paused for latency; offline comparisons
+            # can still explicitly enable it when constructing their code tools.
+            rerank=False,
         )
         settings = get_settings()
         model = create_chat_model()
@@ -284,6 +299,9 @@ async def stream_repository_chat(
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue(maxsize=64)
 
         async def produce() -> None:
+            # This ordinary coroutine owns the token; an ASGI generator may be
+            # closed by a different task and must not own a ContextVar token.
+            trace_token = request_id_context.set(trace_id)
             root_id: str | None = None
             emitted_tools: set[str] = set()
             try:
@@ -296,10 +314,16 @@ async def stream_repository_chat(
                                 "question": str(user_message["content"]),
                                 "history": history,
                             },
-                            config={},
+                            config={
+                                "callbacks": [RequestLoggingCallback(trace_id)],
+                                "metadata": {"request_id": trace_id},
+                            },
                             version="v2",
                             include_types=["chain", "tool"],
-                            include_names=["repomind_answer_delta"],
+                            include_names=[
+                                "repomind_answer_delta",
+                                "repomind_progress",
+                            ],
                         ),
                     )
                 ) as stream:
@@ -319,6 +343,11 @@ async def stream_repository_chat(
                                 await queue.put(("tool", event["name"]))
                         elif (
                             kind == "on_custom_event"
+                            and event["name"] == "repomind_progress"
+                        ):
+                            await queue.put(("progress", event["data"]))
+                        elif (
+                            kind == "on_custom_event"
                             and event["name"] == "repomind_answer_delta"
                         ):
                             data = event["data"]
@@ -328,7 +357,15 @@ async def stream_repository_chat(
                                 "GITHUB",
                                 "SYNTHESIS",
                             } and isinstance(text, str):
-                                await queue.put(("delta", text))
+                                await queue.put(
+                                    (
+                                        "delta",
+                                        {
+                                            "text": text,
+                                            "native": data.get("native") is True,
+                                        },
+                                    )
+                                )
                         elif kind == "on_chain_end" and event["run_id"] == root_id:
                             await queue.put(
                                 (
@@ -340,6 +377,8 @@ async def stream_repository_chat(
                             )
             except Exception as failure:
                 await queue.put(("failure", failure))
+            finally:
+                request_id_context.reset(trace_token)
 
         producer = asyncio.create_task(produce())
         result: WorkflowResult | None = None
@@ -362,8 +401,12 @@ async def stream_repository_chat(
                 result = value
             else:
                 if kind == "delta":
-                    parts.append(value)
-                yield sse_event(kind, {"text" if kind == "delta" else "name": value})
+                    parts.append(value["text"])
+                    yield sse_event("delta", value)
+                elif kind == "progress":
+                    yield sse_event("progress", value)
+                else:
+                    yield sse_event(kind, {"name": value})
         await producer
         if result.status == "failed":
             failure = result.errors[-1] if result.errors else None
@@ -389,6 +432,7 @@ async def stream_repository_chat(
             for source in result.evidence
             if source.id in result.source_ids
         ]
+        log_event("database", "chat_persist", "started", request_id=trace_id)
         async with (
             pool.acquire(timeout=10) as connection,
             connection.transaction(),
@@ -440,6 +484,15 @@ async def stream_repository_chat(
                 conversation_id,
             )
         committed = True
+        log_event("database", "chat_persist", "completed", request_id=trace_id)
+        log_event(
+            "request",
+            "chat",
+            "completed",
+            request_id=trace_id,
+            route=result.decision.scope,
+            outcome=result.status,
+        )
         logger.info(
             "Chat finished: scope=%s status=%s model_calls=%d cache=%s",
             result.decision.scope,
@@ -450,12 +503,20 @@ async def stream_repository_chat(
         yield sse_event("citations", {"citations": citations})
         yield sse_event("done", {"message_id": assistant_id})
     except (asyncio.CancelledError, GeneratorExit):
+        log_event("request", "chat", "cancelled", request_id=trace_id)
         if created and not committed:
             await _fail_message(
                 pool, assistant_id, "".join(parts), "Answer canceled before completion."
             )
         raise
     except Exception as failure:
+        log_event(
+            "request",
+            "chat",
+            "failed",
+            request_id=trace_id,
+            error_type=type(failure).__name__,
+        )
         if producer is not None and not producer.done():
             producer.cancel()
             with suppress(asyncio.CancelledError):

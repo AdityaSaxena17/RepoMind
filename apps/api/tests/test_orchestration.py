@@ -411,3 +411,70 @@ def test_latest_history_excludes_current_failed_and_other_conversations() -> Non
         isinstance(message, HumanMessage if index % 2 else AIMessage)
         for index, message in enumerate(history)
     )
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "hi",
+        "HI!",
+        "hi again",
+        "hello",
+        "hey there",
+        " Hello, RepoMind! ",
+        "good morning",
+    ],
+)
+@pytest.mark.parametrize("with_history", [False, True])
+def test_standalone_greeting_never_inherits_an_investigation(
+    question: str,
+    with_history: bool,
+    provider: Provider,
+) -> None:
+    requests, _ = provider
+    history = (
+        [
+            HumanMessage(content="Explain the purpose and architecture."),
+            AIMessage(content="An indexed architecture explanation."),
+            HumanMessage(content="Compare it with https://github.com/example/other."),
+            AIMessage(content="The previous repository discussion."),
+            HumanMessage(content="hi"),
+            AIMessage(
+                content="An unrelated continuation of the previous investigation."
+            ),
+        ]
+        if with_history
+        else []
+    )
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    result = asyncio.run(router.ainvoke({"question": question, "history": history}))
+    assert result["decision"] == RouteDecision(
+        scope=None,
+        clarification="Hi! What would you like to know about this repository?",
+    )
+    assert requests == []
+
+
+@pytest.mark.parametrize(
+    "question,scope",
+    [
+        ("Hi, are WebSockets implemented?", "CODE"),
+        ("Hello, what do its latest comments say?", "GITHUB"),
+        ("Explain hi()", "CODE"),
+        ("hi.py", "CODE"),
+        ("hi --help", "CODE"),
+    ],
+)
+def test_greeting_words_do_not_swallow_repository_questions(
+    question: str,
+    scope: str,
+    provider: Provider,
+) -> None:
+    requests, replies = provider
+    replies.append(json.dumps({"scope": scope, "clarification": None}))
+    history = [HumanMessage(content="Read PR #73."), AIMessage(content="A live PR.")]
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    result = asyncio.run(router.ainvoke({"question": question, "history": history}))
+    assert result["decision"].scope == scope
+    assert len(requests) == 1
+    assert requests[0]["messages"][-1] == {"role": "user", "content": question}

@@ -122,6 +122,8 @@ async function githubJson(path: string) {
 
   const response = await fetch(`${githubApiBaseUrl}${path}`, {
     headers,
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000),
   });
 
   if (response.status === 404) {
@@ -168,7 +170,13 @@ async function fetchPublicRepository(owner: string, repo: string) {
   const defaultBranch = readString(payload.default_branch);
   const visibility = readVisibility(payload);
 
-  if (!githubRepositoryId || !ownerLogin || !name || !fullName || !defaultBranch) {
+  if (
+    !githubRepositoryId ||
+    !ownerLogin ||
+    !name ||
+    !fullName ||
+    !defaultBranch
+  ) {
     throw new Error("GitHub repository metadata was incomplete.");
   }
 
@@ -192,7 +200,11 @@ async function fetchPublicRepository(owner: string, repo: string) {
   };
 }
 
-async function fetchDefaultBranchHead(owner: string, repo: string, branch: string) {
+async function fetchDefaultBranchHead(
+  owner: string,
+  repo: string,
+  branch: string,
+) {
   const payload = await githubJson(
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}`,
   );
@@ -247,7 +259,6 @@ export async function connectPublicRepositoryForUser(
     update: {
       ...summary,
       accessStatus: RepositoryAccessStatus.ACTIVE,
-      lastIndexError: null,
     },
   });
 
@@ -268,56 +279,74 @@ export async function connectPublicRepositoryForUser(
     },
   });
 
-  const existingJob = await prisma.repositoryIndexJob.findFirst({
-    where: {
-      repositoryId: repository.id,
-      status: {
-        in: [
-          RepositoryIndexJobStatus.QUEUED,
-          RepositoryIndexJobStatus.RUNNING,
-        ],
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (existingJob) {
-    return { repository, job: existingJob, status: repository.indexStatus };
-  }
-
-  const nextStatus = repository.indexStatus === RepositoryIndexStatus.READY
-    ? RepositoryIndexStatus.UPDATING
-    : RepositoryIndexStatus.INDEXING;
   const targetCommitSha = await fetchDefaultBranchHead(
     summary.owner,
     summary.name,
     summary.defaultBranch,
   );
 
-  const job = await prisma.$transaction(async (tx) => {
-    await tx.repository.update({
-      where: { id: repository.id },
-      data: {
-        indexStatus: nextStatus,
-        targetCommitSha,
-        lastIndexError: null,
-      },
-    });
+  return prisma.$transaction(
+    async (tx) => {
+      // Serialize decisions with worker promotion and other users' reindex requests.
+      await tx.$queryRaw`
+      SELECT "id" FROM "Repository" WHERE "id" = ${repository.id} FOR UPDATE
+    `;
+      const current = await tx.repository.findUnique({
+        where: { id: repository.id },
+      });
+      if (!current) {
+        throw new Error("Repository is no longer available.");
+      }
+      const existingJob = await tx.repositoryIndexJob.findFirst({
+        where: {
+          repositoryId: repository.id,
+          status: {
+            in: [
+              RepositoryIndexJobStatus.QUEUED,
+              RepositoryIndexJobStatus.RUNNING,
+            ],
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existingJob) {
+        return {
+          repository: current,
+          job: existingJob,
+          status: current.indexStatus,
+        };
+      }
+      if (current.indexedCommitSha === targetCommitSha) {
+        return { repository: current, job: null, status: current.indexStatus };
+      }
+      const nextStatus =
+        current.indexStatus === RepositoryIndexStatus.READY
+          ? RepositoryIndexStatus.UPDATING
+          : RepositoryIndexStatus.INDEXING;
+      await tx.repository.update({
+        where: { id: repository.id },
+        data: {
+          indexStatus: nextStatus,
+          targetCommitSha,
+          lastIndexError: null,
+        },
+      });
 
-    return tx.repositoryIndexJob.create({
-      data: {
-        repositoryId: repository.id,
-        trigger,
-        status: RepositoryIndexJobStatus.QUEUED,
-        sourceCommitSha: repository.indexedCommitSha,
-        targetCommitSha,
-      },
-    });
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-  });
-
-  return { repository, job, status: nextStatus };
+      const job = await tx.repositoryIndexJob.create({
+        data: {
+          repositoryId: repository.id,
+          trigger,
+          status: RepositoryIndexJobStatus.QUEUED,
+          sourceCommitSha: current.indexedCommitSha,
+          targetCommitSha,
+        },
+      });
+      return { repository: current, job, status: nextStatus };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+    },
+  );
 }
 
 export async function findConnectedRepositoryForUser(

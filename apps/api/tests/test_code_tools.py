@@ -70,6 +70,11 @@ class Connection:
                     "indexStatus": "READY",
                     "htmlUrl": "https://github.com/example/project",
                     "lastIndexedAt": self.database.revision,
+                    "owner": "example",
+                    "name": "project",
+                    "defaultBranch": "main",
+                    "indexedFileCount": len(self.database.files),
+                    "indexedChunkCount": 1,
                 }
                 if self.database.allowed
                 and args[0] == "repo"
@@ -79,6 +84,20 @@ class Connection:
         assert args[0] == "repo"
         content = self.database.files.get(args[1])
         return {"content": content} if content is not None else None
+
+    async def fetch(self, sql: str, *args: Any) -> list[dict[str, Any]]:
+        assert self.in_transaction and args == ("repo",)
+        assert 'FROM "RepositoryChunk"' in sql
+        self.database.queries.append((sql, *args))
+        return [
+            {
+                "embeddingProfile": json.dumps(
+                    {"provider": "ollama", "model": "qwen3-embedding:0.6b"}
+                ),
+                "dimensions": 1024,
+                "chunks": 1,
+            }
+        ]
 
 
 class Pool:
@@ -146,7 +165,7 @@ def test_search_file_reads_share_stable_catalog_and_first_pass(
     async def run() -> None:
         registry, catalog = setup_tools(database)
         async with registry.scoped_tools(frozenset({"code.read"})) as tools:
-            search, read = tools
+            search, read = tools[:2]
             first = await search.ainvoke({"query": "initial"})
             same = await read.ainvoke(
                 {"path": "app.py", "start_line": 1, "end_line": 2}
@@ -254,6 +273,47 @@ def test_file_arguments_fail_without_fabricating_evidence(
                 assert "250" in result.text and "Split" in result.text
             assert len(result.text) < 500 and "Traceback" not in result.text
         assert catalog.evidence == {}
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("pooled", [False, True])
+def test_snapshot_metadata_needs_no_retrieval_or_embeddings(pooled: bool) -> None:
+    database = Database()
+
+    async def run() -> None:
+        registry, catalog = setup_tools(database, pooled)
+        async with registry.scoped_tools(frozenset({"code.read"})) as tools:
+            tool = next(t for t in tools if t.name == "get_repository_snapshot")
+            message = await tool.ainvoke(
+                {"name": tool.name, "args": {}, "id": "snapshot", "type": "tool_call"}
+            )
+            assert message.status == "success" and message.tool_call_id == "snapshot"
+            result = message.artifact
+            assert json.loads(message.text) == result
+            assert result["indexed_commit_sha"] == SHA
+            assert result["repository"] == "example/project"
+            assert result["default_branch"] == "main"
+            assert result["last_indexed_at"] == database.revision.isoformat()
+            assert result["indexed_file_count"] == 1
+            assert result["embedding_profiles"][0]["dimensions"] == 1024
+            assert result["url"] == f"https://github.com/example/project/tree/{SHA}"
+            assert result["missing_information"] == []
+            assert "not a live GitHub HEAD check" in result["context_notes"][0]
+            database.allowed = False
+            denied = await tool.ainvoke(
+                {"name": tool.name, "args": {}, "id": "revoked", "type": "tool_call"}
+            )
+            assert denied.status == "error"
+            assert denied.additional_kwargs["repomind_error_kind"] == "authorization"
+        expired = await tool.ainvoke(
+            {"name": tool.name, "args": {}, "id": "expired", "type": "tool_call"}
+        )
+        assert expired.status == "error"
+        assert expired.additional_kwargs["repomind_error_kind"] == "scope"
+        assert catalog.first_query is None and catalog.evidence == {}
+        assert catalog.first_pass == [] and database.active == 0
+        assert all('FROM "RepositoryFile"' not in q[0] for q in database.queries)
 
     asyncio.run(run())
 
