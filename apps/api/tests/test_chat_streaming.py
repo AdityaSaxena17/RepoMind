@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 from test_code_tools import SHA, Connection, Database
 
 from app import chat
@@ -187,7 +188,7 @@ def wire_chunks(
         "corrected_range",
         "last_turn",
         "unmarked_no_budget",
-        "unmarked_repair_fails",
+        "unmarked_repair",
         "initial_transport",
         "initial_transport_repeat",
     ],
@@ -252,13 +253,11 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
             omit_marker = fault in {
                 "unmarked",
                 "unmarked_no_budget",
-                "unmarked_repair_fails",
-            } and (len(requests) == 3 or fault == "unmarked_repair_fails")
+                "unmarked_repair",
+            } and (len(requests) == 3 or fault == "unmarked_repair")
             if not any(
                 message.get("role") == "tool" for message in payload["messages"]
-            ) and not (
-                fault in {"unmarked", "unmarked_repair_fails"} and len(requests) == 4
-            ):
+            ) and not (fault in {"unmarked", "unmarked_repair"} and len(requests) == 4):
                 if fault == "corrected_range":
                     call["tool_calls"][0]["function"]["arguments"] = (
                         '{"path":"app.py","end_line":300}'
@@ -304,9 +303,9 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                         {"role": "assistant", "reasoning_content": "Private reasoning"},
                         None,
                     ),
-                    ({"content": "<fi" if not omit_marker else "Unmarked "}, None),
+                    ({"content": "<fi" if not omit_marker else ""}, None),
                     (
-                        {"content": "nal_answer>" if not omit_marker else "response "},
+                        {"content": "nal_answer>" if not omit_marker else ""},
                         None,
                     ),
                     (
@@ -451,7 +450,6 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                 fault
                 not in {
                     "unmarked_no_budget",
-                    "unmarked_repair_fails",
                     "initial_transport_repeat",
                 }
             )
@@ -462,7 +460,7 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                     "partial",
                     "corrected_range",
                     "unmarked",
-                    "unmarked_repair_fails",
+                    "unmarked_repair",
                     "initial_transport",
                 }
                 else 3
@@ -489,6 +487,7 @@ def test_direct_specialist_streams_native_final_tokens_without_extra_call(
                 "corrected_range",
                 "last_turn",
                 "unmarked",
+                "unmarked_repair",
                 "initial_transport",
             }:
                 assert persisted["status"] == "FAILED"
@@ -588,12 +587,14 @@ def test_greeting_persists_without_model_tools_or_investigation_deltas(
 
 
 @pytest.mark.parametrize(
-    "scope,strategy,repair",
+    "scope,strategy,repair,metadata_history",
     [
-        ("GITHUB", None, False),
-        ("GITHUB", None, True),
-        ("MIXED", "PARALLEL", False),
-        ("MIXED", "GITHUB_THEN_CODE", False),
+        ("GITHUB", None, False, False),
+        ("GITHUB", None, True, False),
+        ("MIXED", "PARALLEL", False, False),
+        ("MIXED", "GITHUB_THEN_CODE", False, False),
+        ("GITHUB", None, True, True),
+        ("MIXED", "PARALLEL", False, True),
     ],
 )
 def test_native_github_and_mixed_stream_only_the_final_generation(
@@ -601,6 +602,7 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
     scope: str,
     strategy: str | None,
     repair: bool,
+    metadata_history: bool,
 ) -> None:
     from test_agents import github_scope
     from test_tool_registry import provider
@@ -613,6 +615,22 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
     database = ChatDatabase()
     url = "https://github.com/example/project/issues/1"
     requests, wires = [], []
+    if metadata_history:
+
+        async def history(*args: Any) -> Any:
+            return [
+                HumanMessage(content="What commit is indexed?"),
+                AIMessage(content=json.dumps({"indexed_commit_sha": "c" * 40})),
+                HumanMessage(content="Read issue #1."),
+                AIMessage(content=f"The issue reports streaming trouble ({url})."),
+            ]
+
+        monkeypatch.setattr(chat, "load_history", history)
+        database.question = (
+            "What did it report?"
+            if scope == "GITHUB"
+            else "Compare that issue with the indexed implementation."
+        )
 
     async def run() -> None:
         pause = asyncio.Event()
@@ -635,6 +653,13 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                                     "role": "assistant",
                                     "content": json.dumps(
                                         {
+                                            "answer": f"Observed issue {url}",
+                                            "source_ids": [url],
+                                            "missing_information": [],
+                                            "context_notes": [],
+                                        }
+                                        if payload["reasoning_effort"] != "none"
+                                        else {
                                             "scope": scope,
                                             "clarification": None,
                                             "mixed_strategy": strategy,
@@ -654,7 +679,9 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                 )
             tools = payload.get("tools", [])
             assert payload["reasoning_effort"] == (
-                "low" if scope == "MIXED" and not tools else "high"
+                "low"
+                if scope == "MIXED" and not tools and not payload.get("response_format")
+                else "high"
             )
             if tools:
                 code = any(t["function"]["name"] == "get_file_context" for t in tools)
@@ -696,13 +723,33 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                         }
                     )
                     wire = Wire(
-                        wire_chunks([({"content": result}, None), ({}, "stop")]), None
+                        wire_chunks(
+                            [
+                                (
+                                    {
+                                        "content": "Private unformatted investigation"
+                                        if metadata_history and not code
+                                        else result
+                                    },
+                                    None,
+                                ),
+                                ({}, "stop"),
+                            ]
+                        ),
+                        None,
                     )
                 elif repair and len(requests) == 3:
                     wire = Wire(
                         wire_chunks(
                             [
-                                ({"content": "Unmarked final response"}, None),
+                                (
+                                    {
+                                        "content": json.dumps({"answer": url})
+                                        if metadata_history
+                                        else "Unmarked final response"
+                                    },
+                                    None,
+                                ),
                                 ({}, "stop"),
                             ]
                         ),
@@ -725,8 +772,11 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                 wire = Wire(
                     wire_chunks(
                         [
-                            ({"content": "<fi"}, None),
-                            ({"content": "nal_answer>"}, None),
+                            ({"content": "" if metadata_history else "<fi"}, None),
+                            (
+                                {"content": "" if metadata_history else "nal_answer>"},
+                                None,
+                            ),
                             ({"content": "Live issue "}, None),
                             ({"content": url}, None),
                             ({}, "stop"),
@@ -738,8 +788,11 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                 wire = Wire(
                     wire_chunks(
                         [
-                            ({"content": "<fi"}, None),
-                            ({"content": "nal_answer>"}, None),
+                            ({"content": "" if metadata_history else "<fi"}, None),
+                            (
+                                {"content": "" if metadata_history else "nal_answer>"},
+                                None,
+                            ),
                             ({"content": "Code [1] and "}, None),
                             ({"content": url}, None),
                             ({"content": "</final_"}, None),
@@ -780,11 +833,18 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                 "Private" not in text
                 and "final_answer" not in text
                 and '"source_ids"' not in text
+                and "indexed_commit_sha" not in text
             )
             assert text == (
                 f"Live issue {url}" if scope == "GITHUB" else f"Code [1] and {url}"
             )
-            assert len(requests) == ((4 if repair else 3) if scope == "GITHUB" else 6)
+            assert len(requests) == (
+                (4 if repair else 3)
+                if scope == "GITHUB"
+                else 7
+                if metadata_history
+                else 6
+            )
             assert next(iter(database.messages.values())) == {
                 "status": "SUCCEEDED",
                 "content": text,

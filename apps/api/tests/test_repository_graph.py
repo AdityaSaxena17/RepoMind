@@ -174,6 +174,56 @@ def test_snapshot_question_returns_sha_without_retrieval_or_github(
     assert github.requests == [] and synthesis.requests == [] and events == []
 
 
+@pytest.mark.parametrize("live_sha", [SHA, "b" * 40])
+def test_commit_comparison_followup_uses_fresh_metadata_from_both_sources(
+    monkeypatch: pytest.MonkeyPatch, live_sha: str
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch)
+    snapshot_url = f"https://github.com/example/project/tree/{SHA}"
+    live_url = f"https://github.com/example/project/commit/{live_sha}"
+
+    async def get(path: str) -> Any:
+        assert path == "/repos/example/project/commits?per_page=1"
+        return [{"sha": live_sha, "html_url": live_url}]
+
+    monkeypatch.setattr(github_mcp_server, "github_json", get)
+    code.responses = [
+        call("get_repository_snapshot", {}, "snapshot"),
+        summary(f"Indexed commit `{SHA}` ({snapshot_url}).", [snapshot_url]),
+    ]
+    github.responses = [
+        call("get_repository_head", {}, "head"),
+        summary(f"Live commit `{live_sha}` ({live_url}).", [live_url]),
+    ]
+    answer = (
+        f"They are {'the same' if live_sha == SHA else 'different'}: "
+        f"indexed `{SHA}` ({snapshot_url}); live `{live_sha}` ({live_url})."
+    )
+    synthesis.responses = [AIMessage(content=FINAL_ANSWER_MARKER + answer)]
+    old_sha = "c" * 40
+    history = [
+        HumanMessage(content="What commit is indexed?"),
+        AIMessage(content=json.dumps({"indexed_commit_sha": old_sha})),
+        HumanMessage(content="What is the latest GitHub commit?"),
+        AIMessage(content=f"Live HEAD is `{old_sha}`."),
+    ]
+    result = asyncio.run(
+        graph.ainvoke({"question": "Are they the same?", "history": history})
+    )["result"]
+    assert result.status == "complete" and result.answer == answer, result.errors
+    assert {record.name for record in result.tool_executions} == {
+        "get_repository_snapshot",
+        "get_repository_head",
+    }
+    assert set(result.source_ids) == {"code:snapshot", "github:head"}
+    assert old_sha not in result.answer and result.evidence == []
+    assert not any('FROM "RepositoryFile"' in query[0] for query in database.queries)
+    assert len(code.requests) == len(github.requests) == 2
+    assert len(synthesis.requests) == 1
+    assert all(old_sha not in message.text for message in synthesis.requests[0])
+    assert [event[:2] for event in events] == [("open", "github"), ("close", "github")]
+
+
 def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -787,6 +837,12 @@ def test_output_failures_have_controlled_specific_categories(
     result = asyncio.run(graph.ainvoke({"question": "Question", "history": []}))[
         "result"
     ]
+    if scope == "MIXED" and code == "final_marker_missing":
+        # Synthesis is a known tool-free final phase, so an opening marker is
+        # unnecessary. Citation validation still applies to its answer.
+        assert result.status == "failed"
+        assert result.errors[-1].code == "citation_invalid"
+        return
     assert result.status == "failed"
     assert result.errors[-1].code == code
     assert "Unmarked response" not in result.errors[-1].message

@@ -112,9 +112,15 @@ def create_query_router(
             "GITHUB requires live GitHub issues, pull requests, diffs, status, or "
             "comments, or the latest live branch/commit. MIXED requires both "
             "indexed code and live GitHub evidence. "
+            "For follow-up comparisons, resolve both subjects from history and "
+            "classify their combined evidence needs, not just the most recent "
+            "answer's scope. Comparing indexed facts or metadata with live GitHub "
+            "observations requires MIXED. Prior assistant answers identify the "
+            "subjects; they do not replace observations from the current tools. "
             "For MIXED set mixed_strategy to PARALLEL when the question identifies "
             "the indexed component, symbol or behavior to investigate independently; "
-            "an exact file path is not required. Use GITHUB_THEN_CODE only when "
+            "an exact file path is not required. Independent indexed and live "
+            "metadata reads also use PARALLEL. Use GITHUB_THEN_CODE only when "
             "live issue/PR data must first reveal which implementation to inspect. "
             "Comparing live findings with an already identified indexed subject "
             "does not itself require sequential investigation. "
@@ -181,6 +187,13 @@ def create_query_router(
             "History: The user asked about issue #87; the assistant summarized it.\n"
             "Question: What do its latest comments say?\n"
             'Output: {"scope":"GITHUB","clarification":null}\n\n'
+            "History: The user asked which revision is indexed, then which revision "
+            "is live on GitHub. The assistant reported each separately.\n"
+            "Question: Do those match?\n"
+            'Output: {"scope":"MIXED","clarification":null,'
+            '"mixed_strategy":"PARALLEL",'
+            '"code_task":"Read the current indexed revision.",'
+            '"github_task":"Read the live default-branch revision."}\n\n'
             "History: None.\n"
             "Question: Does it address that problem?\n"
             'Output: {"scope":null,"clarification":'
@@ -556,8 +569,14 @@ def create_repository_graph(
                 "Neither investigation returned citable evidence."
             )
             return {"result": result}
+        # Specialists resolve history; synthesis receives current observations
+        # and resolved assignments, without stale answer text or citations.
         payload = {
             "question": state["question"],
+            "assignments": {
+                "CODE": state["decision"].code_task,
+                "GITHUB": state["decision"].github_task,
+            },
             "indexed_commit_sha": code_tools.commit_sha,
             "citation_catalog": result.citation_catalog,
             "investigations": {
@@ -576,7 +595,6 @@ def create_repository_graph(
                 synthesis_model,
                 [
                     SystemMessage(content=SYNTHESIS_PROMPT),
-                    *state["history"],
                     HumanMessage(
                         content="Observed investigation data. "
                         + EVIDENCE_REFERENCE_GUIDANCE

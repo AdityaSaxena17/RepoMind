@@ -151,29 +151,30 @@ class ScriptedModel(FakeMessagesListChatModel):
 
 
 @pytest.mark.parametrize("role", ["CODE", "GITHUB", "SYNTHESIS"])
-def test_missing_final_marker_reports_actual_generation_role(role: Any) -> None:
+@pytest.mark.parametrize("marked", [False, True])
+def test_tool_free_final_generation_does_not_require_a_marker(
+    role: Any, marked: bool
+) -> None:
+    answer = "Observed final answer."
     model = ScriptedModel(
         responses=[
             AIMessage(
-                content="Private unmarked output",
+                content=(agents.FINAL_ANSWER_MARKER if marked else "") + answer,
                 response_metadata={"finish_reason": "stop"},
             )
         ]
     )
-    with pytest.raises(agents.OutputValidationError) as caught:
-        asyncio.run(
-            agents.stream_final_answer(
-                model,
-                [],
-                role=role,
-                config=None,
-                timeout=1,
-                partial=False,
-            )
+    result = asyncio.run(
+        agents.stream_final_answer(
+            model,
+            [],
+            role=role,
+            config=None,
+            timeout=1,
+            partial=False,
         )
-    assert caught.value.code == "final_marker_missing"
-    assert str(caught.value) == f"{role} omitted its terminal answer declaration."
-    assert "Private" not in str(caught.value)
+    )
+    assert result == answer
 
 
 def test_specialist_context_deduplicates_exact_sources_without_changing_records() -> (
