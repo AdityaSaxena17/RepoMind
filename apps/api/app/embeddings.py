@@ -27,8 +27,11 @@ class EmbeddingResponse(BaseModel):
 class QwenEmbeddings(Embeddings):
     """Call local Ollama with pinned weights and instruction-prefixed queries."""
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, *, keep_alive_seconds: int = 300) -> None:
+        if keep_alive_seconds < 1:
+            raise ValueError("Embedding model residency must be positive and finite.")
         self.base_url = base_url
+        self.keep_alive_seconds = keep_alive_seconds
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Embed for synchronous callers; application paths use aembed_documents."""
@@ -74,6 +77,7 @@ class QwenEmbeddings(Embeddings):
                         "model": QWEN_EMBEDDING_MODEL,
                         "input": batch,
                         "truncate": False,
+                        "keep_alive": f"{self.keep_alive_seconds}s",
                         "options": {"num_ctx": QWEN_EMBEDDING_CONTEXT},
                     },
                 )
@@ -100,7 +104,10 @@ def create_embedding_model() -> Embeddings:
     """Use local Qwen by default; OpenAI remains explicit for historical comparisons."""
     settings = get_settings()
     if settings.embeddings_provider == "ollama":
-        return QwenEmbeddings(settings.ollama_base_url)
+        return QwenEmbeddings(
+            settings.ollama_base_url,
+            keep_alive_seconds=settings.ollama_embedding_keep_alive_seconds,
+        )
     if not settings.openai_api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is required for OpenAI repository embeddings."

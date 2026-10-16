@@ -503,6 +503,7 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
     from test_tool_registry import provider
 
     monkeypatch.setenv("HIVE_API_KEY", "offline")
+    monkeypatch.setenv("SYNTHESIS_REASONING_EFFORT", "low")
     get_settings.cache_clear()
     lifecycle = github_scope(monkeypatch)
     monkeypatch.setattr(chat, "create_github_provider", lambda *args: provider())
@@ -549,6 +550,9 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
                     },
                 )
             tools = payload.get("tools", [])
+            assert payload["reasoning_effort"] == (
+                "low" if scope == "MIXED" and not tools else "high"
+            )
             if tools:
                 code = any(t["function"]["name"] == "get_file_context" for t in tools)
                 if not any(m.get("role") == "tool" for m in payload["messages"]):

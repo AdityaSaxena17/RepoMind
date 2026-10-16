@@ -10,7 +10,7 @@ import os
 import subprocess
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -663,7 +663,7 @@ class _ExecutionMetrics(AsyncCallbackHandler):
 
     def _start_call(
         self,
-        kind: Literal["model", "tool"],
+        kind: Literal["model", "tool", "retriever"],
         run_id: uuid.UUID,
         parent_run_id: uuid.UUID | None,
         metadata: dict[str, Any] | None,
@@ -688,6 +688,9 @@ class _ExecutionMetrics(AsyncCallbackHandler):
         }
         if tool_name is not None:
             record["tool_name"] = tool_name
+        phase = metadata.get("repomind_phase")
+        if phase in {"investigation", "final_answer"}:
+            record["phase"] = phase
         self._active[run_id] = (started, record)
 
     def _finish_call(
@@ -715,6 +718,22 @@ class _ExecutionMetrics(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         self._start_call("model", run_id, parent_run_id, metadata)
+        self._active[run_id][1]["message_characters"] = sum(
+            len(message.text) for batch in messages for message in batch
+        )
+
+    async def on_llm_new_token(
+        self,
+        token: str | list[str | dict[str, Any]],
+        *,
+        run_id: uuid.UUID,
+        **kwargs: Any,
+    ) -> None:
+        active = self._active.get(run_id)
+        if token and active is not None:
+            started, record = active
+            if "first_token_seconds" not in record:
+                record["first_token_seconds"] = time.monotonic() - started
 
     async def on_tool_start(
         self,
@@ -728,6 +747,30 @@ class _ExecutionMetrics(AsyncCallbackHandler):
     ) -> None:
         self._start_call("tool", run_id, parent_run_id, metadata, serialized["name"])
 
+    async def on_retriever_start(
+        self,
+        serialized: dict[str, Any],
+        query: str,
+        *,
+        run_id: uuid.UUID,
+        parent_run_id: uuid.UUID | None = None,
+        metadata: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self._start_call("retriever", run_id, parent_run_id, metadata)
+
+    async def on_retriever_end(
+        self, documents: Sequence[Document], *, run_id: uuid.UUID, **kwargs: Any
+    ) -> None:
+        self._finish_call(run_id, "success")
+
+    async def on_retriever_error(
+        self, error: BaseException, *, run_id: uuid.UUID, **kwargs: Any
+    ) -> None:
+        self._finish_call(
+            run_id, "canceled" if isinstance(error, asyncio.CancelledError) else "error"
+        )
+
     async def on_custom_event(self, name: str, data: Any, **kwargs: Any) -> None:
         if (
             name == "repomind_answer_delta"
@@ -740,13 +783,26 @@ class _ExecutionMetrics(AsyncCallbackHandler):
     async def on_llm_end(
         self, response: Any, *, run_id: uuid.UUID, **kwargs: Any
     ) -> None:
-        self._finish_call(run_id, "success")
-        self.completed_model_calls += 1
+        active = self._active.get(run_id)
+        run_usage: list[JsonValue] = []
+        tool_request = False
         for group in response.generations:
             for generation in group:
+                tool_request = tool_request or bool(
+                    getattr(generation.message, "tool_calls", None)
+                )
                 usage = getattr(generation.message, "usage_metadata", None)
                 if usage is not None:
-                    self.usage.append(JSON_OBJECT.validate_python(usage))
+                    validated = JSON_OBJECT.validate_python(usage)
+                    self.usage.append(validated)
+                    run_usage.append(validated)
+        if active is not None:
+            active[1].update(
+                usage=run_usage,
+                output_kind="tool_request" if tool_request else "completion",
+            )
+        self._finish_call(run_id, "success")
+        self.completed_model_calls += 1
 
     async def on_llm_error(
         self, error: BaseException, *, run_id: uuid.UUID, **kwargs: Any
@@ -790,6 +846,7 @@ class GraphRunner:
         limits: AgentLimits | None = None,
         rerank: bool = False,
         router_model: BaseChatModel,
+        synthesis_model: BaseChatModel | None = None,
     ) -> None:
         self.connection, self.embeddings = connection, embeddings
         self.repository_id, self.commit_sha, self.repository = (
@@ -801,6 +858,7 @@ class GraphRunner:
         self.tool_records, self.rerank = tool_records, rerank
         self.limits = limits or AgentLimits()
         self.router_model = router_model
+        self.synthesis_model = model if synthesis_model is None else synthesis_model
         if router_model is None:
             raise ValueError("Graph evaluation requires the configured router model.")
         self.last_findings: WorkflowResult | None = None
@@ -874,7 +932,7 @@ class GraphRunner:
                 self.router_model,
                 self.model,
                 self.model,
-                self.model,
+                self.synthesis_model,
                 registry=registry,
                 code_tools=code_tools,
                 limits=self.limits,

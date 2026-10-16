@@ -302,7 +302,7 @@ class CodeTools:
         digest = hashlib.sha256(
             json.dumps(identity, sort_keys=True).encode()
         ).hexdigest()
-        return f"repomind:code-context:v3:{digest}"
+        return f"repomind:code-context:v4:{digest}"
 
     async def _cached_read(self, key: str | None) -> _CachedRead | None:
         if key is None or self.redis is None:

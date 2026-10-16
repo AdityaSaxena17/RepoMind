@@ -794,6 +794,11 @@ async def run(args: argparse.Namespace) -> int:
                 "dimensions": embedding.dimensions,
                 "embedding_provider": settings.embeddings_provider,
                 "embedding_profile": embedding.profile,
+                "ollama_embedding_keep_alive_seconds": (
+                    settings.ollama_embedding_keep_alive_seconds
+                    if settings.embeddings_provider == "ollama"
+                    else None
+                ),
                 "reranker": reranker_config,
             },
             "retrieval_parameters": {
@@ -828,6 +833,9 @@ async def run(args: argparse.Namespace) -> int:
                         "chat_provider": "hive",
                         "chat_base_url": "https://api.thehive.ai/api/v3",
                         "chat_reasoning_effort": "high",
+                        "synthesis_reasoning_effort": (
+                            settings.synthesis_reasoning_effort
+                        ),
                         "chat_max_completion_tokens": 16384,
                         "chat_max_thinking_tokens": 8192,
                         "chat_timeout_seconds": 120,
@@ -908,6 +916,7 @@ async def run(args: argparse.Namespace) -> int:
                             timeout_seconds=args.timeout,
                         ),
                         router_model=create_chat_model(purpose="router"),
+                        synthesis_model=create_chat_model(purpose="synthesis"),
                     )
                     case.result = await runner.run(question.question)
                 retrieval_metrics, case.partial_overlap = score_retrieval(

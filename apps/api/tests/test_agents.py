@@ -150,6 +150,184 @@ class ScriptedModel(FakeMessagesListChatModel):
         return self
 
 
+def test_specialist_context_deduplicates_exact_sources_without_changing_records() -> (
+    None
+):
+    source = {"id": "code:one", "content": "one\ntwo", "path": "app.py"}
+    distinct = {"id": "code:two", "content": "two\nthree", "path": "app.py"}
+    results = [
+        {"sources": [source]},
+        {"sources": [source, distinct], "context_notes": ["Optional context."]},
+        {"sources": [{**source, "content": "conflicting text"}]},
+        {"sources": [source], "missing_information": ["Requested read failed."]},
+        {"sources": [source]},
+    ]
+    messages = [
+        ToolMessage(
+            content=json.dumps(result),
+            artifact=copy.deepcopy(result),
+            tool_call_id=str(index),
+            name="get_file_context",
+            status="error" if index == 3 else "success",
+        )
+        for index, result in enumerate(results)
+    ]
+    # A native body that differs from its structured artifact must be retained.
+    messages[-1].content = "Additional native content, not the artifact."
+    before = [message.model_dump() for message in messages]
+    received = []
+
+    async def run() -> None:
+        async def handler(request: Any) -> Any:
+            received.append(request)
+            return agents.ModelResponse(result=[AIMessage(content="Done.")])
+
+        await agents._InvestigationControl(
+            AgentLimits(), False, False
+        ).awrap_model_call(
+            agents.ModelRequest(model=ScriptedModel(responses=[]), messages=messages),
+            handler,
+        )
+
+    asyncio.run(run())
+    projected = received[0].messages
+    assert json.loads(projected[0].content) == results[0]
+    second = json.loads(projected[1].content)
+    assert second["sources"][0] == {"id": "code:one", "path": "app.py"}
+    assert second["sources"][1] == distinct
+    assert second["context_notes"] == ["Optional context."]
+    for index in (2, 3, 4):
+        assert projected[index].model_dump() == before[index]
+    for original, compact in zip(messages, projected, strict=True):
+        assert compact.artifact == original.artifact
+        assert compact.tool_call_id == original.tool_call_id
+        assert compact.status == original.status
+    assert [message.model_dump() for message in messages] == before
+    assert "earlier tool result" in received[0].system_message.text
+
+
+@pytest.mark.parametrize("final_answer", [False, True])
+@pytest.mark.parametrize("github", [False, True])
+def test_completion_checkpoint_keeps_necessary_tools_available(
+    final_answer: bool, github: bool
+) -> None:
+    tool = (
+        call("issue_read", {"issue_number": 9})
+        if github
+        else call("search_repository_code", {"query": "requested behavior"})
+    )
+    observation = ToolMessage(
+        content=json.dumps({"sources": [{"id": "code:one", "content": "one"}]}),
+        tool_call_id="call",
+        name=tool.tool_calls[0]["name"],
+    )
+    supplied_tools = [{"name": "necessary_read"}]
+
+    async def run() -> None:
+        async def handler(request: Any) -> Any:
+            assert request.tools == supplied_tools
+            assert (
+                "finish now without confirmation reads" in request.system_message.text
+            )
+            assert "Read comments, callers or callees" in request.system_message.text
+            return agents.ModelResponse(result=[AIMessage(content="Done.")])
+
+        await agents._InvestigationControl(
+            AgentLimits(), final_answer, github
+        ).awrap_model_call(
+            agents.ModelRequest(
+                model=ScriptedModel(responses=[]),
+                messages=[tool, observation],
+                tools=supplied_tools,
+            ),
+            handler,
+        )
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("kind", ["execution", "timeout", "validation"])
+def test_github_failed_read_checkpoint_preserves_tools_and_native_errors(
+    kind: str,
+) -> None:
+    tool = call("pull_request_read", {"pull_number": 7, "method": "get_diff"})
+    observation = ToolMessage(
+        content="Controlled read failure.",
+        tool_call_id="call",
+        name="pull_request_read",
+        status="error",
+        additional_kwargs={"repomind_error_kind": kind},
+    )
+    supplied_tools = [{"name": "pull_request_read"}, {"name": "issue_read"}]
+
+    async def run() -> None:
+        async def handler(request: Any) -> Any:
+            assert request.tools == supplied_tools
+            assert request.messages[-1] is observation
+            assert observation.content == "Controlled read failure."
+            assert (
+                "including transient server errors" in request.system_message.text
+            ) == (kind != "validation")
+            assert (
+                "Correct invalid arguments before retrying"
+                in request.system_message.text
+            )
+            return agents.ModelResponse(result=[AIMessage(content="Done.")])
+
+        await agents._InvestigationControl(AgentLimits(), False, True).awrap_model_call(
+            agents.ModelRequest(
+                model=ScriptedModel(responses=[]),
+                messages=[tool, observation],
+                tools=supplied_tools,
+            ),
+            handler,
+        )
+
+    asyncio.run(run())
+
+
+def test_specialist_compaction_reaches_model_and_keeps_native_tool_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = Database()
+    scripted_retriever(monkeypatch, database)
+    batches: list[list[BaseMessage]] = []
+
+    class RecordingModel(ScriptedModel):
+        async def _agenerate(self, messages: list[BaseMessage], **kwargs: Any) -> Any:
+            batches.append(messages)
+            return await super()._agenerate(messages, **kwargs)
+
+    async def run() -> None:
+        registry, code = setup_tools(database)
+        findings = await investigate_code(
+            RecordingModel(
+                responses=[
+                    call("search_repository_code", {"query": "initial"}, "search"),
+                    call("get_file_context", {"path": "app.py", "end_line": 2}, "read"),
+                    summary(),
+                ]
+            ),
+            registry,
+            code,
+            "Inspect the requested behavior.",
+        )
+        assert findings.status == "complete", findings.errors
+        observations = [m for m in batches[-1] if isinstance(m, ToolMessage)]
+        first, second = [json.loads(message.content) for message in observations]
+        assert first["sources"][0]["content"] == findings.evidence[0].content
+        assert "content" not in second["sources"][0]
+        for record in findings.tool_executions:
+            assert (
+                record.result["sources"][0]["content"] == findings.evidence[0].content
+            )
+            assert json.loads(record.message.content) == record.result
+            assert record.message.artifact == record.result
+        assert findings.model_calls == 3 and len(findings.tool_executions) == 2
+
+    asyncio.run(run())
+
+
 def call(name: str, arguments: dict[str, Any], call_id: str = "call") -> AIMessage:
     return AIMessage(
         content="Private intermediate research.",

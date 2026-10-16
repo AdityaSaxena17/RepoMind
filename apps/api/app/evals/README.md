@@ -6,6 +6,18 @@ The parent LangGraph workflow is the sole production and full-evaluation path:
 python scripts/uv_run.py python -m app.evals full --experiment graph-v1
 ```
 
+Hive synthesis uses `SYNTHESIS_REASONING_EFFORT=high` by default; `low` remains
+an opt-in latency/quality trade-off. The saved matched pair shows faster synthesis
+with low but lower judged citation coverage, so high is restored as the default.
+This setting affects only the
+MIXED synthesizer in chat and graph evaluation. Specialists remain at `high`
+and the router at `none`; explicit OpenAI provider configuration is unchanged.
+Ollama embedding requests set `OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS=300` by
+default (a positive, finite idle duration). This retains the embedding model for
+five minutes after use without changing its weights, vector-space fingerprint
+or retrieval/cache behavior. It does not eliminate the initial cold load.
+Reports record both settings alongside existing model configuration metadata.
+
 The graph evaluates all selected CODE, GITHUB and MIXED cases through the same
 `Runner.run(question)` contract. Gold scope annotations choose no runtime route;
 only the question and conversation history reach the router. Its existing model
@@ -554,8 +566,9 @@ baseline answers and new answers with the same v3 configuration. Old judge grade
 are not reusable across the configuration change.
 
 Code-tool results distinguish optional unread `context_notes` from genuinely
-incomplete requested reads in `missing_information`. Redis entries use the v3
-namespace, so v2 entries expire without a flush. The streaming gate removes an
+incomplete requested reads in `missing_information`. Redis entries use the v4
+namespace for guarded parent completion; older entries expire without a flush.
+The streaming gate removes an
 optional terminal closing marker across native chunks while preserving literal
 examples within answer content. No additional final-answer model call is needed.
 
@@ -577,15 +590,55 @@ Report these captures as targeted regressions; they do not replace the last comp
 24-case benchmark or its acceptance gates.
 
 Offline graph execution metadata includes `execution.call_timings`: each native
-model/tool run has its run ID, parent run ID, role, start offset, duration and
+model/tool/retriever run has its run ID, parent run ID, role, start offset, duration and
 success/error/canceled outcome. Tool entries also carry the tool name. Overlapping
 durations are independent observations, not additive workflow wall time. Interrupted
 runs are closed when the workflow unwinds. Timing entries contain no message text,
-tool arguments, outputs or exception bodies; existing provider usage and first
-answer delta measurements remain separate.
+tool arguments, outputs or exception bodies. Model entries additionally record the
+phase, message character count, time to first nonempty callback token (when streamed),
+whether the output requested tools, and provider usage for that run. Character
+counts exclude tool schemas and arguments and are not token estimates. Existing
+aggregate usage and time to the first user-facing answer delta remain available.
+Retriever durations are nested inside tool durations and include embedding, SQL,
+parent assembly and optional reranking; they do not isolate those internal costs.
 
 Synthesis and sequential handoff use an internal evidence projection. A successful
 tool source omits `content` only when its ID and text exactly match canonical
 evidence; consumers resolve it by ID. Full investigation results and cache entries
 retain their original text. Unmatched sources, failed results, provenance, citations,
 arguments, statuses, limitations and errors remain available in model context.
+
+Specialist model input also replaces exact repeated code-source content with
+references to the first full occurrence in earlier tool results. Failed results,
+conflicting ID/text pairs and native text that differs from its artifact remain
+intact. Tool-call IDs, artifacts and full execution records are unchanged. Internal
+MIXED answers are concise findings for synthesis; final answers still stream native
+tokens, and necessary comments, callers and callees remain available to investigate.
+Router scheduling distinguishes an already identified indexed component or behavior
+from a code target that GitHub must reveal first. An exact path is not required for
+parallel work; unknown targets still use the sequential handoff. This changes the
+existing dependency guidance and examples, without adding examples or route types.
+
+Without reranking, parent retrieval retains the first six parents and uses the
+remaining candidates in the existing pool to complete evidence from those files.
+Merges retain ranked children and the existing line/character limits. A guard
+restores original windows, including provenance, whenever completion would remove
+previously visible context from the combined result. Parent order, pool size and
+Recall@6/Precision@6 definitions remain unchanged. This may reduce duplicated
+complete-unit coverage per window; report any Precision@6 regression explicitly.
+
+### Evaluator version 4: logical section boundaries
+
+Grounding sections prefer sentence and line boundaries outside backtick spans,
+with a 600-character soft limit and 2,400-character hard limit. This avoids
+isolated sentence tails or split inline code without dropping text or changing
+original answer offsets. Path/citation introductions asserting observed source
+provenance are factual claims. Factual cited prose still cannot be labeled
+nonfactual, and exact quotes, evidence IDs and section coverage remain validated.
+Validation feedback identifies the failing section without exposing answer text
+in error messages. Existing retry counts and model settings are unchanged.
+
+These changes version the judge configuration. Reusing a v3 calibration for v4
+is rejected; recalibrate before accepting v4 grades. Historical v3 reports remain
+unchanged. Targeted regrades of saved answers are separate results: do not merge
+them with v3 grades to claim a newly completed whole-benchmark quality run.

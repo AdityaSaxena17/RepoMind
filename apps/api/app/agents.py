@@ -107,7 +107,8 @@ FINAL_ANSWER_PROMPT = (
     "Attach citations to the specific "
     "factual sentence they support; use the smallest sufficient source set. "
     "Separate claims with different support instead of attaching unrelated "
-    "citations to a whole paragraph. " + CITATION_GUIDANCE
+    "citations to a whole paragraph. Answer each requested fact once; avoid "
+    "repeating conclusions in an introduction or closing summary. " + CITATION_GUIDANCE
 )
 
 
@@ -231,6 +232,9 @@ COMMON_PROMPT = (
     "Use empty arrays when appropriate. Do not wrap JSON in Markdown. "
     " For MIXED investigations, answer only your role's portion of the original "
     "question. Router scope suggestions are context, not additional user requests. "
+    "Your answer is an internal handoff: give concise findings with citations, "
+    "necessary conditions and effects, not a polished user-facing essay. Do not "
+    "repeat source contents or tool results already supplied to the synthesizer. "
     + INVESTIGATION_GUIDANCE
 )
 DIRECT_ANSWER_PROMPT = (
@@ -392,6 +396,27 @@ class _FinalAnswerTokens(AsyncCallbackHandler):
         return "".join(self.parts)
 
 
+def _remove_repeated_source_content(
+    result: dict[str, JsonValue], canonical: dict[str, str]
+) -> int:
+    """Remove only exact ID/text duplicates from a disposable context projection."""
+    removed = 0
+    sources = result.get("sources")
+    if isinstance(sources, list):
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            source_id = source.get("id")
+            if (
+                isinstance(source_id, str)
+                and source_id in canonical
+                and source.get("content") == canonical[source_id]
+            ):
+                del source["content"]
+                removed += 1
+    return removed
+
+
 class _InvestigationControl(AgentMiddleware[Any, Any, Any]):
     """Reserve an existing final turn and prevent unchanged repeated tool execution."""
 
@@ -413,6 +438,7 @@ class _InvestigationControl(AgentMiddleware[Any, Any, Any]):
         handler: Callable[[ModelRequest[Any]], Awaitable[ModelResponse[Any]]],
     ) -> ModelResponse[Any]:
         failed_keys: list[str] = []
+        failed_github_read = False
         calls = {
             call["id"]: call
             for message in request.messages
@@ -431,6 +457,11 @@ class _InvestigationControl(AgentMiddleware[Any, Any, Any]):
                     failed_keys.append(
                         json.dumps([call["name"], call["args"]], sort_keys=True)
                     )
+                    if (
+                        call["name"] in {"issue_read", "pull_request_read"}
+                        and kind != "validation"
+                    ):
+                        failed_github_read = True
         self.stopping = (
             len(calls) >= self.limits.tool_calls
             or self.model_calls >= self.limits.model_calls - 1
@@ -459,27 +490,76 @@ class _InvestigationControl(AgentMiddleware[Any, Any, Any]):
             "or URLs. Missing information covers unresolved requested facts within "
             "your role; handoffs and version differences belong in context_notes."
         )
-        if (
-            self.github
-            and not self.final_answer
-            and not self.stopping
-            and any(
-                isinstance(message, ToolMessage)
-                and message.status != "error"
-                and message.name in {"issue_read", "pull_request_read"}
-                and (observed_call := calls.get(message.tool_call_id)) is not None
-                and observed_call["args"].get("method", "get") == "get"
-                for message in request.messages
+        if self.github and failed_github_read:
+            instruction += (
+                " A failed GitHub read is unavailable for this investigation, "
+                "including transient server errors. Do not retry that request "
+                "unchanged. Use other observed evidence, continue other requested "
+                "facts, or report the specific limitation."
             )
+        if not self.stopping and any(
+            isinstance(message, ToolMessage)
+            and message.status != "error"
+            and (
+                (
+                    message.name in {"issue_read", "pull_request_read"}
+                    and (observed_call := calls.get(message.tool_call_id)) is not None
+                    and observed_call["args"].get("method", "get") == "get"
+                )
+                or (
+                    message.name in {"search_repository_code", "get_file_context"}
+                    and _tool_result(message).get("sources")
+                )
+            )
+            for message in request.messages
         ):
             instruction += (
-                " Resource details have been observed. Before another GitHub read, "
-                "identify a still-unanswered live fact requested in the original "
-                "question. Explaining a report using indexed implementation is "
-                "the Code Agent's work, not a reason to read more discussion."
+                " Before another read, identify a requested fact not established "
+                "by the observed evidence. If every assigned fact is supported, "
+                "finish now without confirmation reads. Read comments, callers or "
+                "callees when they are needed to establish an unresolved requested "
+                "fact. Explaining indexed implementation belongs to the Code Agent."
+            )
+        messages = list(request.messages)
+        canonical: dict[str, str] = {}
+        removed = 0
+        for index, message in enumerate(messages):
+            if (
+                not isinstance(message, ToolMessage)
+                or message.status == "error"
+                or message.name not in {"search_repository_code", "get_file_context"}
+                or not isinstance(message.content, str)
+            ):
+                continue
+            result = _tool_result(message)
+            try:
+                if json.loads(message.content) != result:
+                    continue
+            except ValueError:
+                continue
+            # Keep first occurrences in their original tool messages. Only model
+            # input changes; native artifacts and persisted execution records stay full.
+            if count := _remove_repeated_source_content(result, canonical):
+                messages[index] = message.model_copy(
+                    update={"content": json.dumps(result, ensure_ascii=False)}
+                )
+                removed += count
+            sources = result.get("sources")
+            if isinstance(sources, list):
+                for source in sources:
+                    if not isinstance(source, dict):
+                        continue
+                    source_id, content = source.get("id"), source.get("content")
+                    if isinstance(source_id, str) and isinstance(content, str):
+                        canonical.setdefault(source_id, content)
+        if removed:
+            instruction += (
+                " Repeated sources without content resolve by their exact ID to "
+                "the full content in an earlier tool result."
             )
         return await handler(
             request.override(
+                messages=messages,
                 tools=[] if self.stopping else request.tools,
                 system_message=SystemMessage(
                     content=(
@@ -646,15 +726,18 @@ Observation: zero matches.
 Conclusion: This search returned no matches. Do not change the requested state or
 claim that no related issue exists under other queries.
 
-Question: Compare PR #86's proposal with the indexed packet encoder.
+Question: Compare the actual encoder changes in PR #86 with the indexed encoder.
 Tool: pull_request_read({"pull_number":86,"method":"get"})
-Observation: PR URL https://github.com/fictional-lab/atlas/pull/86.
+Observation: the body says only 'adjust packet validation', with URL
+https://github.com/fictional-lab/atlas/pull/86. It does not establish the actual change.
 Tool: pull_request_read({"pull_number":86,"method":"get_files"})
 Observation: affected path codec/packet.py.
 Tool: pull_request_read({"pull_number":86,"method":"get_diff"})
 Observation: the diff proposes returning None for unsupported formats.
 Conclusion: Report that proposal, path and observed PR URL. Hand these findings to
 the Code Agent; they do not establish what the indexed commit currently implements.
+For a question about only a PR's stated claim, a body that states the claim is
+sufficient. Changed files and patch reads need a remaining requested fact.
 """
 
 CODE_AGENT_PROMPT = (
@@ -687,10 +770,12 @@ GITHUB_AGENT_PROMPT = (
     "resource does not resolve other requested resources. "
     "After a named resource is unavailable, do not try its other read methods "
     "unless the observed error specifically indicates that another method may work. "
-    "Use each tool's description to choose the next read. Read comments when "
-    "requested live facts are unresolved by details, including facts referenced "
-    "in a follow-up comment; comments are not an automatic step after every read. "
-    "Do not use GitHub discussion to explain indexed implementation. "
+    "Use each tool's description to choose the next read. Read comments for "
+    "requested discussion facts or a live fact specifically deferred to comments, "
+    "not to explain behavior that the Code Agent must investigate. A requested "
+    "report or stated PR claim established by its body needs no confirmation "
+    "read. Read a patch when the requested actual change is not established by "
+    "the body; do not fetch it merely to restate a claim. "
     "Once your assigned facts are established "
     "or unavailable, report them and stop. Missing indexed facts belong to the "
     "Code Agent and must not be reported as gaps in your GitHub assignment. "
@@ -775,17 +860,7 @@ class AgentFindings(BaseModel):
             projected["status"] = record.message.status
             if record.message.status == "error":
                 continue
-            sources = projected["result"].get("sources")
-            if not isinstance(sources, list):
-                continue
-            for source in sources:
-                if (
-                    isinstance(source, dict)
-                    and isinstance(source.get("id"), str)
-                    and source["id"] in canonical
-                    and source.get("content") == canonical[source["id"]]
-                ):
-                    del source["content"]
+            _remove_repeated_source_content(projected["result"], canonical)
         return JSON_OBJECT.validate_python(payload)
 
 

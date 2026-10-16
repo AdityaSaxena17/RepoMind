@@ -38,6 +38,8 @@ class Settings:
     agent_model_call_limit: int = 8
     agent_timeout_seconds: float = 120.0
     code_context_cache_ttl_seconds: int = 900
+    synthesis_reasoning_effort: str = "high"
+    ollama_embedding_keep_alive_seconds: int = 300
 
     @property
     def embedding_model(self) -> str:
@@ -141,6 +143,12 @@ def get_settings() -> Settings:
     model_limit = int(os.getenv("AGENT_MODEL_CALL_LIMIT", "8"))
     agent_timeout = float(os.getenv("AGENT_TIMEOUT_SECONDS", "120"))
     cache_ttl = int(os.getenv("CODE_CONTEXT_CACHE_TTL_SECONDS", "900"))
+    synthesis_effort = os.getenv("SYNTHESIS_REASONING_EFFORT", "high")
+    if synthesis_effort not in {"none", "low", "high", "max"}:
+        raise ValueError("SYNTHESIS_REASONING_EFFORT must be none, low, high or max.")
+    embedding_keep_alive = int(os.getenv("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS", "300"))
+    if embedding_keep_alive < 1:
+        raise ValueError("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS must be positive.")
     if tool_limit < 1 or model_limit < 1:
         raise ValueError("Agent tool and model call limits must be positive.")
     if not 0 < agent_timeout < float("inf") or cache_ttl < 0:
@@ -187,4 +195,6 @@ def get_settings() -> Settings:
         agent_model_call_limit=model_limit,
         agent_timeout_seconds=agent_timeout,
         code_context_cache_ttl_seconds=cache_ttl,
+        synthesis_reasoning_effort=synthesis_effort,
+        ollama_embedding_keep_alive_seconds=embedding_keep_alive,
     )

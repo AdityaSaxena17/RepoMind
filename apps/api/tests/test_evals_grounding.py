@@ -53,6 +53,37 @@ def test_sections_preserve_every_nonwhitespace_character_and_exact_offsets() -> 
 
 
 @pytest.mark.parametrize(
+    "parts",
+    [
+        [
+            "- First " + "condition " * 45 + "holds [1].",
+            "- Second " + "effect " * 60 + "follows [1].",
+        ],
+        ["The " + "condition " * 75 + "uses `repo:sample/project is:issue` [1]."],
+        ["The " + "condition " * 58 + "holds. [1][1].", "Another fact holds [1]."],
+    ],
+)
+def test_sections_keep_bullets_long_clauses_and_inline_code_whole(
+    parts: list[str],
+) -> None:
+    answer = "\n".join(parts)
+    sections = grounding_sections(answer)
+    assert all(any(part in section["text"] for section in sections) for part in parts)
+    assert all(
+        section["text"] == answer[section["start"] : section["end"]]
+        for section in sections
+    )
+    assert all(len(section["text"]) <= 2400 for section in sections)
+
+
+def test_sections_bound_unbroken_input_without_losing_characters() -> None:
+    answer = "x" * 5001
+    sections = grounding_sections(answer)
+    assert "".join(section["text"] for section in sections) == answer
+    assert all(0 < len(section["text"]) <= 2400 for section in sections)
+
+
+@pytest.mark.parametrize(
     "fault", [None, "omit", "foreign_quote", "empty", "cited_nonfactual"]
 )
 def test_grounding_accounts_for_all_sections_and_rejects_incomplete_repairs(
@@ -127,6 +158,8 @@ def test_grounding_accounts_for_all_sections_and_rejects_incomplete_repairs(
         assert attempts == 3
         assert case.grounding is None and not case.grounding_sections
         assert len(case.judge_validation_errors) == 3
+        if fault != "omit":
+            assert case.judge_validation_errors[0].startswith("section:1:")
 
 
 def test_failed_grounding_batch_cancels_and_awaits_other_batches(

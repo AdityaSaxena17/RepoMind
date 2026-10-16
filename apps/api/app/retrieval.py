@@ -30,6 +30,38 @@ PARENT_MAX_CHARS = 16_000
 RRF_K = 60
 
 
+def _preserve_parent_context(
+    original: list[Document], completed: list[Document]
+) -> list[Document]:
+    """Restore whole parents until completion retains all originally visible text."""
+    result = list(completed)
+    original_lines = {
+        (str(doc.metadata["path"]), line)
+        for doc in original
+        if doc.page_content
+        for line in range(doc.metadata["start_line"], doc.metadata["end_line"] + 1)
+    }
+    # Restoring one window can remove coverage that another shifted window needs.
+    # Each iteration restores a different parent, so this takes at most final_k steps.
+    while missing := original_lines - {
+        (str(doc.metadata["path"]), line)
+        for doc in result
+        if doc.page_content
+        for line in range(doc.metadata["start_line"], doc.metadata["end_line"] + 1)
+    }:
+        for index, doc in enumerate(original):
+            if doc.page_content and any(
+                (str(doc.metadata["path"]), line) in missing
+                for line in range(
+                    doc.metadata["start_line"], doc.metadata["end_line"] + 1
+                )
+            ):
+                # Restore provenance as well as text; rejected merges add no sources.
+                result[index] = doc
+                break
+    return result
+
+
 async def verify_embedding_profile(
     connection: asyncpg.Connection,
     repository_id: str,
@@ -495,6 +527,7 @@ class RepoMindParentHybridRetriever(BaseRetriever):
         )
         files = {str(row["id"]): row for row in rows}
         windows: list[dict[str, Any]] = []
+        original: list[Document] | None = None
 
         for candidate in candidates:
             file_row = files.get(str(candidate["file_id"]))
@@ -532,11 +565,60 @@ class RepoMindParentHybridRetriever(BaseRetriever):
                 None,
             )
 
+            if existing and original is not None:
+                protected_end = max(existing["child_end"], int(candidate["end_line"]))
+                prefix_start = min(int(existing["start_line"]), start_line)
+                lines = str(file_row["content"]).splitlines()
+                if (
+                    len("\n".join(lines[prefix_start - 1 : protected_end]))
+                    > PARENT_MAX_CHARS
+                ):
+                    existing = None
+
             if existing:
                 existing["start_line"] = min(int(existing["start_line"]), start_line)
                 existing["end_line"] = max(int(existing["end_line"]), end_line)
                 existing["score"] = float(existing["score"]) + float(candidate["score"])
                 existing["sources"].update(candidate["sources"])
+                existing["child_start"] = min(
+                    existing["child_start"], int(candidate["start_line"])
+                )
+                existing["child_end"] = max(
+                    existing["child_end"], int(candidate["end_line"])
+                )
+                continue
+
+            if original is not None:
+                # Capacity fixes parent identities/order. Later children may use
+                # their padding budget, but cannot evict ranked child evidence.
+                for selected in windows:
+                    if selected["file_id"] != candidate["file_id"]:
+                        continue
+                    child_start = min(
+                        selected["child_start"], int(candidate["start_line"])
+                    )
+                    child_end = max(selected["child_end"], int(candidate["end_line"]))
+                    if child_end - child_start + 1 > PARENT_MAX_LINES:
+                        continue
+                    left = min(
+                        int(selected["start_line"]), int(candidate["start_line"])
+                    )
+                    right = max(int(selected["end_line"]), int(candidate["end_line"]))
+                    if right - left + 1 > PARENT_MAX_LINES:
+                        left = max(left, child_end - PARENT_MAX_LINES + 1)
+                        right = min(right, left + PARENT_MAX_LINES - 1)
+                    lines = str(file_row["content"]).splitlines()
+                    if len("\n".join(lines[left - 1 : child_end])) > PARENT_MAX_CHARS:
+                        continue
+                    selected.update(
+                        start_line=left,
+                        end_line=right,
+                        child_start=child_start,
+                        child_end=child_end,
+                    )
+                    selected["score"] += candidate["score"]
+                    selected["sources"].update(candidate["sources"])
+                    break
                 continue
 
             windows.append(
@@ -548,16 +630,29 @@ class RepoMindParentHybridRetriever(BaseRetriever):
                     "end_line": end_line,
                     "score": float(candidate["score"]),
                     "sources": set(candidate["sources"]),
+                    "child_start": int(candidate["start_line"]),
+                    "child_end": int(candidate["end_line"]),
                 },
             )
 
             if not self.rerank and len(windows) >= self.final_k:
-                break
+                # Render once at capacity to freeze actual text after character
+                # clipping, not just declared ranges. Files are already loaded.
+                original = self._render_parent_documents(windows[: self.final_k])
 
+        selected_windows = windows if self.rerank else windows[: self.final_k]
+        documents = self._render_parent_documents(selected_windows)
+        return (
+            _preserve_parent_context(original, documents)
+            if original is not None
+            else documents
+        )
+
+    def _render_parent_documents(self, windows: list[dict[str, Any]]) -> list[Document]:
+        """Render bounded parent text and independent provenance from loaded files."""
         documents: list[Document] = []
 
-        selected = windows if self.rerank else windows[: self.final_k]
-        for index, window in enumerate(selected):
+        for index, window in enumerate(windows):
             lines = str(window["content"]).splitlines()
             start_line = int(window["start_line"])
             end_line = int(window["end_line"])

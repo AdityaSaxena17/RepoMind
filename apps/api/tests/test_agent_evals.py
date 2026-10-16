@@ -104,6 +104,7 @@ def test_specialist_cli_records_findings_and_continues_after_failure(
 ) -> None:
     role = "graph"
     monkeypatch.setenv("HIVE_API_KEY", "offline")
+    monkeypatch.setenv("SYNTHESIS_REASONING_EFFORT", "low")
     get_settings.cache_clear()
     prompts: list[str] = []
     closed: list[bool] = []
@@ -121,6 +122,9 @@ def test_specialist_cli_records_findings_and_continues_after_failure(
     class Runner:
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             assert len(args) == 8
+            assert args[5].reasoning_effort == "high"
+            assert kwargs["router_model"].reasoning_effort == "none"
+            assert kwargs["synthesis_model"].reasoning_effort == "low"
             self.last_result = EvaluationResult()
             self.first_query = None
             self.statistics = {"completed_model_calls_including_router": 0}

@@ -87,3 +87,68 @@ def test_hive_chat_uses_the_shared_key_without_openai_configuration(
         assert model.max_retries == 1
     finally:
         get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("effort", [None, "none", "low", "high", "max"])
+def test_synthesis_reasoning_changes_only_the_hive_synthesis_role(
+    monkeypatch: pytest.MonkeyPatch, effort: str | None
+) -> None:
+    monkeypatch.setenv("HIVE_API_KEY", "offline")
+    if effort is None:
+        monkeypatch.delenv("SYNTHESIS_REASONING_EFFORT", raising=False)
+    else:
+        monkeypatch.setenv("SYNTHESIS_REASONING_EFFORT", effort)
+    get_settings.cache_clear()
+    try:
+        specialist = create_chat_model()
+        synthesis = create_chat_model(purpose="synthesis")
+        assert synthesis.reasoning_effort == (effort or "high")
+        assert specialist.reasoning_effort == "high"
+        assert create_chat_model(purpose="router").reasoning_effort == "none"
+        specialist_params = specialist._default_params.copy()
+        synthesis_params = synthesis._default_params.copy()
+        specialist_params.pop("reasoning_effort")
+        synthesis_params.pop("reasoning_effort")
+        assert synthesis_params == specialist_params
+        assert synthesis.request_timeout == specialist.request_timeout == 120
+        assert synthesis.max_retries == specialist.max_retries == 1
+    finally:
+        get_settings.cache_clear()
+
+
+def test_synthesis_preserves_nonreasoning_openai_provider_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("HIVE_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+    monkeypatch.setenv("SYNTHESIS_REASONING_EFFORT", "low")
+    get_settings.cache_clear()
+    try:
+        synthesis = create_chat_model(purpose="synthesis")
+        assert synthesis._default_params == create_chat_model()._default_params
+        assert synthesis.reasoning_effort is None
+        assert synthesis.use_responses_api is True
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [
+        ("SYNTHESIS_REASONING_EFFORT", "medium"),
+        ("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS", "0"),
+        ("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS", "-1"),
+        ("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS", "inf"),
+    ],
+)
+def test_latency_settings_reject_unsupported_or_unbounded_values(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(ValueError):
+            get_settings()
+    finally:
+        get_settings.cache_clear()

@@ -1025,3 +1025,855 @@ pass; all-three first-search recovery does not. The failure, precision regressio
 extra comment reads and increased output/reasoning usage are retained. No baseline
 answer substitution, judge recalibration, permissive fixtures, additional examples,
 larger budgets, reranker/model changes or further live evaluations were applied.
+
+## Offline parent-window diagnosis (2026-10-16)
+
+Production code remains unchanged in this follow-up. It diagnoses the failed v5
+first search and proposes a bounded parent-completion change. There were **zero
+generation, judge or embedding-provider calls**. Candidate capture used the
+dedicated evaluation role, a verified frozen index, read-only repeatable-read
+transactions and existing validated embedding vectors. Missing vectors would fail
+instead of contacting a provider. Subsequent comparisons used the captured files
+and candidates in memory; no production database or Redis entries were modified.
+
+### Confirmed cause
+
+For v5 trial 3's query, `streaming source cards retrieved candidates citations chat`,
+production `_parent_documents` stops after the first six fused candidates create
+six parent windows. All six seed chunks remain visible; this is not a case of the
+character limit cutting a selected child out of its parent.
+
+| Fused rank | File | Child lines | Individual expanded parent |
+| ---------- | ---- | ----------- | -------------------------- |
+| 1 | `repository-chat.tsx` | 1-128 | 1-208 |
+| 2 | `chat.py` | 209-296 | 129-376 |
+| 3 | `repository-chat.tsx` | 120-259 | 64-313 |
+| 4 | `chat.py` | 1-104 | 1-184 |
+| 5 | `repository-chat.tsx` | 412-481 | 332-512 |
+| 6 | `retrieval.py` | 209-314 | 136-385 |
+| 13 | `chat.py` | 373-446 | 293-446 |
+| 14 | `chat.py` | 289-383 | 209-446 |
+
+Ranks 13 and 14 are inside the existing 18-candidate pool but are never processed.
+Their parents cover the backend citation-card loop omitted from the six outputs.
+The final annotated overlap is 20%, with Recall@6 0%. Full-pool reordering remains
+rejected; no vector/keyword/RRF settings or candidate rankings changed here.
+
+### Fixed offline hypotheses
+
+Two general hypotheses were evaluated against the same captured candidates:
+
+1. Continue processing the 18 candidates after six parents are selected, allowing
+   only the existing full-padding merge rule. Keep the six parents and their order.
+   This grows some context but **does not recover trial 3**.
+2. Also allow later children from selected files to fit into an existing parent
+   by adjusting surrounding padding. Retain the selected child spans, six-parent
+   limit, order, line limit and character limit. This recovers trial 3 but initially
+   removes some previously visible surrounding lines in two saved queries and in
+   trial 3, despite retaining every previously visible child chunk in the pool.
+
+The second prototype therefore gained an annotation-independent guard: compare
+the combined original/proposed visible ranges and restore original windows until
+all original visible context is retained. A restoration can require another
+restoration, so the guard repeats for at most six windows. This keeps the useful
+backend expansion in trial 3 and restores its unrelated retrieval window.
+It does not consult reference facts or evidence annotations. Production would
+capture the initial windows in memory from already-loaded files, not make a second
+database fetch. The source prototypes are diagnostic artifacts, not a shipped path.
+
+### Cached comparison results
+
+The 17 saved first queries come from
+`component-5-reliability-v3-scoped-full.json`, restricted to questions with required
+code evidence. The three v5 trial queries are reported separately; repeated
+`mixed-01` queries are not combined with the 17-query macro score. Selection receives
+only candidates and source files; the unchanged scorer receives annotations after
+selection. Every scored line was validated against its actual frozen file text.
+
+| Measurement | Production reference | Guarded prototype |
+| ----------- | -------------------- | ----------------- |
+| Saved queries scored | 17 | 17 |
+| Recall@6, case macro | 77.45% | 77.45% |
+| Precision@6, case macro | 38.24% | **36.27%** |
+| Queries with Recall@6 regression | 0 | 0 |
+| Original visible lines lost | 0 | 0 |
+| Total returned characters, saved queries | 648,493 | 659,960 (+1.77%) |
+| v5 trial query Recall@6, trials 1/2/3 | 100% / 100% / 0% | 100% / 100% / 100% |
+
+The guarded trial-3 backend window becomes `chat.py:197-446`, accompanied by
+`chat.py:1-216`; all originally visible backend lines remain available. The original
+`retrieval.py:136-385` window is retained by the guard. Its total context increases
+from 42,405 to 45,927 characters (+8.31%). These are deterministic retrieval results
+for saved queries, not new generated answers or new execution-completion scores.
+
+The two precision regressions were inspected individually:
+
+- `architecture-02`: 5/6 to 4/6. A retrieval window moves from lines 136-385 to
+  167-416, so it no longer individually contains the complete vector-insert unit
+  at 150-169. Another retained window at 26-275 still contains that unit. The
+  required evidence and all original visible context remain available.
+- `mixed-02`: 3/6 to 2/6. A retrieval window moves from 26-275 to 1-250, so it no
+  longer individually contains the complete required range 246-258. Two other
+  retained windows still contain it. Again, no original visible context is lost.
+
+These are reductions in duplicated complete-unit coverage per window, not lost
+requested facts on the scored queries. They remain real Precision@6 regressions
+under the unchanged definition; the evaluator was not changed to dismiss them.
+Other existing incomplete-recall cases remain incomplete. The prototype does not
+claim an overall Recall@6 improvement or resolve missing evidence in new files
+outside the six selected parents.
+
+### Verification and implementation recommendation
+
+Seven synthetic checks passed for late-child completion, ordinary padding merge,
+refusal to evict evidence for distant children/new files, text budgets, protection
+against padding-induced child clipping and unchanged reranking parent behavior.
+Five additional guard checks passed for safe expansion, restoration, overlap,
+cascading restoration and file isolation. Across all 20 captured queries, the
+guarded results keep at most six windows, at most 250 lines/16,000 characters per
+window, valid exact source text and every originally visible line. Neither inputs
+nor frozen datasets, fixtures, scorers, calibration or prompts were modified.
+
+Artifacts under `.eval-artifacts/`:
+
+- `parent-selection-v6-trial3-candidates.json` and `-trace.json`: initial exact trace.
+- `parent-selection-v6-saved-candidates.json`: frozen candidates/files for replay.
+- `parent-selection-v6-comparison.json`, `-review.json`, `-guarded.json`: both
+  hypotheses, surrounding-context audit and conservative guard results.
+- `diagnose_parent_selection_v6.py`, `compare_parent_selection_v6.py`,
+  `check_parent_selection_v6.py`, `check_coverage_guard_v6.py`: reproducible scripts.
+
+Recommend the **guarded child-preserving completion** as the next implementation
+candidate, with its precision tradeoff explicit. Keep it inside `retrieval.py`:
+retain the first six parents and their ranked seeds; process the rest of the
+existing candidate pool only for those files; apply bounded merging and the
+visible-context guard; preserve native provenance when a window is restored.
+Reranking behavior, prompts, models, budgets, router and scorer definitions stay
+unchanged. If implemented, version the code-context cache namespace so old cached
+parent selection cannot mask the new behavior; retain cache-aside authorization,
+snapshot identity and expiry, without flushing Redis.
+
+Add focused production regressions for completion after capacity, selected-child
+and full visible-context retention, cascading rollback, limits and stable parent
+order/provenance. Then run affected retrieval/code-tool checks and only selected
+live cases to establish whether the improved first search actually removes follow-up
+reads and model calls. The current offline comparison **cannot establish lower
+answer latency, answer quality or generalization**. Context grows slightly, so a
+latency improvement would need fewer investigation calls to outweigh that cost.
+No full suite, full benchmark, live generation or recalibration ran in this follow-up.
+
+## Guarded parent completion implementation (2026-10-16)
+
+Implemented the approved conservative completion in production retrieval. Focused
+code checks pass, but **live quality validation does not pass**: four of five
+executions completed, and only one of three selected answers has an accepted grade.
+First-search recovery remains two of three new `mixed-01` trials. All failures are
+retained; no answer substitution, prompt changes, gate relaxation or tuning loop
+followed these observations.
+
+### Change and focused verification
+
+- Freeze the first six parent documents after actual whole-line character clipping.
+  Continue through the same existing candidate pool without changing parent order
+  or adding parents. Later chunks from selected files may use bounded padding while
+  preserving ranked children. Restore whole original documents, including scores
+  and source provenance, until all originally visible text remains available.
+- Reuse one renderer for the original snapshot and final parents. Both use files
+  from the same single database fetch; completion opens no connection or transaction.
+  Reranked retrieval retains its original full-pool behavior.
+- Advance code-context keys to `repomind:code-context:v4`. Old v2/v3 entries remain
+  until ordinary expiry and are not consumed. Cache identity, TTL, authorization,
+  snapshot checks, request-scoped labels and Redis failure/cancellation behavior stay
+  unchanged. Search and file-read cache namespace isolation are both tested.
+- **64/64 targeted tests passed**: `test_retrieval.py`, `test_code_tools.py` and
+  `test_context_cache.py`. Eight new retrieval cases cover completion after capacity,
+  one-fetch ownership, child/text limits, full visible-context retention, cascading
+  rollback and provenance. Four namespace combinations replace the old single test.
+  Changed-file Ruff/formatting passed for four Python files; mypy passed for the two
+  changed application modules; diff whitespace checks passed.
+
+The changed production method was also replayed over the existing 20 captured query
+rankings/files, with **no database, embedding, model or judge calls**. Every result
+matches the guarded prototype in exact text and provenance; every invocation uses
+one file fetch, and reranked parent output matches the committed pre-change method.
+The 17-query macro Recall@6 remains **77.45%**, Precision@6 is **36.27%** versus
+38.24% before, and no original visible lines are lost. The three saved v5 trial
+queries all recover their required evidence. This controlled result concerns those
+saved queries, not future agent-generated queries.
+
+No full suite, opt-in integration suite, full benchmark, build, lock verification or
+judge recalibration ran. The selected live executions exercised the isolated real
+evaluation database and production graph. Prompts, models, reasoning settings,
+budgets, routing strategies, streaming, scorer definitions and frozen data have no
+change in this implementation.
+
+### Five selected live executions
+
+All captures share the same application hash. The first three are repeated
+`mixed-01` executions; the other two are the precision-affected controls. Counts are
+**three complete workflows, one qualified partial and one failed workflow**.
+
+| Capture | Execution / workflow | Recall@6 | Final coverage | References | Seconds | Model/tool calls |
+| ------- | -------------------- | -------- | -------------- | ---------- | ------- | ---------------- |
+| `mixed-01` trial 1 | Completed / complete | 100% | 100% | 18/18 valid | 35.937 | 6 / 3 |
+| `mixed-01` trial 2 | Completed / complete | 100% | 100% | 11/11 valid | 33.563 | 6 / 3 |
+| `mixed-01` trial 3 | Completed / complete | **0%** | 100% | 15/15 valid | 44.203 | 7 / 5 |
+| `architecture-02` | **Error / failed** | Error | Unscored | **Rejected citation** | 46.360 | 6 / 5 |
+| `mixed-02` | Completed / incomplete | 100% | 100% | 17/17 valid | 23.610 | 7 / 5 |
+
+The 61/61 validity count covers the four completed responses only. It does not
+include the rejected answer as a valid response. No unmatched fixtures occurred.
+`mixed-02` retains its actual PR-diff HTTP 503 and deterministic partial qualification;
+its known requested comparison remains answerable from observed PR body/code evidence.
+
+Recorded first queries:
+
+1. `chat source cards retrieval citations answer`
+2. `chat source cards retrieved sources citation`
+3. `chat source cards citations retrieved sources`
+
+Each mixed trial reads issue details and makes two initial concurrent code searches.
+Trials 1 and 2 stop without file or comment reads. Trial 3 additionally searches
+`parse citation markers from answer text filter cited sources` and reads
+`apps/api/app/chat.py:380-446`. It recovers the requested backend evidence then;
+this later coverage is not Recall@6. Full arguments and observed records remain in
+the raw reports.
+
+### Remaining first-search miss
+
+One targeted read-only diagnostic replayed trial 3's new failed query using its
+already cached vector and verified frozen files. It reproduced the live tool output
+exactly. The six selected parents include only the beginning of `chat.py`, seeded
+by lines 1-104. Later chunks 373-446 (rank 8) and 289-383 (rank 11) are both inside
+the pool and individually expand to sufficient evidence. However, neither can share
+a 250-line contiguous parent with the selected seed. Completion cannot add or replace
+a parent under this approved policy. Removing the context guard also fails to recover
+the evidence, so the guard is not responsible for this miss.
+
+This is a remaining parent-selection/coverage limitation, rather than vector recall
+failure, character clipping or a malformed query. It would require a separately
+evaluated selection change to solve; no broader ranking or budget change was made.
+
+### Latency and tokens on the three repeated mixed runs
+
+| Measurement | Saved v5 trials, median | New trials, median |
+| ----------- | ----------------------- | ------------------ |
+| Workflow seconds | 44.562 | 35.937 (-19.36%) |
+| First answer delta seconds | 42.500 | 33.516 (-21.14%) |
+| Completed model calls, including router | 7 | 6 |
+| Tool calls | 4 | 3 |
+| Input tokens | 63,190 | 63,779 (+0.93%) |
+| Output tokens, including reasoning | 5,182 | 2,743 (-47.07%) |
+| Reasoning tokens | 3,675 | 1,117 (-69.61%) |
+
+Per-trial input/output/reasoning counts are 61,263/2,456/758,
+63,779/2,743/1,117 and 103,804/4,073/2,493. First deltas arrive at 33.516s,
+30.563s and 42.891s respectively. Observed synthesis spans are 7.671s, 9.000s and
+13.859s. The first pair of searches overlaps at approximately 9s each, while later
+searches are faster. Native timing records retain every stage; overlapping tool
+durations must not be added as workflow time.
+
+The new runs have no GitHub comment reads, whereas two saved v5 runs do. Reasoning
+output also varies substantially despite unchanged settings. Therefore the observed
+latency reduction cannot all be attributed to parent completion. First-search
+recovery is still 2/3, and trial 3 still needs a file read. Controls use older saved
+baseline application revisions and are reported separately, not as a unified causal
+latency comparison: `architecture-02` rises from 39.265s to 46.360s and fails;
+`mixed-02` falls from 25.921s to 23.610s and remains a qualified partial.
+
+### Execution and judge failures
+
+`architecture-02` first omits its terminal marker; the existing recovery succeeds.
+Its final answer then invents a repository `/tree/<commit>` URL absent from the
+observed citation catalog. Strict citation validation rejects it with
+`citation_invalid`; the workflow answer is cleared. The raw specialist finding,
+timings, recovered `final_marker_missing` and unrecovered citation error remain
+available. The saved baseline completed; this new failed execution is an observed
+regression, without proof that the retrieval change caused it. The validator was
+not loosened to accept a plausible but unobserved URL.
+
+The unchanged v3 judge reused the exact matching saved 15/15 passing calibration.
+Of three selected answers, **two were attempted, one accepted, one rejected; one
+was skipped because execution had already failed**:
+
+- Trial 1 `mixed-01`: grading fails with `Cited prose must be classified as claims
+  or limitations.` The configured three total validation attempts all fail. Semantic
+  metrics remain errored; trial 2 or 3 was not substituted. Existing diagnostics do
+  not retain the failing section's raw label, so its exact section cannot be identified
+  without another judge call. No such call or evaluator change was made.
+- `architecture-02`: not judged because generation/citation validation failed.
+- `mixed-02`: accepted, no material errors, all three reference facts matched.
+  Correctness/completeness remain 100%, groundedness is 96% (24/25), citation
+  precision 77.27% (17/22), coverage 60% (15/25), validity 100% (17/17).
+  Its saved accepted grade had groundedness 100%, precision 100% and coverage
+  88.89%; these regressions remain visible. The new unsupported label concerns a
+  provenance/methodology sentence, with the judge itself describing it as an
+  interpretive limitation rather than a domain fact. This possible label inconsistency
+  is retained, not corrected after seeing the score.
+
+There is no accepted new quality grade for `mixed-01` or `architecture-02`; their
+saved grades cannot establish current answer quality. The implementation passes
+its focused correctness checks but does **not** establish a new quality acceptance
+result, whole-benchmark score or generalization claim.
+
+Artifacts use `.eval-artifacts/parent-completion-v7`: `-offline.json`,
+`-trial-{1..3}.json`, `-controls.json`, `-judged.json`, `-pipeline.json`,
+`-summary.json`, separate `-mixed-comparison.json`/`-controls-comparison.json`, and
+`-trial-3-diagnosis.json`. Comparison baselines preserve their separate application
+revision provenance. All failed captures and rejected grades are retained. No
+additional live reruns, recalibration or automatic tuning followed the failed gates.
+
+## Latency-first follow-up (2026-10-16)
+
+The saved v7 traces were inspected before changing execution. Warm code searches
+took about a second; specialist model turns and synthesis dominated. The failed
+CODE control also used an extra 19.078s answer generation after a missing final
+marker. Neither nonempty retrieval nor a source-card count proves that an
+investigation can safely stop.
+
+Changes in this pass:
+
+- Offline timing records now include nested retriever runs, model phase, message
+  character counts, first nonempty callback token time, output kind and provider
+  usage linked to each native run ID. Failure/cancellation records remain intact.
+  No bodies, tool arguments or credentials are added to timing records. Retriever
+  spans include embedding, SQL and assembly; they do not isolate those costs.
+- Specialist model input keeps each first observed code window in full and removes
+  only later exact ID/content duplicates. References retain metadata, and native
+  artifacts, execution records, citations and full findings remain unchanged.
+  Conflicting text, failures and native bodies differing from their artifacts
+  remain full. Synthesis uses the same exact-match removal rule with its catalog.
+- MIXED summaries request concise supported findings rather than a second polished
+  answer. Repeated synthesis instructions are consolidated into the shared final
+  answer prompt. Completion reminders apply to direct and internal specialists,
+  while necessary comments, callers and callees remain available.
+- A measured scheduling regression exposed an ambiguous router example that used
+  sequential execution despite naming the indexed subject. The dependency rule
+  now permits parallel investigation of a named component, symbol or behavior
+  without an exact path. The existing sequential example instead requires GitHub
+  to reveal unknown code targets. No example, intent or planning call was added.
+
+Models, reasoning settings, budgets, native SSE gating, evidence windows, retrieval,
+reranking, repository authorization, session ownership and Redis behavior were not
+changed. The final-marker repair remains available; a prompt reminder cannot
+guarantee that a provider will follow the protocol.
+
+### Selected executions and retained regressions
+
+Four initial executions were followed by one execution of the affected scheduling
+case. All **5/5 completed**, with **0 fixture misses** and **67/67 valid citation
+references**. These are execution/citation-validity checks, not semantic grades.
+The initial and scheduling captures retain their separate application hashes.
+
+| Capture | Route | First answer token | Workflow | Model/tool calls |
+| --- | --- | ---: | ---: | ---: |
+| Initial mixed-01 trial 1 | sequential MIXED | 58.922s | 61.094s | 6 / 3 |
+| Initial mixed-01 trial 2 | sequential MIXED | 63.797s | 65.359s | 6 / 4 |
+| architecture-02 control | CODE | 23.578s | 35.375s | 4 / 5 |
+| github-02 required-comments control | GITHUB | 8.266s | 8.782s | 3 / 1 |
+| mixed-01 after scheduling fix | parallel MIXED | 51.000s | 52.656s | 7 / 5 |
+
+The saved failed CODE control took 38.860s to its first delta and 46.360s overall,
+with six model calls. The new CODE answer completes without marker recovery;
+this comparison involves different outcome statuses and one sample per revision.
+The GitHub control directly reads necessary comments and streams its native final
+generation. Initial MIXED trial 2 reads unrequested comments in the same batch as
+details: it adds evidence/context, but did not add a separate model turn here.
+
+The first two MIXED trials use 57,360 median input tokens versus 63,779 across the
+three saved v7 trials (-10.06%), but output tokens rise from 2,743 to 4,202 and
+reported reasoning tokens from 1,117 to 2,727.5. Their median first delta worsens
+from 33.516s to 61.360s. Both initial regressions are retained. These small samples
+have different queries and scheduling, so they do not isolate a prompt's effect.
+
+Both fictional routing probes authored during this pass succeed: a named renderer's conversion
+behavior uses PARALLEL, while an issue with unknown affected functions uses
+GITHUB_THEN_CODE. The follow-up graph genuinely overlaps investigations: CODE runs
+from 1.531s to 26.500s, GITHUB from 1.531s to 7.485s, and synthesis starts at 26.500s.
+Two missing requested implementation windows require file reads; they are retained.
+Synthesis then takes 26.156s, with its first callback text at 24.500s and 3,287
+reported reasoning tokens. Callback timing cannot separate provider queuing,
+prefill and hidden reasoning time.
+
+**MIXED latency is not resolved.** Its follow-up first delta remains slower than
+the saved 33.516s median. Cold retrieval spans are 7.3-11.4s versus roughly 0.8s
+warm, and final synthesis remains the largest single stage. All three selected
+MIXED executions have Recall@6 = 0 and final evidence coverage = 100%; the CODE
+control has 75% and 100%, respectively. First-search misses remain visible and
+necessary follow-ups are not blocked to improve latency. No new whole-benchmark
+or judged quality score is claimed.
+
+Validation from `apps/api` with the installed environment:
+
+- `pytest -p no:cacheprovider tests/test_agents.py tests/test_orchestration.py tests/test_chat_streaming.py`: **154 passed**.
+- `pytest -p no:cacheprovider tests/test_evals.py -k 'execution_timing or retrieval_timing'`: **12 passed**, 62 deselected.
+- After the routing-only follow-up, `pytest -p no:cacheprovider tests/test_orchestration.py`: **58 passed**.
+- Changed-file Ruff and formatting checks passed. Mypy passed for `app/agents.py`,
+  `app/orchestration.py` and `app/evals/execution.py`.
+- API build equivalent `python -m compileall -q app` passed. Generated bytecode
+  was removed after verifying the three cache paths and their contents.
+
+No full suite, full benchmark, judge, recalibration or saved 17-query retrieval
+replay ran. Artifacts: `.eval-artifacts/latency-v8-{trial-1,trial-2,controls}.json`,
+`latency-v8-scheduling{,-probes}.json`, `latency-v8-pipeline.json`, and
+`latency-v8-summary.json`. The summary includes every execution and both routing
+probes. No further provider runs followed the unresolved latency result.
+
+## Matched synthesis and cold-retrieval probes (2026-10-16)
+
+This follow-up tests reasoning effort against identical saved evidence and profiles
+retrieval separately. Production defaults and application code are unchanged.
+Hive documents `none`, `low`, `high` and `max` for the configured model, so the
+proposed medium comparison was corrected to **high versus low** before calling
+the provider. See [Hive's model parameters](https://docs.thehive.ai/docs/deepseek-v41-flash).
+
+### Matched synthesis
+
+The saved scheduling report contains all twelve observed code windows, five tool
+records and both specialist findings. Its original model-selected source arrays
+and complete native prompt were not retained. The diagnostic therefore rebuilds
+the catalog from actual results, derives selections from specialist citations and
+keeps normalized saved tool arguments. Every code window is verified against the
+frozen commit. This is a matched reconstructed input, not an exact replay of the
+historical request. No old final answer, reference facts or evidence annotations
+are passed to synthesis, and no investigation, router or database call is rerun.
+
+The actual native messages have the same SHA-256 in both arms:
+`50ee8465018b2a442492b7831b31e6f4791cb46bba7a7ede7e49a32d3925f7f9`.
+They contain 105,459 characters and both provider responses report 31,560 input
+tokens with zero prompt-cache-read tokens. The only request parameter changed is
+`reasoning_effort`. The model, prompts, 8,192 thinking-token cap, 16,384 completion
+cap, 120s deadline and SDK retry setting remain fixed. Order is high then low, one
+completed invocation per setting; this is descriptive, not a robust average.
+
+| Synthesis setting | First answer token | Total with validation | Output tokens | Reasoning tokens | Valid references |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| high | 19.547s | 19.813s | 2,846 | 2,296 | 15/15 |
+| low | 13.547s | 15.531s | 2,004 | 1,482 | 14/14 |
+
+Low reduces observed first-answer latency by **30.70%** (6.000s), total synthesis
+time by **21.61%**, and reported reasoning tokens by **35.45%**. Visible output
+tokens are 550 versus 522. The responses produce 157 and 168 native answer deltas,
+respectively; buffered and validated text match, and the production citation
+validator plus offline reference validation pass. Citation validity does not prove
+that every claim is supported or that the citation set is minimal.
+
+Qualitative coding-agent review finds the same three required facts in both:
+the issue reports unused cards, the indexed backend emits retrieval-derived
+citations without matching answer markers, and card presence alone establishes
+neither citation usage nor claim support. The low answer adds a redundant `[3][9]`
+reference to overlapping frontend windows; both include the handler at lines
+314-317, and source 9 suffices. No calibrated judge, independent review, semantic
+scores or whole-benchmark quality claims are supplied by this check.
+
+Two earlier synthesis invocations failed in the diagnostic harness because the
+streaming helper was called without a parent Runnable context. Both failures are
+retained in `latency-v9-synthesis.json`, with no emitted answer delta or returned
+provider usage. An offline regression reproduces the missing-parent error and
+verifies that a RunnableLambda with explicit child config forwards both test
+chunks on Python 3.10. Only the two synthesis calls are then repeated in the
+corrected harness. Their input hashes also match the failed attempts. Across all
+attempts there are **4 synthesis invocations: 2 completed, 2 harness failures**;
+failed-stream token usage is unavailable. These failures are not included as
+successful latency samples or concealed as production agent outcomes.
+
+### Cold retrieval
+
+Two identical uncached retriever invocations use the dedicated unprivileged eval
+connection and read-only transactions. The existing retriever and embedding
+implementation run with instrumentation around embedding, HTTP and SQL calls;
+no cache, retrieval parameter or model option changes. The local model is naturally
+unloaded before the first call and resident before the second. No unload, service
+restart or forced prewarming is performed. Database pages are not flushed.
+
+| Stage | Naturally cold model | Resident model |
+| --- | ---: | ---: |
+| Complete retriever | 5.135s | 0.482s |
+| Query embedding, including HTTP setup | 5.015s | 0.425s |
+| Ollama-reported model loading | 4.881s | 0.338s |
+| All measured SQL | 0.108s | 0.051s |
+| Parent assembly, including its SQL | 0.006s | 0.002s |
+
+Connection setup and role validation take 0.059s outside these retriever spans.
+HTTP client initialization takes about 0.006s in each call. Nested events must not
+be summed with their parent spans. Ollama's durations are converted from
+nanoseconds as documented in its [embedding API](https://docs.ollama.com/api/embed).
+Pool acquisition, request authorization and Redis behavior are outside this
+microprofile; it does not replace production request timing.
+
+Model loading accounts for about 95% of the observed cold retriever time. SQL is
+not the dominant cost in this probe. The resident 8,192-context model reports
+2.86GB of VRAM use, so a longer residency policy should retain an idle expiry.
+The current embedding request supplies no explicit `keep_alive`; the service's
+configured expiry applies. Keeping the model resident can reduce subsequent
+reloads, but cannot remove the first-ever load while preserving lazy startup.
+
+Both retrieval calls complete and every returned window matches frozen source.
+The same six windows/content hashes occur in both, but ranks 3 and 4 swap.
+The strict ordered-window equality check therefore fails and the original profile
+returns exit code 1. That check remains false in the saved capture; a separate
+unordered-set comparison is true. No new retrieval metric or explanation for
+the rank variation is inferred from this timing probe.
+
+### Scope and recommendation
+
+Low reasoning for tool-free synthesis is a promising targeted change; keep
+investigation reasoning unchanged. Before changing its production default, assess
+the saved low answer with the existing quality methodology and additional distinct
+saved investigations, without rerunning their agents or searches. A bounded
+embedding-model residency policy addresses the measured cold-start cost without
+rewriting SQL, changing retrieval or adding a cache layer.
+
+These stage measurements do **not** establish a new full-workflow response time,
+whole-benchmark score or held-out generalization. No further model runs are made
+after the completed pair. Production reasoning, lazy embeddings, authorization,
+Redis, routing, streaming and tool/session lifetimes remain unchanged.
+
+Validation is limited to diagnostic preflights, the offline callback regression,
+the two corrected synthesis streams, two read-only retrieval profiles, script Ruff
+unused-name checks and formatting. No application tests, build, mypy, full
+benchmark, recalibration or judge are rerun because no application source changed.
+Artifacts are `latency-v9-synthesis.json` (failed harness),
+`latency-v9-synthesis-runnable.json` (corrected pair), `latency-v9-retrieval.json`,
+and `latency-v9-summary.json`, with the three diagnostic scripts alongside them.
+
+## Bounded latency rollout v10
+
+### Implementation and validation scope
+
+Only the two authorized production optimizations are applied:
+
+- `SYNTHESIS_REASONING_EFFORT` defaults to `low` for Hive MIXED synthesis in
+  production and full graph evaluation. `high` restores the previous effort.
+  Supported values follow the provider's `none`, `low`, `high`, `max` contract.
+  Specialists retain `high`, the router retains `none`, and explicit OpenAI
+  provider behavior, token limits, thinking cap, deadlines and retries are unchanged.
+- Every Ollama embedding request supplies a positive finite idle residency,
+  `OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS=300` by default, encoded as `keep_alive="300s"`.
+  The model, pinned digest, query instruction, dimensions, context limit,
+  truncation policy and vector-space fingerprint are unchanged. No reindexing or
+  cache namespace change is required. This policy may match Ollama's existing
+  default; it does not remove the first cold load or prove a separate latency gain.
+
+The settings are recorded in evaluation metadata. Native streaming, citation
+validation, routing, tool selection, request authorization and Redis behavior
+are unchanged. No prompt, retrieval, reranker, model or agent-budget tuning is
+performed. Existing uncommitted work from earlier passes is preserved.
+
+The [Hive model documentation](https://docs.thehive.ai/docs/deepseek-v41-flash)
+and [Ollama embedding API](https://docs.ollama.com/api/embed) were rechecked before
+implementation. Initial validation runs 123 affected deterministic tests, all
+passing. Mypy passes all 25 API source files; the API compileall build and
+`uv lock --check --offline` pass. Ruff finds one new overlong metadata line,
+which is corrected and checked again successfully. Changed-file formatting
+passes. A full formatting check also reports four pre-existing untouched files:
+`test_config.py`, `test_github_mcp_server.py`, `test_repositories.py`, and
+`test_worker_github.py`; these are left unchanged.
+
+### Single MIXED rollout smoke
+
+One `mixed-01` workflow and its existing calibrated v3 judge are run. Calibration
+is reused only after exact judge-configuration validation against the saved
+15/15 passing calibration. Neither calibration nor answer generation is repeated.
+
+| Measurement | Observed |
+| --- | ---: |
+| First actual user-facing answer delta | 39.094s |
+| Complete workflow | 41.594s |
+| Synthesis call | 7.844s |
+| Synthesis first native content token | 5.344s |
+| Model calls including router | 8 |
+| Tool executions | 5 |
+| Workflow input / output tokens | 96,214 / 3,040 |
+| Workflow reasoning tokens | 1,391 |
+| Synthesis input / output / reasoning tokens | 27,784 / 843 / 322 |
+| Correctness / fact completeness / groundedness | 100% / 100% / 100% |
+| Citation validity | 13/13 (100%) |
+| Citation precision / coverage | 88.89% / 66.67% |
+| First-search Recall@6 / Precision@6 | 100% / 16.67% |
+| Final evidence coverage | 100% |
+
+The investigation makes two code searches, two file reads and one issue-body
+read. It returns complete findings without tool errors, missing requested facts,
+judge validation errors or material answer errors. Both specialist evidence and
+live/indexed provenance remain present. Citation quality is imperfect: some
+supported claims lack attached citations and one attaches prompt evidence to a
+persistence claim. Against the saved same-case v3 grade, citation precision rises
+from 85.00% and coverage from 60.87%, while correctness, completeness,
+groundedness and validity remain 100%. No material smoke regression is observed;
+the new low synthesis default is retained.
+
+The previous v8 parallel workflow took 52.656s with first answer at 51.000s;
+this smoke takes 41.594s with first answer at 39.094s. These are different tool
+trajectories and contexts, not a controlled reasoning-only comparison. Retrieval
+spans still take about 8.3s and CODE investigation dominates the remaining
+pre-answer latency. The earlier v9 identical-input comparison remains the
+controlled evidence for the synthesis setting, rather than this one smoke.
+
+Artifacts: `latency-v10-smoke.json` preserves execution independently of grading;
+`latency-v10-smoke-judged.json` preserves the accepted quality grade. The user's
+final instruction additionally authorizes one full API suite and one unchanged
+24-case graph evaluation after the successful smoke, without a tuning loop.
+The full API suite, with `REPOMIND_EVAL_INTEGRATION=1`, passes **456/456** tests
+in 111.03s with no skips or failures. Full benchmark results follow separately.
+
+### Requested full benchmark and unchanged judge
+
+Exactly one unchanged 24-case execution run follows the smoke. It returns
+**23/24 benchmark execution completions (95.83%)**, followed by **20/23 accepted
+eligible judge grades**, or **20/24 attempted cases (83.33%)** with accepted grades.
+There is one execution failure and three grading failures. The process exits 1;
+the 24/24 execution and grading acceptance gates are **not met**. Neither failed
+answers nor rejected grades are substituted or retried through another run.
+
+| Category | Attempts | Execution completions | Accepted judge grades |
+| --- | ---: | ---: | ---: |
+| Single file | 6 | 6 | 3 |
+| Architecture | 6 | 6 | 6 |
+| Insufficient evidence | 4 | 4 | 4 |
+| GitHub | 4 | 4 | 4 |
+| MIXED | 4 | 3 | 3 |
+| Total | 24 | 23 | 20 |
+
+`mixed-03` reads issue #103 successfully, then unnecessarily requests its comments.
+That method has no matching strict fixture. The GitHub investigation retains
+`Unmatched deterministic fixture call.`, and the synthesizer produces a qualified
+partial answer using actual issue-body and indexed-code evidence. The evaluator
+correctly rejects the unmatched request. The failing selection occurs in the
+unchanged GitHub specialist before synthesis; the fixture is not broadened.
+
+`code-02` and `code-03` exhaust the existing judge validation attempts because
+cited prose is labeled nonfactual. `code-05` exhausts those attempts because a
+quote is not found within its assigned section. All three are CODE-only cases
+using unchanged specialist reasoning; these are evaluator validation failures,
+not accepted incorrect-answer grades or synthesis citation failures. No new
+judge retry policy is added. `architecture-06` and `missing-02` recover from
+validation errors through the judge's existing retry behavior; their errors
+remain in the artifact. The execution-failed case is not eligible for semantic
+grading under the existing runner contract.
+
+The workflow reports 18 complete and six incomplete investigations, including
+the fixture-failed one. Qualified partial completions are not relabeled complete
+investigations. Observed controlled errors include an invalid code-tool range,
+missing terminal declaration, unavailable GitHub resource, deferred broad
+searches, invalid investigation JSON, a tool budget limit, expected fixture 503s
+and blocked unchanged requests. Full native execution records retain them.
+
+| Metric | Current macro score | Scored cases |
+| --- | ---: | ---: |
+| Recall@6 | 81.86% | 17 |
+| Precision@6 | 40.20% | 17 |
+| Final evidence coverage | 100% | 17 |
+| Answer correctness | 100% | 18 (two additional cases not applicable) |
+| Fact completeness | 100% | 18 (two additional cases not applicable) |
+| Groundedness | 97.44% | 20 |
+| Citation precision | 92.03% | 19 (one additional case not applicable) |
+| Citation coverage | 73.92% | 20 |
+| Citation validity | 100%, 353/353 references | 23 (one case not applicable) |
+| Correct abstention | 100% | 4 |
+| Unnecessary abstention | 0% | 16 |
+
+Semantic averages cover accepted grades only. They do not establish 100%
+correctness or completeness over all 24 attempts. Retrieval and citation-validity
+checks also retain the execution-failed case's observed evidence; its semantic
+metrics remain unscored. All three eligible MIXED-category answers have accepted
+grades, matching every requested reference fact with no material answer error.
+
+Across **all 24 attempts**, median first actual answer delta is **20.406s** and
+median workflow duration **25.336s**. Workflow durations by category have medians
+of 23.055s (single file), 30.195s (architecture), 25.118s (insufficient evidence),
+12.312s (GitHub) and 44.266s (MIXED). The slowest is `mixed-04` at 80.406s with
+first answer at 74.422s. Its CODE investigation lasts about 44.6s after fan-out;
+it includes four searches, three attempted file reads and a budget error. Its
+GitHub branch repeats an unavailable diff request, which the existing guard
+blocks. Synthesis then takes 33.609s on 151,435 input characters. These are
+observed follow-up targets; no required read is removed to force a latency goal.
+
+All completed native model calls across the 24 attempts consume **1,068,886 input
+tokens and 44,572 output tokens**, including **19,641 reasoning tokens** and
+**185,088 cached input tokens**. These totals include the failed benchmark attempt
+and exclude offline judge calls. Judge token usage is not exposed by the existing
+judge instrumentation. Production workflow timings exclude offline grading.
+
+### Historical comparisons and retained regressions
+
+The saved `component-5-reliability-v3-scoped-after.json` has the identical judge
+configuration and unchanged benchmark/scorer contracts, but a different
+application hash. It predates the intervening context, investigation and retrieval
+work. These comparisons are descriptive, not a controlled measurement of the
+two v10 settings.
+
+| Metric on identical scored cases | Cases | Saved v3 | Current v10 |
+| --- | ---: | ---: | ---: |
+| Recall@6 | 17 | 77.45% | 81.86% |
+| Precision@6 | 17 | 38.24% | 40.20% |
+| Final evidence coverage | 17 | 100% | 100% |
+| Correctness | 18 | 94.44% | 100% |
+| Completeness | 18 | 97.22% | 100% |
+| Groundedness | 20 | 97.50% | 97.44% |
+| Citation precision | 19 | 88.53% | 92.03% |
+| Citation coverage | 20 | 75.81% | 73.92% |
+| Citation validity | 23 | 100% | 100% |
+
+Whole-run comparisons must retain the lost coverage: saved v3 has 24/24 execution
+completions and accepted grades, while v10 has 23/24 and 20/24 respectively.
+Saved v3's whole-run correctness/completeness are 95.45%/97.73% over 22 applicable
+cases; v10's 100%/100% cover only 18. Likewise, saved v3's 97.80% groundedness and
+74.20% citation coverage cover all 24, versus v10's 97.44%/73.92% over 20.
+
+The saved whole-run median workflow duration is 22.023s, versus 25.336s now
+(+3.313s); first-answer median rises from 16.039s to 20.406s (+4.367s). This run
+therefore does not establish a whole-benchmark latency improvement. The earlier
+identical-input synthesis comparison and successful rollout smoke support
+retaining low synthesis effort; no material smoke regression is observed.
+Five-minute embedding residency remains explicit and bounded, with no claim of
+an independently measured gain over the service's previous default.
+
+No further trials, prompt tuning, retrieval changes, model changes, fixture
+changes, recalibration or full evaluations are started. The next focused work
+should use saved traces to address unnecessary comment/diff requests and saved
+answers to diagnose judge label/quote validation failures. Preserve strict
+evidence checks and regrade only affected saved answers after a separate fix.
+Tail latency and citation coverage remain follow-ups, not completed optimizations.
+An independent holdout is still required for generalization claims.
+
+Artifacts are `latency-v10-full.json` (execution),
+`latency-v10-full-judged.json` (all grading outcomes),
+`latency-v10-summary.json` (counts, timing, tokens and paired comparisons), and
+the one-shot `run_latency_v10.py` driver and offline `summarize_latency_v10.py`.
+Historical reports, benchmark data, strict fixtures and scorer/judge code are
+unchanged. Both authorized settings are retained; no legacy fallback is added.
+
+## Targeted tool selection and evaluator repair v11
+
+### Diagnosis and bounded changes
+
+This pass uses the v10 saved executions and rejected grades. It does not run a
+new full benchmark, regenerate user-facing answers, change retrieval, increase
+agent budgets or loosen fixtures. The old rejected native judge labels were not
+retained, so their exact offending sections cannot be proved retrospectively.
+However, the saved inputs reproduce concrete fragmentation: `code-02` has a
+standalone `documents [9].`, `code-03` has `lists [1].`, and `code-05` splits an
+inline query literal across sections. These are produced by the fixed 600-character
+word splitter. The old retry feedback also lacks a failing section ID.
+
+Evaluator v4 prefers sentence and line boundaries outside backtick spans, keeping
+numeric citations after sentence punctuation attached. A sentence can exceed the
+600-character soft target up to the existing 2,400-character batch cap; extremely
+long unbroken input still has a bounded fallback. Every nonwhitespace character
+and original offset is retained. No answer text, citation reference, evidence
+window or validation rule is repaired or dropped. Exact quotations, evidence
+IDs, source support, section coverage and rejection of factual cited prose
+labeled nonfactual remain enforced. Cited introductions asserting observed source
+provenance are clarified as claims in the judge instructions. Validation repair
+feedback now names the failing section. Model settings, retry counts and scorers
+are unchanged. The evaluator configuration is versioned; v3 calibration cannot
+be reused for this implementation.
+
+The GitHub prompt and tool descriptions distinguish a requested report or stated
+PR claim, already established by its body, from requested discussion or actual
+patch behavior requiring more evidence. The existing fictional patch example is
+made conditional on body text that does not establish the actual change. No new
+examples, intents, selection classes or benchmark-specific facts are introduced.
+After a failed GitHub read, the existing model-call checkpoint explicitly treats
+that unchanged request as unavailable for the investigation, including transient
+server errors. Invalid arguments can still be corrected, and other requested
+resources can still be read. Native errors, artifacts and tool records remain
+unchanged. Necessary comment and diff tools stay available, and the existing
+execution guard still blocks repeats and security failures.
+
+### Targeted validation
+
+All **205 affected deterministic tests pass**: 174 agent/graph/streaming/grounding
+tests, 16 selected judge/calibration tests, then 15 model-factory tests after the
+synthesis default restoration below. Regressions cover logical boundaries,
+long clauses, inline code, grouped citation references, exact offsets, bounded
+unbroken input, strict rejected labels, section-specific errors and failed-read
+checkpoints preserving tools and native errors. Changed-file Ruff, formatting,
+mypy and compilation pass. One new 89-character configuration line is corrected
+after lint reports it; the affected check then passes. No full API suite, frontend
+build, lockfile resolution or full benchmark is repeated.
+
+One fresh v4 calibration passes **15/15 existing synthetic calibration cases**;
+calibration files are unchanged. Only the three saved failures are regraded:
+
+| Saved case | v3 outcome | v4 outcome | Correctness / completeness | Groundedness |
+| --- | --- | --- | ---: | ---: |
+| code-02 | Cited prose labeled nonfactual | Accepted, no validation retries | 100% / 100% | 100% |
+| code-03 | Cited prose labeled nonfactual | Accepted, no validation retries | 100% / 100% | 100% |
+| code-05 | Quote outside assigned section | Accepted, no validation retries | 100% / 100% | 92.59% |
+
+All cited references remain valid. Accepted grading does not imply every extra
+claim is grounded: `code-05` has two unsupported extracted claims among 27.
+The new diagnostic wrapper retains returned labels and exact input sections for
+audit, without changing grading behavior or logging credentials.
+
+Three GitHub-only live-model checks use unchanged strict fixtures and real
+per-call repository authorization in the dedicated evaluation database. No
+router, Code Agent, retriever, embedding or synthesizer runs. Request scopes and
+temporary evaluation memberships are owned and cleaned up by the diagnostic.
+
+| Assignment from saved request | Old model calls / reads | New model calls / reads |
+| --- | --- | --- |
+| mixed-03 GitHub portion | 3; issue details, unnecessary comments (fixture miss) | 2; issue details only |
+| mixed-04 GitHub portion | 4; PR details/files/diff plus blocked repeated diff | 2; PR details only |
+| github-02 required comments | 2; comments | 2; comments |
+
+All three return complete findings with no tool errors or fixture misses. The
+requested issue report, PR claim and reviewer comment remain present and cited.
+Callback-span durations are 10.688s, 12.016s and 7.516s respectively; they are not
+full-chat latencies. Total provider usage for these checks is 18,784 input and
+1,148 output tokens. Reduced branch work does not establish an end-to-end MIXED
+latency gain: the parallel Code Agent may still dominate the critical path.
+These are single targeted observations, not repeated reliability trials or a
+held-out generalization result.
+
+### Is low synthesis reasoning worth retaining?
+
+No synthesis is regenerated. The two successful v9 answers on identical native
+input (31,560 tokens, zero reported cached input for either) are graded by the
+same freshly calibrated v4 judge, without exposing their effort labels in judge
+inputs. Saved citation references are reconstructed and checked against the
+original pair before any model call. Both grades are accepted without validation
+errors or material answer errors, and both convey all three reference facts.
+
+| Matched saved synthesis measurement | High | Low |
+| --- | ---: | ---: |
+| First user-facing delta | 19.547s | 13.547s |
+| Complete synthesis | 19.813s | 15.531s |
+| Output tokens, including reasoning | 2,846 | 2,004 |
+| Reasoning tokens | 2,296 | 1,482 |
+| Correctness / completeness / groundedness | 100% / 100% / 100% | 100% / 100% / 100% |
+| Citation validity | 15/15 | 14/14 |
+| Citation precision | 92.59% | 100% |
+| Citation coverage | 91.30% (21/23 claims) | 76.00% (19/25 claims) |
+
+Low reduces this pair's synthesis time by 21.61%, first-answer latency by 30.70%,
+output tokens by 29.59% and reasoning tokens by 35.45%. It is a useful latency
+and output-token trade-off, but not a clear quality improvement. The low answer
+adds uncited provenance assertions and has uncited factual summaries/conclusions;
+all are supported by observed evidence, which explains 100% groundedness alongside
+lower citation coverage. The high answer also has uncited statements. The judge
+extracts 23 versus 25 claims and handles some framing sentences differently, so
+the 15.30-point coverage difference is not proof of a general causal effect from
+reasoning effort. There is only one matched pair, high was generated first, and
+provider variation remains possible.
+
+Given the user's standing requirement to restore high after a material citation
+regression, **high is conservatively restored as the synthesis default** in
+Settings, environment fallback and the template. Low remains explicitly
+configurable through `SYNTHESIS_REASONING_EFFORT=low`; no specialist/router setting
+changes. Five-minute bounded embedding residency remains enabled. No further
+trials or synthesis prompt tuning is started to chase the coverage score.
+
+The historical full v10 result remains **23/24 executions and 20/23 eligible v3
+grades**. The three new v4 grades must not be mixed with v3 grades to claim a new
+whole-run score, nor do role-only checks turn the old `mixed-03` failure into a
+new full-graph completion. Uniform quality evaluation is deferred to the release
+checkpoint, with historical answers graded under the same configuration then.
+
+Artifacts: `targeted-v11-github.json`, `targeted-v11-calibration.json`,
+`targeted-v11-saved-failures.json`, `targeted-v11-synthesis-pair.json` and
+`targeted-v11-judge-traces.json`; the two one-shot diagnostic drivers are alongside
+them. Historical captures, datasets, fixtures, original calibration files and
+scorers remain unchanged. The production judge remains absent.

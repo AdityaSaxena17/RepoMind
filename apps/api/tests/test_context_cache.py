@@ -122,28 +122,47 @@ def test_cached_context_notes_preserve_required_read_gaps(explicit: bool) -> Non
         assert bool(results[1]["context_notes"]) is not explicit
         assert results[1]["file_line_count"] == 3
         assert code.cache_stats["hits"] == 1
-        assert all(key.startswith("repomind:code-context:v3:") for key in redis.values)
+        assert all(key.startswith("repomind:code-context:v4:") for key in redis.values)
         assert sum('FROM "RepositoryFile"' in sql for sql, *_ in database.queries) == 1
 
     asyncio.run(run())
 
 
-def test_context_cache_v3_does_not_consume_old_namespace_entries() -> None:
+@pytest.mark.parametrize("old_version", ["v2", "v3"])
+@pytest.mark.parametrize("search", [False, True])
+def test_context_cache_v4_does_not_consume_old_namespace_entries(
+    monkeypatch: pytest.MonkeyPatch,
+    old_version: str,
+    search: bool,
+) -> None:
     database, redis = Database(), Redis()
+    queries = scripted_retriever(monkeypatch, database)
+    monkeypatch.setattr(module, "create_embedding_model", lambda: object())
+    arguments = {"query": "initial"} if search else {"path": "app.py"}
 
     async def run() -> None:
         registry, code = request_tools(database, redis)
         async with registry.scoped_tools(frozenset({"code.read"})) as tools:
-            await tools[1].ainvoke({"path": "app.py"})
+            await tools[0 if search else 1].ainvoke(arguments)
         key, raw = next(iter(redis.values.items()))
-        old_key = key.replace(":v3:", ":v2:")
+        old_key = key.replace(":v4:", f":{old_version}:")
         redis.values[old_key] = raw.replace(key.encode(), old_key.encode())
         del redis.values[key]
         registry, code = request_tools(database, redis)
         async with registry.scoped_tools(frozenset({"code.read"})) as tools:
-            await tools[1].ainvoke({"path": "app.py"})
+            await tools[0 if search else 1].ainvoke(arguments)
         assert code.cache_stats["hits"] == 0
-        assert sum('FROM "RepositoryFile"' in sql for sql, *_ in database.queries) == 2
+        assert old_key in redis.values and key in redis.values
+        registry, warm = request_tools(database, redis)
+        async with registry.scoped_tools(frozenset({"code.read"})) as tools:
+            await tools[0 if search else 1].ainvoke(arguments)
+        assert warm.cache_stats["hits"] == 1 and redis.sets == 2
+        if search:
+            assert queries == ["initial", "initial"]
+        else:
+            assert (
+                sum('FROM "RepositoryFile"' in sql for sql, *_ in database.queries) == 2
+            )
 
     asyncio.run(run())
 

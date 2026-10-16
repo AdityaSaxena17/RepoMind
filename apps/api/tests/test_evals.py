@@ -64,7 +64,7 @@ def test_execution_timing_tracks_overlapping_calls_and_existing_usage(
             {},
             [[HumanMessage(content="private")]],
             run_id=code,
-            metadata={"repomind_role": "CODE"},
+            metadata={"repomind_role": "CODE", "repomind_phase": "investigation"},
         )
         clock[0] = 102.0
         await metrics.on_chat_model_start(
@@ -78,6 +78,10 @@ def test_execution_timing_tracks_overlapping_calls_and_existing_usage(
             parent_run_id=github,
             metadata={"repomind_role": "GITHUB"},
         )
+        await metrics.on_llm_new_token("", run_id=code)
+        clock[0] = 104.0
+        await metrics.on_llm_new_token("private", run_id=code)
+        await metrics.on_llm_new_token("private", run_id=github)
         clock[0] = 105.0
         await metrics.on_tool_end(
             ToolMessage(content="private output", tool_call_id="x"), run_id=tool
@@ -107,11 +111,18 @@ def test_execution_timing_tracks_overlapping_calls_and_existing_usage(
         assert metrics.first_delta is None
         await metrics.on_custom_event("repomind_answer_delta", {"text": "private"})
         await metrics.on_llm_end(response, run_id=code)
+        await metrics.on_llm_new_token("private", run_id=code)
 
     asyncio.run(run())
     by_id = {r["run_id"]: r for r in metrics.timings}
     assert by_id[str(code)]["duration_seconds"] == 7
+    assert by_id[str(code)]["first_token_seconds"] == 3
+    assert by_id[str(code)]["message_characters"] == len("private")
+    assert by_id[str(code)]["phase"] == "investigation"
+    assert by_id[str(code)]["output_kind"] == "completion"
+    assert by_id[str(code)]["usage"] == metrics.usage[:1]
     assert by_id[str(github)]["duration_seconds"] == 4
+    assert by_id[str(github)]["first_token_seconds"] == 2
     assert by_id[str(tool)] == {
         "run_id": str(tool),
         "parent_run_id": str(github),
@@ -131,7 +142,7 @@ def test_execution_timing_tracks_overlapping_calls_and_existing_usage(
     assert metrics._active == {}
 
 
-@pytest.mark.parametrize("kind", ["model", "tool"])
+@pytest.mark.parametrize("kind", ["model", "tool", "retriever"])
 @pytest.mark.parametrize("outcome", ["error", "canceled", "interrupted"])
 def test_execution_timing_records_failures_and_cancellation(
     monkeypatch: pytest.MonkeyPatch,
@@ -148,9 +159,16 @@ def test_execution_timing_records_failures_and_cancellation(
             await metrics.on_chat_model_start(
                 {}, [], run_id=run_id, metadata={"langgraph_node": "query_router"}
             )
-        else:
+        elif kind == "tool":
             await metrics.on_tool_start(
                 {"name": "read"},
+                "private",
+                run_id=run_id,
+                metadata={"langgraph_node": "code_agent"},
+            )
+        else:
+            await metrics.on_retriever_start(
+                {},
                 "private",
                 run_id=run_id,
                 metadata={"langgraph_node": "code_agent"},
@@ -165,8 +183,10 @@ def test_execution_timing_records_failures_and_cancellation(
             metrics.finish_pending("canceled")
         elif kind == "model":
             await metrics.on_llm_error(error, run_id=run_id)
-        else:
+        elif kind == "tool":
             await metrics.on_tool_error(error, run_id=run_id)
+        else:
+            await metrics.on_retriever_error(error, run_id=run_id)
         # A late native cancellation callback must not duplicate a finalized run.
         await metrics.on_llm_error(error, run_id=run_id)
 
@@ -196,6 +216,42 @@ def test_execution_timing_recognizes_failed_tool_messages() -> None:
     asyncio.run(run())
     assert metrics.timings[0]["outcome"] == "error"
     assert metrics.timings[0]["role"] == "UNKNOWN"
+
+
+def test_retrieval_timing_is_nested_and_records_no_query_or_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = [10.0]
+    monkeypatch.setattr(execution.time, "monotonic", lambda: clock[0])
+    metrics = execution._ExecutionMetrics()
+    tool, retrieval = uuid4(), uuid4()
+
+    async def run() -> None:
+        await metrics.on_tool_start(
+            {"name": "search_repository_code"},
+            "private",
+            run_id=tool,
+            metadata={"repomind_role": "CODE"},
+        )
+        clock[0] = 11.0
+        await metrics.on_retriever_start(
+            {},
+            "private",
+            run_id=retrieval,
+            parent_run_id=tool,
+            metadata={"repomind_role": "CODE"},
+        )
+        clock[0] = 12.0
+        await metrics.on_retriever_end([], run_id=retrieval)
+        clock[0] = 13.0
+        await metrics.on_tool_end("private", run_id=tool)
+
+    asyncio.run(run())
+    assert metrics.timings[0]["kind"] == "retriever"
+    assert metrics.timings[0]["parent_run_id"] == str(tool)
+    assert metrics.timings[0]["duration_seconds"] == 1
+    assert metrics.timings[1]["duration_seconds"] == 3
+    assert "private" not in json.dumps(metrics.timings)
 
 
 @pytest.mark.parametrize("eligible", [False, True])

@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import sys
 import threading
 from types import SimpleNamespace
@@ -8,6 +9,200 @@ from langchain_core.documents import Document
 
 from app import reranking, retrieval
 from app.retrieval import RepoMindParentHybridRetriever
+
+
+@pytest.mark.parametrize(
+    "old,new,expected",
+    [
+        ([("a", 1, 10)], [("a", 1, 15)], [("a", 1, 15)]),
+        ([("a", 1, 10)], [("a", 5, 15)], [("a", 1, 10)]),
+        (
+            [("a", 1, 10), ("a", 8, 20)],
+            [("a", 1, 15), ("a", 15, 25)],
+            [("a", 1, 15), ("a", 15, 25)],
+        ),
+        (
+            [("a", 1, 10), ("a", 20, 30)],
+            [("a", 15, 30), ("a", 1, 5)],
+            [("a", 1, 10), ("a", 20, 30)],
+        ),
+        (
+            [("a", 1, 10), ("b", 1, 10)],
+            [("a", 5, 15), ("b", 1, 15)],
+            [("a", 1, 10), ("b", 1, 15)],
+        ),
+    ],
+)
+def test_parent_context_guard_retains_text_and_restores_provenance(
+    old: list[tuple[str, int, int]],
+    new: list[tuple[str, int, int]],
+    expected: list[tuple[str, int, int]],
+) -> None:
+    groups = []
+    for ranges, source in ((old, "vector"), (new, "keyword")):
+        groups.append(
+            [
+                Document(
+                    page_content="\n".join(
+                        f"line {line}" for line in range(first, last + 1)
+                    ),
+                    metadata={
+                        "path": path,
+                        "start_line": first,
+                        "end_line": last,
+                        "sources": [source],
+                        "score": 0.1 if source == "vector" else 0.2,
+                        "source_index": index + 1,
+                    },
+                )
+                for index, (path, first, last) in enumerate(ranges)
+            ]
+        )
+    original, proposed = groups
+    untouched = copy.deepcopy(groups)
+    result = retrieval._preserve_parent_context(original, proposed)
+    assert [
+        (d.metadata["path"], d.metadata["start_line"], d.metadata["end_line"])
+        for d in result
+    ] == expected
+    for index, document in enumerate(result):
+        assert document == (
+            proposed[index] if expected[index] == new[index] else original[index]
+        )
+    assert groups == untouched
+
+
+def test_late_children_complete_selected_parents_with_one_fetch_and_guard() -> None:
+    files = {
+        path: "\n".join(f"{path} line {line}" for line in range(1, 601))
+        for path in ("a.py", "b.py", "c.py")
+    }
+    fetches = []
+
+    class Connection:
+        async def fetch(
+            self, _sql: str, repository: str, ids: list[str]
+        ) -> list[dict[str, object]]:
+            assert repository == "repo"
+            fetches.append(ids)
+            return [
+                dict(id=path, path=path, content=files[path], lineCount=600)
+                for path in ids
+            ]
+
+    candidates = [
+        dict(
+            id=f"{path}:{first}:{last}",
+            file_id=path,
+            path=path,
+            start_line=first,
+            end_line=last,
+            score=0.03,
+            sources={"vector" if index < 3 else "keyword"},
+        )
+        for index, (path, first, last) in enumerate(
+            [
+                ("a.py", 209, 296),
+                ("a.py", 1, 104),
+                ("b.py", 100, 140),
+                ("a.py", 373, 446),
+                ("a.py", 104, 216),
+                ("b.py", 260, 280),
+                ("c.py", 100, 140),
+                ("b.py", 500, 550),
+            ]
+        )
+    ]
+    untouched = copy.deepcopy(candidates)
+    retriever = RepoMindParentHybridRetriever.model_construct(
+        connection=Connection(),
+        embeddings=None,
+        repository_id="repo",
+        final_k=3,
+    )
+
+    async def run() -> None:
+        original = await retriever._parent_documents(candidates[:3])
+        fetches.clear()
+        completed = await retriever._parent_documents(candidates)
+        assert len(fetches) == 1
+        assert [
+            (d.metadata["path"], d.metadata["start_line"], d.metadata["end_line"])
+            for d in completed
+        ] == [("a.py", 197, 446), ("a.py", 1, 216), ("b.py", 20, 220)]
+        old_lines = {
+            (d.metadata["path"], line)
+            for d in original
+            for line in range(d.metadata["start_line"], d.metadata["end_line"] + 1)
+        }
+        new_lines = {
+            (d.metadata["path"], line)
+            for d in completed
+            for line in range(d.metadata["start_line"], d.metadata["end_line"] + 1)
+        }
+        assert old_lines <= new_lines
+        assert completed[0].metadata["sources"] == ["keyword", "vector"]
+        assert (
+            completed[2] == original[2]
+        )  # Rollback discards rejected provenance/score.
+        assert [d.metadata["source_index"] for d in completed] == [1, 2, 3]
+        assert len(completed) == 3 and candidates == untouched
+        for document in completed:
+            first, last = document.metadata["start_line"], document.metadata["end_line"]
+            assert document.page_content == "\n".join(
+                files[document.metadata["path"]].splitlines()[first - 1 : last]
+            )
+            assert last - first + 1 <= retrieval.PARENT_MAX_LINES
+            assert len(document.page_content) <= retrieval.PARENT_MAX_CHARS
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("late", [(200, 220), (80, 90)])
+def test_late_parent_completion_cannot_clip_child_evidence(
+    late: tuple[int, int],
+) -> None:
+    content = "\n".join(f"line {line} " + "x" * 100 for line in range(1, 601))
+
+    class Connection:
+        async def fetch(self, *_args: object) -> list[dict[str, object]]:
+            return [dict(id="a", path="a", content=content, lineCount=600)]
+
+    first, last = (100, 140) if late == (200, 220) else (150, 160)
+    candidates = [
+        dict(
+            id=str(index),
+            file_id="a",
+            path="a",
+            start_line=a,
+            end_line=b,
+            score=0.03,
+            sources={source},
+        )
+        for index, (a, b, source) in enumerate(
+            [(first, last, "vector"), (*late, "keyword")]
+        )
+    ]
+    retriever = RepoMindParentHybridRetriever.model_construct(
+        connection=Connection(),
+        embeddings=None,
+        repository_id="repo",
+        final_k=1,
+    )
+    documents = asyncio.run(retriever._parent_documents(candidates))
+    assert len(documents) == 1
+    assert (
+        documents[0].metadata["start_line"]
+        <= first
+        <= last
+        <= documents[0].metadata["end_line"]
+    )
+    assert len(documents[0].page_content) <= retrieval.PARENT_MAX_CHARS
+    if late == (200, 220):
+        assert documents[0].metadata["end_line"] < late[0]
+        assert documents[0].metadata["sources"] == ["vector"]
+    else:
+        assert documents[0].metadata["sources"] == ["keyword", "vector"]
 
 
 def test_reranker_loads_pinned_official_model_once_without_remote_code(

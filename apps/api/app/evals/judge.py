@@ -7,6 +7,7 @@ import importlib.metadata
 import inspect
 import json
 import os
+import re
 import unicodedata
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -89,7 +90,9 @@ SECTION_PROMPT = (
     "not a domain claim. Use the full answer to associate references with factual "
     "claims; do not invent a claim from a reference token alone. "
     "Never use nonfactual_reason for factual prose, and never omit sections to "
-    "fix another label. Claim IDs need only be unique within their section; "
+    "fix another label. Cited introductions that assert where behavior was "
+    "observed make a provenance claim; classify that claim, not formatting. "
+    "Claim IDs need only be unique within their section; "
     "the application assigns global IDs."
 )
 
@@ -136,7 +139,7 @@ class _AnswerSection(TypedDict):
 
 
 def grounding_sections(answer: str) -> list[_AnswerSection]:
-    """Partition exact answer text into bounded sections with original offsets."""
+    """Prefer logical boundaries with exact offsets and a 2,400-character hard cap."""
     paragraphs: list[tuple[int, str]] = []
     offset, start, paragraph = 0, 0, ""
     for line in answer.splitlines(keepends=True):
@@ -155,9 +158,26 @@ def grounding_sections(answer: str) -> list[_AnswerSection]:
         while paragraph:
             cut = len(paragraph)
             if cut > 600:
-                cut = max(paragraph.rfind(" ", 0, 600), paragraph.rfind("\n", 0, 600))
-                if cut <= 0:
-                    cut = 600
+                # Avoid stranding sentence tails and splitting inline code.
+                # A long sentence may exceed the soft limit, but not the batch cap.
+                boundaries = [
+                    match.end()
+                    for match in re.finditer(
+                        r"(`+)[\s\S]*?\1|[.!?]"
+                        r"(?:[ \t]*\[\d+(?:\s*[-,–]\s*\d+)*\])*"
+                        r"[.!?]?(?=\s|$)|\n",
+                        paragraph,
+                    )
+                    if not match.group(1)
+                ]
+                boundaries.append(len(paragraph))
+                cut = max((end for end in boundaries if end <= 600), default=0)
+                if not cut:
+                    cut = next((end for end in boundaries if end <= 2400), 0)
+                if not cut:
+                    cut = paragraph.rfind(" ", 0, 600)
+                    if cut <= 0:
+                        cut = 600
             raw = paragraph[:cut]
             text = raw.strip()
             if text:
@@ -267,8 +287,12 @@ class SemanticJudge:
     def configuration(self) -> dict[str, JsonValue]:
         """Expose reproducibility settings without serializing credentials."""
         configuration: dict[str, JsonValue] = {
-            "version": "3",
+            "version": "4",
             "grounding_section_chars": 600,
+            "grounding_section_max_chars": 2400,
+            "grounding_section_policy": (
+                "sentence_and_line_boundaries_outside_backticks"
+            ),
             "grounding_batch_chars": 2400,
             "grounding_batch_sections": 12,
             "grounding_batch_concurrency": 2,
@@ -358,6 +382,7 @@ class SemanticJudge:
                 ]
                 for attempt in range(3):
                     previous: Model | None = None
+                    invalid_section: str | None = None
                     try:
                         previous = await self._label(GroundingBatch, messages)
                         labeled = GroundingBatch.model_validate(previous)
@@ -370,6 +395,7 @@ class SemanticJudge:
                         for section, source in zip(
                             labeled.sections, batch, strict=True
                         ):
+                            invalid_section = source["id"]
                             text = str(source["text"])
                             if any(
                                 c.quote not in text or not c.quote
@@ -426,6 +452,8 @@ class SemanticJudge:
                             if type(error) is ValueError
                             else "Structured grounding output failed schema validation."
                         )
+                        if invalid_section is not None:
+                            reason = invalid_section + ": " + reason
                         case.judge_validation_errors.append(reason)
                         if attempt == 2:
                             raise

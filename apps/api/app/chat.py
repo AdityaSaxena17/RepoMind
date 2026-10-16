@@ -57,8 +57,10 @@ def github_line_url(
     return f"{html_url}/blob/{ref}/{path}#L{start_line}-L{end_line}"
 
 
-def create_chat_model(*, purpose: Literal["answer", "router"] = "answer") -> ChatOpenAI:
-    """Use Hive when configured; retain explicit OpenAI configuration otherwise."""
+def create_chat_model(
+    *, purpose: Literal["answer", "router", "synthesis"] = "answer"
+) -> ChatOpenAI:
+    """Configure Hive reasoning by role; preserve explicit OpenAI configuration."""
     settings = get_settings()
     routing = purpose == "router"
 
@@ -72,7 +74,13 @@ def create_chat_model(*, purpose: Literal["answer", "router"] = "answer") -> Cha
             # Hive includes usage itself and serves Chat Completions, not Responses.
             stream_usage=False,
             use_responses_api=False,
-            reasoning_effort="none" if routing else "high",
+            reasoning_effort=(
+                "none"
+                if routing
+                else settings.synthesis_reasoning_effort
+                if purpose == "synthesis"
+                else "high"
+            ),
             max_completion_tokens=512 if routing else 16384,
             extra_body=None if routing else {"max_thinking_tokens": 8192},
             timeout=ROUTER_TIMEOUT_SECONDS if routing else 120,
@@ -264,7 +272,7 @@ async def stream_repository_chat(
             create_chat_model(purpose="router"),
             model,
             model,
-            model,
+            create_chat_model(purpose="synthesis"),
             registry=registry,
             code_tools=code_tools,
             limits=AgentLimits(

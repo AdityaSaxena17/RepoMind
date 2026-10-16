@@ -49,6 +49,7 @@ def test_qwen_native_transport_validation_and_query_instruction(
         payload = json.loads(request.content)
         assert payload["model"] == "qwen3-embedding:0.6b"
         assert payload["truncate"] is False
+        assert payload["keep_alive"] == "300s"
         assert payload["options"] == {"num_ctx": 8192}
         assert payload["input"] == (
             [f"Instruct: {QWEN_QUERY_INSTRUCTION}\nQuery:question"]
@@ -109,19 +110,26 @@ def test_qwen_native_transport_validation_and_query_instruction(
     assert all(value.is_closed for value in clients)
 
 
+@pytest.mark.parametrize("keep_alive", [300, 120])
 def test_local_embedding_factory_needs_no_provider_key(
     monkeypatch: pytest.MonkeyPatch,
+    keep_alive: int,
 ) -> None:
     monkeypatch.setenv("EMBEDDINGS_PROVIDER", "ollama")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("HIVE_API_KEY", raising=False)
+    monkeypatch.setenv("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS", str(keep_alive))
     get_settings.cache_clear()
     try:
-        assert isinstance(
-            embeddings.create_embedding_model(), embeddings.QwenEmbeddings
-        )
+        model = embeddings.create_embedding_model()
+        assert isinstance(model, embeddings.QwenEmbeddings)
+        assert model.keep_alive_seconds == keep_alive
         assert get_settings().embedding_dimensions == 1024
         assert QWEN_EMBEDDING_DIGEST in get_settings().embedding_profile
+        profile = get_settings().embedding_profile
+        monkeypatch.setenv("OLLAMA_EMBEDDING_KEEP_ALIVE_SECONDS", "600")
+        get_settings.cache_clear()
+        assert get_settings().embedding_profile == profile
     finally:
         get_settings.cache_clear()
 
