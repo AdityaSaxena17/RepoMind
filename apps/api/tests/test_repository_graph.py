@@ -224,6 +224,38 @@ def test_commit_comparison_followup_uses_fresh_metadata_from_both_sources(
     assert [event[:2] for event in events] == [("open", "github"), ("close", "github")]
 
 
+def test_router_window_does_not_shorten_specialist_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    router_requests: list[Any] = []
+    native_generate = RouterModel._generate
+
+    def generate(model: RouterModel, messages: Any, *args: Any, **kwargs: Any) -> Any:
+        router_requests.append(messages)
+        return native_generate(model, messages, *args, **kwargs)
+
+    monkeypatch.setattr(RouterModel, "_generate", generate)
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch)
+    history = [
+        message
+        for index in range(8)
+        for message in (
+            HumanMessage(content=f"Previous question {index}."),
+            AIMessage(content=f"Previous answer {index}."),
+        )
+    ]
+    # Agent execution assigns message IDs; conversation content must remain intact.
+    original = [message.model_dump(exclude={"id"}) for message in history]
+    result = asyncio.run(graph.ainvoke({"question": "Compare", "history": history}))[
+        "result"
+    ]
+    assert result.status == "complete", result.errors
+    assert router_requests[0][1:-1] == history[-6:]
+    assert all(message in code.requests[0] for message in history)
+    assert all(message in github.requests[0] for message in history)
+    assert [message.model_dump(exclude={"id"}) for message in history] == original
+
+
 def test_parallel_nodes_overlap_and_join_after_both_scopes_close(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

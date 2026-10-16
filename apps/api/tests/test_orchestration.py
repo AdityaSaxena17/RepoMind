@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
@@ -12,6 +13,7 @@ import httpx
 import pytest
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.runnables import RunnableConfig, RunnableLambda
 from langchain_openai import ChatOpenAI
 from pydantic import JsonValue, TypeAdapter, ValidationError
@@ -142,6 +144,19 @@ def test_router_uses_validated_json_without_research(
         {"role": "assistant", "content": "A bug."},
         {"role": "user", "content": "What do its comments say?"},
     ]
+
+
+def test_router_demonstrations_use_complete_valid_decisions(provider: Provider) -> None:
+    requests, replies = provider
+    replies.append('{"scope":"GITHUB","clarification":null}')
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": "Read PR #218.", "history": []}))
+    prompt = requests[0]["messages"][0]["content"]
+    examples = re.findall(r"^Output: (.+)$", prompt, flags=re.MULTILINE)
+    assert examples
+    for example in examples:
+        RouteDecision.model_validate_json(example)
+        assert set(json.loads(example)) == set(RouteDecision.model_fields)
 
 
 @pytest.mark.parametrize(
@@ -411,6 +426,137 @@ def test_latest_history_excludes_current_failed_and_other_conversations() -> Non
         isinstance(message, HumanMessage if index % 2 else AIMessage)
         for index, message in enumerate(history)
     )
+
+
+@pytest.mark.parametrize("turn_count", [0, 1, 3, 8])
+def test_router_keeps_recent_whole_turns_without_mutating_history(
+    turn_count: int, provider: Provider
+) -> None:
+    requests, replies = provider
+    replies.append('{"scope":"CODE","clarification":null}')
+    history = [AIMessage(content="Orphaned answer at the database window boundary.")]
+    for index in range(turn_count):
+        history.extend(
+            [
+                HumanMessage(content=f"Explain indexed component {index}."),
+                AIMessage(content=f"Component {index} handles input."),
+            ]
+        )
+    original = [message.model_dump() for message in history]
+    question = "Explain the indexed implementation."
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": question, "history": history}))
+    expected = history[1:][-6:]
+    assert requests[0]["messages"][1:] == [
+        *[
+            {
+                "role": "user" if message.type == "human" else "assistant",
+                "content": message.content,
+            }
+            for message in expected
+        ],
+        {"role": "user", "content": question},
+    ]
+    assert [message.model_dump() for message in history] == original
+    assert len(requests) == 1
+
+
+def test_router_retains_unanswered_user_turn_for_retry_references(
+    provider: Provider,
+) -> None:
+    requests, replies = provider
+    replies.append('{"scope":"GITHUB","clarification":null}')
+    history = [
+        HumanMessage(content="Explain the implementation."),
+        AIMessage(content="Indexed implementation."),
+        HumanMessage(content="Read issue #214."),
+        HumanMessage(content="Read PR #215 instead."),
+    ]
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": "Try that again.", "history": history}))
+    assert requests[0]["messages"][1:-1] == [
+        {"role": "user", "content": "Explain the implementation."},
+        {"role": "assistant", "content": "Indexed implementation."},
+        {"role": "user", "content": "Read issue #214."},
+        {"role": "user", "content": "Read PR #215 instead."},
+    ]
+
+
+@pytest.mark.parametrize("newest_oversized", [False, True])
+def test_router_budget_drops_whole_oldest_turns_not_partial_answers(
+    newest_oversized: bool, provider: Provider
+) -> None:
+    requests, replies = provider
+    replies.append('{"scope":null,"clarification":"Which subject do you mean?"}')
+    small = [HumanMessage(content="Read issue #214."), AIMessage(content="A report.")]
+    oversized = [
+        HumanMessage(content="Explain architecture."),
+        AIMessage(content="x" * 9000),
+    ]
+    history = [*small, *oversized] if newest_oversized else [*small, *oversized, *small]
+    original = [message.model_dump() for message in history]
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": "What about it?", "history": history}))
+    assert requests[0]["messages"][1:-1] == (
+        []
+        if newest_oversized
+        else [
+            {"role": "user", "content": "Read issue #214."},
+            {"role": "assistant", "content": "A report."},
+        ]
+    )
+    assert [message.model_dump() for message in history] == original
+
+
+def test_long_architecture_answer_does_not_displace_two_recent_comparison_subjects(
+    provider: Provider,
+) -> None:
+    requests, replies = provider
+    replies.append(
+        json.dumps(
+            {
+                "scope": "MIXED",
+                "clarification": None,
+                "mixed_strategy": "PARALLEL",
+                "code_task": "Read indexed revision.",
+                "github_task": "Read live revision.",
+            }
+        )
+    )
+    history = [
+        HumanMessage(content="Explain the architecture."),
+        AIMessage(content="Component documentation. " * 600),
+        HumanMessage(content="Which revision is indexed?"),
+        AIMessage(content="Indexed revision: " + "a" * 40),
+        HumanMessage(content="What is the live revision?"),
+        AIMessage(content="Live revision: " + "a" * 40),
+    ]
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": "Do those agree?", "history": history}))
+    assert requests[0]["messages"][1:-1] == [
+        {
+            "role": "user" if message.type == "human" else "assistant",
+            "content": message.content,
+        }
+        for message in history[-4:]
+    ]
+
+
+@pytest.mark.parametrize("fits", [False, True])
+def test_router_budget_keeps_an_exactly_fitting_turn(
+    fits: bool, provider: Provider, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    requests, replies = provider
+    replies.append('{"scope":"CODE","clarification":null}')
+    history = [HumanMessage(content="Read parser.py."), AIMessage(content="A parser.")]
+    monkeypatch.setattr(
+        orchestration,
+        "ROUTER_HISTORY_TOKEN_BUDGET",
+        count_tokens_approximately(history) - (0 if fits else 1),
+    )
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": "Explain parser.py.", "history": history}))
+    assert len(requests[0]["messages"][1:-1]) == (2 if fits else 0)
 
 
 @pytest.mark.parametrize(

@@ -105,7 +105,8 @@ Final-answer LLM tokens stream to the UI during generation, before the final val
 ### Query Router
 
 - Selects CODE, GITHUB, or MIXED according to the evidence required by the latest message.
-- Uses the latest 20 successful conversation messages in chronological order to resolve references.
+- Resolves references using up to three recent user turns, normally six history messages, within a 2,048-token estimate. Drops oldest whole turns without summarizing; retains unanswered retry context when it fits.
+- PostgreSQL still loads the latest 20 successful messages for specialists; the router trims its own copy only.
 - For MIXED, chooses PARALLEL or GITHUB_THEN_CODE in the same classification call and supplies bounded specialist assignments.
 - Keeps classifications and planning out of user-facing answer deltas.
 - Validates structured output and permits two bounded classification attempts.
