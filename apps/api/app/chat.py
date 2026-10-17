@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -10,6 +11,7 @@ import sys
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import aclosing, suppress
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -19,8 +21,9 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables.schema import StreamEvent
 from langchain_mcp_adapters.sessions import Connection
 from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from .agents import AgentLimits
 from .code_tools import CodeTools
@@ -42,6 +45,41 @@ from .tool_registry import (
 
 logger = logging.getLogger(__name__)
 HEARTBEAT_SECONDS = 15.0
+HISTORY_CACHE_TTL_SECONDS = 300
+HISTORY_CACHE_TIMEOUT_SECONDS = 0.25
+HISTORY_CACHE_MAX_BYTES = 256 * 1024
+
+
+class _HistoryMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    id: str = Field(min_length=1)
+    role: Literal["USER", "ASSISTANT"]
+    content: str
+    updated_at: datetime
+
+
+class _CachedHistory(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    identity: str
+    messages: list[_HistoryMessage] = Field(max_length=20)
+
+
+def _history_cache_key(
+    scope: RequestScope, conversation_id: str, revision: list[tuple[str, datetime]]
+) -> str:
+    # Version the entire ordered window: an older streaming answer can finish
+    # after a newer one, so the latest message ID alone cannot detect changes.
+    identity = {
+        "database": get_settings().database_url,
+        "user": scope.user_id,
+        "repository": scope.repository_id,
+        "conversation": conversation_id,
+        "revision": [(message_id, stamp.isoformat()) for message_id, stamp in revision],
+    }
+    digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+    return f"repomind:chat-history:v1:{digest}"
 
 
 def sse_event(event: str, data: dict[str, Any]) -> str:
@@ -140,22 +178,111 @@ def create_github_provider(
 async def load_history(
     connection: asyncpg.Connection,
     conversation_id: str,
-    current_message_id: str,
+    current_message_id: str | None,
+    *,
+    redis: Redis | None = None,
+    scope: RequestScope | None = None,
+    revision: list[tuple[str, datetime]] | None = None,
+    request_id: str | None = None,
 ) -> list[BaseMessage]:
-    """Load the latest 20 successful messages in chronological order."""
-    rows = await connection.fetch(
-        """
-        SELECT "id", "role", "content"
-        FROM "ChatMessage"
-        WHERE "conversationId" = $1
-          AND "id" <> $2
-          AND "status" = 'SUCCEEDED'
-        ORDER BY "createdAt" DESC, "id" DESC
-        LIMIT 20
-        """,
-        conversation_id,
-        current_message_id,
-    )
+    """Load authorized successful history, reusing a verified cache revision."""
+    if redis is not None and scope is None:
+        raise ValueError("History caching requires an authorized request scope.")
+    cached: _CachedHistory | None = None
+    if redis is not None and scope is not None and revision is not None:
+        key = _history_cache_key(scope, conversation_id, revision)
+        log_event("redis", "history_get", "started", request_id=request_id)
+        try:
+            raw = await asyncio.wait_for(redis.get(key), HISTORY_CACHE_TIMEOUT_SECONDS)
+            if raw is not None:
+                if len(raw) > HISTORY_CACHE_MAX_BYTES:
+                    raise ValueError("Oversized history cache entry.")
+                cached = _CachedHistory.model_validate_json(raw)
+                actual = [
+                    (message.id, message.updated_at) for message in cached.messages
+                ]
+                if (
+                    cached.identity != key
+                    or actual != revision
+                    or len({message.id for message in cached.messages}) != len(actual)
+                    or any(
+                        message.id == current_message_id for message in cached.messages
+                    )
+                ):
+                    raise ValueError("History cache revision mismatch.")
+                log_event("redis", "history_get", "hit", request_id=request_id)
+        except (RedisError, TimeoutError, asyncio.TimeoutError, ValueError) as error:
+            cached = None
+            logger.warning("History cache read failed (%s).", type(error).__name__)
+            log_event(
+                "redis",
+                "history_get",
+                "failed",
+                request_id=request_id,
+                error_type=type(error).__name__,
+            )
+            if not isinstance(error, ValueError):
+                redis = None
+        if cached is None:
+            log_event("redis", "history_get", "miss", request_id=request_id)
+    if cached is not None:
+        rows = [message.model_dump() for message in cached.messages]
+    else:
+        log_event("database", "chat_history", "started", request_id=request_id)
+        rows = await connection.fetch(
+            """
+            SELECT "id", "role", "content", "updatedAt"
+            FROM "ChatMessage"
+            WHERE "conversationId" = $1
+              AND ("id" <> $2 OR $2 IS NULL)
+              AND "status" = 'SUCCEEDED'
+            ORDER BY "createdAt" DESC, "id" DESC
+            LIMIT 20
+            """,
+            conversation_id,
+            current_message_id,
+        )
+        log_event("database", "chat_history", "completed", request_id=request_id)
+        if redis is not None and scope is not None:
+            # Derive the written version from this read, not an earlier revision
+            # check that may precede a concurrent answer's commit.
+            key = _history_cache_key(
+                scope, conversation_id, [(row["id"], row["updatedAt"]) for row in rows]
+            )
+            entry = _CachedHistory(
+                identity=key,
+                messages=[
+                    _HistoryMessage(
+                        id=row["id"],
+                        role=row["role"],
+                        content=row["content"],
+                        updated_at=row["updatedAt"],
+                    )
+                    for row in rows
+                ],
+            )
+            raw = entry.model_dump_json().encode()
+            if len(raw) <= HISTORY_CACHE_MAX_BYTES:
+                log_event("redis", "history_set", "started", request_id=request_id)
+                try:
+                    await asyncio.wait_for(
+                        redis.set(key, raw, ex=HISTORY_CACHE_TTL_SECONDS),
+                        HISTORY_CACHE_TIMEOUT_SECONDS,
+                    )
+                    log_event(
+                        "redis", "history_set", "completed", request_id=request_id
+                    )
+                except (RedisError, TimeoutError, asyncio.TimeoutError) as error:
+                    logger.warning(
+                        "History cache write failed (%s).", type(error).__name__
+                    )
+                    log_event(
+                        "redis",
+                        "history_set",
+                        "failed",
+                        request_id=request_id,
+                        error_type=type(error).__name__,
+                    )
     messages: list[BaseMessage] = []
 
     for row in reversed(rows):
@@ -213,8 +340,23 @@ async def stream_repository_chat(
         async with pool.acquire(timeout=10) as connection:
             user_message = await connection.fetchrow(
                 """
-                SELECT m."content" FROM "ChatMessage" m
+                SELECT m."content", h."historyIds", h."historyUpdatedAt"
+                FROM "ChatMessage" m
                 JOIN "ChatConversation" c ON c."id"=m."conversationId"
+                CROSS JOIN LATERAL (
+                    SELECT array_agg(s."id" ORDER BY s."createdAt" DESC, s."id" DESC)
+                               AS "historyIds",
+                           array_agg(s."updatedAt" ORDER BY
+                                     s."createdAt" DESC, s."id" DESC)
+                               AS "historyUpdatedAt"
+                    FROM (
+                        SELECT "id", "createdAt", "updatedAt"
+                        FROM "ChatMessage"
+                        WHERE "conversationId"=m."conversationId" AND "id"<>m."id"
+                          AND "status"='SUCCEEDED'
+                        ORDER BY "createdAt" DESC, "id" DESC LIMIT 20
+                    ) s
+                ) h
                 WHERE m."id"=$1 AND m."conversationId"=$2
                   AND c."userId"=$3 AND c."repositoryId"=$4 AND m."role"='USER'
                 """,
@@ -248,7 +390,27 @@ async def stream_repository_chat(
                 raise ValueError(
                     "Repository must finish indexing before chat is available."
                 )
-            history = await load_history(connection, conversation_id, message_id)
+            capabilities: frozenset[Capability] = frozenset(
+                {"code.read", "github.read"}
+            )
+            scope = RequestScope(
+                user_id=user_id, repository_id=repository_id, capabilities=capabilities
+            )
+            history = await load_history(
+                connection,
+                conversation_id,
+                message_id,
+                redis=redis,
+                scope=scope,
+                request_id=trace_id,
+                revision=list(
+                    zip(
+                        user_message["historyIds"] or [],
+                        user_message["historyUpdatedAt"] or [],
+                        strict=True,
+                    )
+                ),
+            )
             await connection.execute(
                 """
                 INSERT INTO "ChatMessage"
@@ -263,11 +425,8 @@ async def stream_repository_chat(
         yield sse_event(
             "assistant_message", {"message_id": assistant_id, "request_id": trace_id}
         )
-        capabilities: frozenset[Capability] = frozenset({"code.read", "github.read"})
         registry = ToolRegistry(
-            RequestScope(
-                user_id=user_id, repository_id=repository_id, capabilities=capabilities
-            ),
+            scope,
             (create_github_provider(user_id, repository_id, trace_id),),
         )
         code_tools = CodeTools(
@@ -485,6 +644,31 @@ async def stream_repository_chat(
             )
         committed = True
         log_event("database", "chat_persist", "completed", request_id=trace_id)
+        if redis is not None:
+            try:
+                # Warm only committed messages. Versioned keys keep concurrent
+                # refreshes independent, and a failed refresh cannot undo success.
+                with anyio.fail_after(1):
+                    async with pool.acquire(timeout=1) as connection:
+                        await load_history(
+                            connection,
+                            conversation_id,
+                            None,
+                            redis=redis,
+                            scope=scope,
+                            request_id=trace_id,
+                        )
+            except Exception as error:
+                logger.warning(
+                    "History cache refresh failed (%s).", type(error).__name__
+                )
+                log_event(
+                    "redis",
+                    "history_refresh",
+                    "failed",
+                    request_id=trace_id,
+                    error_type=type(error).__name__,
+                )
         log_event(
             "request",
             "chat",

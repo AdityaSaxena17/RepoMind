@@ -10,6 +10,7 @@ from urllib.parse import unquote, urlsplit
 from pydantic import JsonValue
 
 from ..chat import github_line_url
+from ..github_mcp_server import github_citation_provenance
 from .models import (
     Citation,
     CodeContext,
@@ -170,12 +171,48 @@ def referenced_citations(
     prose = "".join(masked)
     contexts = {c.id: c for c in result.evidence_seen}
     visible = {key: visible_lines(c, corpus, commit_sha) for key, c in contexts.items()}
-    urls = {
-        url: (tool.id, url_evidence(tool.result, url))
-        for tool in result.tool_executions
-        if tool.error is None
-        for url in result_urls(tool.result)
-    }
+    urls: dict[str, tuple[str, str | None]] = {}
+    for tool in result.tool_executions:
+        if tool.error is None:
+            for url in result_urls(tool.result):
+                # Honor the observed catalog association when several calls return
+                # a URL; a comment's parent link must not hide resource details.
+                if url not in urls or urls[url][0] != result.citation_catalog.get(url):
+                    urls[url] = (tool.id, url_evidence(tool.result, url))
+    records = {tool.id: tool for tool in result.tool_executions if tool.error is None}
+    provenance = github_citation_provenance(
+        result.citation_catalog,
+        [tool.model_dump(mode="json") for tool in result.tool_executions],
+    )
+    for url, source_ids in provenance.items():
+        if (
+            url in urls
+            and len(source_ids) > 1
+            and all(s in records for s in source_ids)
+        ):
+            urls[url] = (
+                urls[url][0],
+                json.dumps(
+                    {
+                        "url": url,
+                        "observations": [
+                            {
+                                **records[s].model_dump(mode="json"),
+                                "result": json.loads(entity_excerpt)
+                                if (
+                                    entity_excerpt := url_evidence(
+                                        records[s].result, url
+                                    )
+                                )
+                                is not None
+                                else records[s].result,
+                            }
+                            for s in source_ids
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+            )
     occurrences: list[tuple[int, int, str]] = []
     for match in re.finditer(r"\[(\d+(?:\s*,\s*\d+)*)\](?!\()", prose):
         occurrences.extend(
@@ -272,6 +309,30 @@ def referenced_citations(
                 cited_excerpt=excerpt,
             )
         )
+    for block in re.finditer(
+        r"(?m)^ {0,3}(?P<fence>`{3,}|~{3,})[^\n]*\n[\s\S]*?"
+        r"^ {0,3}(?P=fence)[ \t]*(?=\r?$)",
+        answer,
+    ):
+        caption = re.match(
+            r"[ \t]*\r?\n(?:[ \t]*\r?\n)?[ \t]*(Sources:[^\r\n]*)(?=\r?\n|$)",
+            answer[block.end() :],
+        )
+        if caption is None:
+            continue
+        first = block.end() + caption.start(1)
+        last = block.end() + caption.end(1)
+        attached = [c for c in citations if first <= c.start and c.end <= last]
+        caption_prose = list(answer[first + len("Sources:") : last])
+        for citation in attached:
+            start = citation.start - first - len("Sources:")
+            end = citation.end - first - len("Sources:")
+            caption_prose[start:end] = " " * (end - start)
+        if attached and all(
+            char.isspace() or char in ".,;:()[]" for char in caption_prose
+        ):
+            for citation in attached:
+                citation.attached_range = (block.start(), block.end())
     return citations
 
 
@@ -298,6 +359,8 @@ def validate_grounding(
     judgment: GroundingJudgment,
     result: EvaluationResult,
     citations: list[Citation],
+    *,
+    claim_range: tuple[int, int] | None = None,
 ) -> None:
     """Reject invented quotations, evidence IDs, and impossible citation support."""
     evidence_ids = {c.id for c in result.evidence_seen} | {
@@ -321,6 +384,14 @@ def validate_grounding(
                 raise ValueError("Judge invented a citation reference.")
             if association.contributes and not reference.valid:
                 raise ValueError("Invalid reference marked supportive")
+            if association.contributes and reference.attached_range is not None:
+                first, last = reference.attached_range
+                if claim_range is not None:
+                    first, last = max(first, claim_range[0]), min(last, claim_range[1])
+                if claim.quote not in result.answer[first:last]:
+                    raise ValueError(
+                        "Caption citation supports only its attached block."
+                    )
         if claim.citations_fully_support and (
             not claim.supported or not any(p.contributes for p in claim.citations)
         ):

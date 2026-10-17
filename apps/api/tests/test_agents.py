@@ -145,6 +145,64 @@ def test_context_projection_keeps_github_evidence_and_errors() -> None:
     assert findings.model_dump() == original
 
 
+def test_context_projection_links_observed_pr_reads_without_changing_records() -> None:
+    url = "https://github.com/example/project/pull/17"
+    observations = [
+        (
+            "get",
+            {
+                "repository": "example/project",
+                "pull_request": {"number": 17, "url": url},
+            },
+        ),
+        (
+            "get_files",
+            {
+                "repository": "example/project",
+                "pull_number": 17,
+                "files": [{"filename": "app.py"}],
+            },
+        ),
+        (
+            "get_diff",
+            {
+                "repository": "example/project",
+                "pull_number": 17,
+                "diff": "-before\n+after",
+            },
+        ),
+    ]
+    records = [
+        agents.ToolExecutionRecord(
+            id="github:" + method,
+            call_id=method,
+            name="pull_request_read",
+            arguments={"pull_number": 17, "method": method},
+            result=observation,
+            message=ToolMessage(
+                content=json.dumps(observation),
+                artifact=observation,
+                tool_call_id=method,
+            ),
+        )
+        for method, observation in observations
+    ]
+    findings = agents.AgentFindings(
+        role="GITHUB",
+        status="complete",
+        citation_catalog={url: "github:get"},
+        tool_executions=records,
+    )
+    original = copy.deepcopy(findings.model_dump())
+    payload = findings.to_context_payload()
+    assert payload["citation_provenance"][url] == [
+        "github:get",
+        "github:get_files",
+        "github:get_diff",
+    ]
+    assert findings.model_dump() == original
+
+
 class ScriptedModel(FakeMessagesListChatModel):
     def bind_tools(self, tools: Any, **kwargs: Any) -> ScriptedModel:
         return self
@@ -510,6 +568,86 @@ def test_few_shot_output_matches_the_active_protocol(
         assert "[7]" not in output
     else:
         assert "[7]" in output
+
+
+@pytest.mark.parametrize("final_answer", [False, True])
+def test_code_citation_contract_survives_per_call_instructions(
+    monkeypatch: pytest.MonkeyPatch, final_answer: bool
+) -> None:
+    prompts: list[str] = []
+    create_agent = agents.create_agent
+
+    def capture(*args: Any, **kwargs: Any) -> Any:
+        prompts.append(kwargs["system_prompt"])
+        return create_agent(*args, **kwargs)
+
+    monkeypatch.setattr(agents, "create_agent", capture)
+    agents.create_code_agent(ScriptedModel(responses=[]), [], final_answer=final_answer)
+
+    async def run() -> None:
+        async def handler(request: Any) -> Any:
+            prompt = request.system_message.text
+            assert "metadata has no numeric label" in prompt
+            assert "cite its exact returned URL" in prompt
+            assert "Use exact numeric labels like [1] for code citations" not in prompt
+            assert prompt.count(agents.INVESTIGATION_GUIDANCE) == 1
+            assert "state changes and returned interface fields" in prompt
+            return agents.ModelResponse(result=[AIMessage(content="Done.")])
+
+        await agents._InvestigationControl(
+            AgentLimits(), final_answer, False
+        ).awrap_model_call(
+            agents.ModelRequest(
+                model=ScriptedModel(responses=[]),
+                messages=[],
+                system_message=SystemMessage(content=prompts[0]),
+            ),
+            handler,
+        )
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("kind", ["issues", "pull"])
+@pytest.mark.parametrize(
+    "suffix",
+    ["#issuecomment-19", "#L19", "?page=2#issuecomment-19", "#issuecomment-x"],
+)
+def test_comment_parent_citations_require_an_observed_canonical_relationship(
+    kind: str, suffix: str
+) -> None:
+    parent = f"https://github.com/example/project/{kind}/9"
+    result = {
+        "repository": "example/project",
+        "issue_number" if kind == "issues" else "pull_number": 9,
+        "comments": [{"url": parent + suffix, "body": "Observed discussion."}],
+    }
+    original = copy.deepcopy(result)
+    enriched = github_mcp_server.with_comment_resource_url(result)
+    assert result == original
+    assert enriched.get("url") == (parent if suffix == "#issuecomment-19" else None)
+    assert enriched["comments"] == result["comments"]
+
+
+@pytest.mark.parametrize(
+    "comments",
+    [
+        [],
+        [{"url": "https://github.com/other/project/issues/9#issuecomment-19"}],
+        [{"url": "https://github.com/example/project/issues/10#issuecomment-19"}],
+        [
+            {
+                "url": "https://github.com.evil.test/example/project/issues/9#issuecomment-19"
+            }
+        ],
+        [{"url": None}],
+    ],
+)
+def test_comment_citation_enrichment_does_not_invent_resource_links(
+    comments: list[dict[str, Any]],
+) -> None:
+    result = {"repository": "example/project", "issue_number": 9, "comments": comments}
+    assert github_mcp_server.with_comment_resource_url(result) == result
 
 
 @pytest.mark.parametrize("explicit", [False, True])
@@ -906,6 +1044,68 @@ def test_code_agent_suppresses_unchanged_retrieval_and_retains_observations(
     assert queries == ["initial"]
 
 
+@pytest.mark.parametrize("unknown_source", [False, True])
+def test_exact_json_fence_needs_no_model_repair_and_preserves_source_validation(
+    monkeypatch: pytest.MonkeyPatch, unknown_source: bool
+) -> None:
+    database = Database()
+    scripted_retriever(monkeypatch, database)
+
+    async def run() -> None:
+        registry, code = setup_tools(database)
+        final = summary(sources=["99"] if unknown_source else ["1"])
+        findings = await investigate_code(
+            ScriptedModel(
+                responses=[
+                    call("search_repository_code", {"query": "requested behavior"}),
+                    AIMessage(content="```json\n" + final.text + "\n```"),
+                ]
+            ),
+            registry,
+            code,
+            "Explain the requested behavior.",
+        )
+        assert findings.status == ("failed" if unknown_source else "complete")
+        assert findings.model_calls == 2 and len(findings.tool_executions) == 1
+        if unknown_source:
+            assert findings.errors[-1].code == "unobserved_sources"
+        else:
+            assert findings.answer == json.loads(final.text)["answer"]
+            assert findings.errors == []
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("final_answer", [False, True])
+@pytest.mark.parametrize("stopped", [False, True])
+def test_json_mode_is_limited_to_internal_turns_with_tools_disabled(
+    final_answer: bool, stopped: bool
+) -> None:
+    async def run() -> None:
+        async def handler(request: Any) -> Any:
+            constrained = stopped and not final_answer
+            assert request.model_settings.get("response_format") == (
+                {"type": "json_object"} if constrained else None
+            )
+            assert bool(request.tools) is not stopped
+            assert request.model_settings["temperature"] == 0
+            return agents.ModelResponse(result=[summary()])
+
+        await agents._InvestigationControl(
+            AgentLimits(tool_calls=1 if stopped else 6), final_answer, False
+        ).awrap_model_call(
+            agents.ModelRequest(
+                model=ChatOpenAI(api_key="offline-test", model="offline"),
+                messages=[call("get_repository_snapshot", {})],
+                tools=[{"name": "get_repository_snapshot"}],
+                model_settings={"temperature": 0},
+            ),
+            handler,
+        )
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize(
     "fault", ["unknown_source", "plaintext", "model_limit", "missing"]
 )
@@ -1214,8 +1414,10 @@ def test_github_deadline_and_cancellation_close_session(
     assert [e[:2] for e in events] == [("open", "github"), ("close", "github")]
 
 
+@pytest.mark.parametrize("stopped", [False, True])
 def test_chat_completions_tool_schema_and_structured_finalization(
     monkeypatch: pytest.MonkeyPatch,
+    stopped: bool,
 ) -> None:
     events = github_scope(monkeypatch)
     requests: list[dict[str, Any]] = []
@@ -1225,9 +1427,16 @@ def test_chat_completions_tool_schema_and_structured_finalization(
         payload = json.loads(request.content)
         requests.append(payload)
         assert payload.get("tool_choice", "auto") == "auto"
-        definitions = {t["function"]["name"]: t["function"] for t in payload["tools"]}
+        definitions = {
+            t["function"]["name"]: t["function"] for t in payload.get("tools", [])
+        }
         assert "InvestigationSummary" not in definitions
-        assert "owner" not in definitions["issue_read"]["parameters"]["properties"]
+        if len(requests) == 2 and stopped:
+            assert not definitions
+            assert payload["response_format"] == {"type": "json_object"}
+        else:
+            assert "owner" not in definitions["issue_read"]["parameters"]["properties"]
+            assert "response_format" not in payload
         message = (
             call("issue_read", {"issue_number": 1})
             if len(requests) == 1
@@ -1277,7 +1486,10 @@ def test_chat_completions_tool_schema_and_structured_finalization(
                 http_async_client=client,
             )
             findings = await investigate_github(
-                model, ToolRegistry(request(), (provider(),)), "Read issue 1."
+                model,
+                ToolRegistry(request(), (provider(),)),
+                "Read issue 1.",
+                limits=AgentLimits(tool_calls=1 if stopped else 6),
             )
             assert findings.status == "complete", findings.errors
 

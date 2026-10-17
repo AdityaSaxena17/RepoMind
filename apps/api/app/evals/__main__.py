@@ -60,8 +60,9 @@ from .scoring import (
     score_semantics,
 )
 
-SCORER_VERSION = "2"
+SCORER_VERSION = "3"
 SCORER_V1_SHA256 = "2002a69e91e4988978577009691ac60f888e1ad0347c737b2fac7eb326242cfb"
+SCORER_V2_SHA256 = "981607bd2a85d5ec98b6de296751a389eb66f74a850d6098f9bc877c1e2bc86a"
 
 
 def aggregate(report: RunReport, category: str | None = None) -> dict[str, JsonValue]:
@@ -468,11 +469,11 @@ async def grade_report(
     old_scorer = report.metadata.get("scorer_sha256")
     if old_scorer != scorer_hash and not (
         rescore
-        and old_scorer == SCORER_V1_SHA256
-        and report.metadata.get("scorer_version") == "1"
+        and (report.metadata.get("scorer_version"), old_scorer)
+        in {("1", SCORER_V1_SHA256), ("2", SCORER_V2_SHA256)}
     ):
         raise ValueError(
-            "Saved scorer differs; --rescore only accepts the known v1 scorer."
+            "Saved scorer differs; --rescore only accepts known v1/v2 scorers."
         )
     if rescore:
         report.metadata["rescored_from"] = {

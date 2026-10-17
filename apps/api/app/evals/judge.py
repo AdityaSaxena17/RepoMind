@@ -18,9 +18,11 @@ from openai.types.chat import ChatCompletionMessageParam
 from pydantic import Field, JsonValue, TypeAdapter
 
 from ..config import read_optional_token
+from ..github_mcp_server import github_citation_provenance
 from .execution import DATA, digest
 from .models import (
     CaseReport,
+    Claim,
     CodeContext,
     CorrectnessJudgment,
     EvaluationResult,
@@ -59,9 +61,17 @@ For each claim include ALL citation associations present in answer prose; use th
 supplied citation IDs. Invalid or unrelated citations do not contribute. A citation
 contributes if it supplies evidence for that claim, possibly jointly with other
 citations. Use IDs like citation:1 from referenced_citations, not source labels like 1.
+Evidence contradicting an asserted value, condition or relationship does not
+contribute merely because it concerns the same entity. Relevance is not support.
 For citation support use cited_excerpt whenever supplied; otherwise use the linked
 evidence item. Do not credit other lines or other entities from the same window or
 search result. Groundedness still uses all consumed evidence independently of citations.
+Citation paths and line anchors are provenance; retain them when judging relationships
+between cited excerpts, including their relative positions within a file.
+A citation with attached_range applies to factual claims inside that exact fenced
+block, even when its Sources caption is in another section. It cannot support
+other prose. Evaluate code and diagram facts, including incorrect edges or
+transaction boundaries, as strictly as prose; an attached citation is not proof.
 A fully supported uncited claim has an empty citations list.
 If citations is empty, citations_fully_support MUST be false, even if supported=true.
 Set citations_fully_support only when the attached valid citations jointly establish
@@ -80,20 +90,28 @@ Do not turn such an acknowledgment into a supported factual claim. Domain claims
 assert behavior, values, or facts about repository/GitHub entities themselves."""
 
 SECTION_PROMPT = (
-    "\nClassify ONLY the supplied sections. The full answer is context for "
-    "pronouns and citations. Return exactly one section judgment per supplied "
+    "\nClassify ONLY the supplied sections. Return exactly one judgment per supplied "
     "id, in order. Extract EVERY atomic domain claim from each section. Quotes "
-    "must occur within that section's text. Include limitations as exact quotes. "
+    "must occur within that section's text. For code and diagrams, quote literal "
+    "text, preserving arrows, brackets and whitespace; explain its meaning only "
+    "in reason. For example, quote 'A --> B', not 'A calls B'. "
+    "Include limitations as exact quotes. "
     "If a section has neither claims nor limitations, supply a nonempty "
     "nonfactual_reason explaining why it is a heading, formatting or suggestion. "
-    "A section containing only citation references and punctuation is formatting, "
-    "not a domain claim. Use the full answer to associate references with factual "
-    "claims; do not invent a claim from a reference token alone. "
+    "A section containing only citation references and punctuation, optionally "
+    "preceded by the literal label 'Sources:' and followed by closing markup "
+    "tags outside code, is formatting, not a domain claim. Citation offsets "
+    "refer to the original answer; attached_range associates caption references "
+    "with their code block. Do not invent a claim from a reference token alone. "
     "Never use nonfactual_reason for factual prose, and never omit sections to "
     "fix another label. Cited introductions that assert where behavior was "
     "observed make a provenance claim; classify that claim, not formatting. "
     "Claim IDs need only be unique within their section; "
-    "the application assigns global IDs."
+    "the application assigns global IDs. Each section supplies quote_anchors "
+    "mapping IDs to literal answer lines. For code and diagrams select a "
+    "quote_anchor and leave quote empty; the application copies its exact text. "
+    "For prose use either an anchor or an exact quote, never both. Extract every "
+    "atomic claim even when several share a line; identify the judged fact in reason."
 )
 
 CORRECTNESS_PROMPT = """Compare the answer with manually verified reference facts.
@@ -136,6 +154,24 @@ class _AnswerSection(TypedDict):
     start: int
     end: int
     text: str
+
+
+class _AnchoredClaim(Claim):
+    """Accept a literal quotation or a section-owned line reference, exclusively."""
+
+    quote: str = ""
+    quote_anchor: str | None = None
+
+
+class _AnchoredGroundingSection(Model):
+    section_id: str
+    claims: list[_AnchoredClaim]
+    limitations: list[str] = Field(default_factory=list)
+    nonfactual_reason: str | None = Field(default=None, min_length=1)
+
+
+class _AnchoredGroundingBatch(Model):
+    sections: list[_AnchoredGroundingSection]
 
 
 def grounding_sections(answer: str) -> list[_AnswerSection]:
@@ -287,14 +323,25 @@ class SemanticJudge:
     def configuration(self) -> dict[str, JsonValue]:
         """Expose reproducibility settings without serializing credentials."""
         configuration: dict[str, JsonValue] = {
-            "version": "4",
+            "version": "8",
+            "grounding_quote_policy": "literal_text_or_validated_section_line_id",
+            "citation_attachment_policy": "explicit_sources_caption_following_fence",
+            "citation_provenance_policy": (
+                "observed_repository_resource_and_read_identity"
+            ),
+            "citation_resolution_sha256": digest(
+                inspect.getsource(referenced_citations)
+                + inspect.getsource(validate_grounding)
+                + inspect.getsource(github_citation_provenance)
+            ),
             "grounding_section_chars": 600,
             "grounding_section_max_chars": 2400,
             "grounding_section_policy": (
                 "sentence_and_line_boundaries_outside_backticks"
             ),
-            "grounding_batch_chars": 2400,
-            "grounding_batch_sections": 12,
+            "grounding_batch_chars": 1200,
+            "grounding_batch_sections": 6,
+            "grounding_answer_context": "assigned_sections_only",
             "grounding_batch_concurrency": 2,
             "model": self.model,
             "temperature": self.temperature,
@@ -302,6 +349,7 @@ class SemanticJudge:
             "timeout_seconds": self.timeout,
             "max_retries": 1,
             "grounding_validation_retries": 2,
+            "correctness_validation_retries": 2,
             "structured_output": "json_schema",
             "rubric_sha256": digest(
                 GROUNDING_PROMPT + SECTION_PROMPT + CORRECTNESS_PROMPT
@@ -315,6 +363,7 @@ class SemanticJudge:
                     {
                         "grounding": GroundingJudgment.model_json_schema(),
                         "grounding_batch": GroundingBatch.model_json_schema(),
+                        "grounding_wire": _AnchoredGroundingBatch.model_json_schema(),
                         "correctness": CorrectnessJudgment.model_json_schema(),
                     },
                     sort_keys=True,
@@ -323,9 +372,11 @@ class SemanticJudge:
             "calibration_sha256": digest(
                 (DATA / "calibration.json").read_text(encoding="utf-8")
                 + (DATA / "calibration-v2-additions.json").read_text(encoding="utf-8")
-                + (DATA / "calibration-v3-additions.json").read_text(encoding="utf-8"),
+                + (DATA / "calibration-v3-additions.json").read_text(encoding="utf-8")
+                + (DATA / "calibration-v5-additions.json").read_text(encoding="utf-8")
+                + (DATA / "calibration-v6-additions.json").read_text(encoding="utf-8"),
             ),
-            "calibration_example_count": 15,
+            "calibration_example_count": 20,
         }
         if self.hive:
             configuration.update(
@@ -352,20 +403,27 @@ class SemanticJudge:
         """Run two isolated judge tasks, keeping hidden gold out of grounding."""
         grounding_input = {
             "question": question.question,
-            "answer": case.result.answer,
             "evidence_seen": [c.model_dump() for c in case.result.evidence_seen],
             "tool_executions": [t.model_dump() for t in case.result.tool_executions],
             "referenced_citations": [c.model_dump() for c in case.citations],
         }
         sections = grounding_sections(case.result.answer)
+        quote_anchors = {
+            section["id"]: {
+                f"{section['id']}:line:{index}": line
+                for index, line in enumerate(section["text"].splitlines(), 1)
+                if line.strip()
+            }
+            for section in sections
+        }
         batches: list[list[_AnswerSection]] = []
         for section in sections:
             if (
                 not batches
-                or len(batches[-1]) >= 12
+                or len(batches[-1]) >= 6
                 or sum(len(str(s["text"])) for s in batches[-1])
                 + len(str(section["text"]))
-                > 2400
+                > 1200
             ):
                 batches.append([])
             batches[-1].append(section)
@@ -378,20 +436,63 @@ class SemanticJudge:
                         "system",
                         GROUNDING_PROMPT + SECTION_PROMPT,
                     ),
-                    ("user", json.dumps({**grounding_input, "sections": batch})),
+                    (
+                        "user",
+                        json.dumps(
+                            {
+                                **grounding_input,
+                                "sections": [
+                                    {**s, "quote_anchors": quote_anchors[s["id"]]}
+                                    for s in batch
+                                ],
+                            }
+                        ),
+                    ),
                 ]
                 for attempt in range(3):
                     previous: Model | None = None
                     invalid_section: str | None = None
                     try:
-                        previous = await self._label(GroundingBatch, messages)
-                        labeled = GroundingBatch.model_validate(previous)
-                        if [s.section_id for s in labeled.sections] != [
+                        previous = await self._label(_AnchoredGroundingBatch, messages)
+                        wire = _AnchoredGroundingBatch.model_validate(
+                            previous.model_dump()
+                        )
+                        if [s.section_id for s in wire.sections] != [
                             s["id"] for s in batch
                         ]:
                             raise ValueError(
                                 "Judge omitted, reordered or invented answer sections."
                             )
+                        resolved: list[GroundingSection] = []
+                        for wire_section in wire.sections:
+                            invalid_section = wire_section.section_id
+                            claims: list[Claim] = []
+                            for claim in wire_section.claims:
+                                values = claim.model_dump(exclude={"quote_anchor"})
+                                if claim.quote_anchor is not None:
+                                    if claim.quote:
+                                        raise ValueError(
+                                            "Judge supplied both a quote and an anchor."
+                                        )
+                                    literal = quote_anchors[
+                                        wire_section.section_id
+                                    ].get(claim.quote_anchor)
+                                    if literal is None:
+                                        raise ValueError(
+                                            "Judge selected an unknown quote anchor "
+                                            "for its assigned section."
+                                        )
+                                    values["quote"] = literal
+                                claims.append(Claim.model_validate(values))
+                            resolved.append(
+                                GroundingSection(
+                                    section_id=wire_section.section_id,
+                                    claims=claims,
+                                    limitations=wire_section.limitations,
+                                    nonfactual_reason=wire_section.nonfactual_reason,
+                                )
+                            )
+                        labeled = GroundingBatch(sections=resolved)
                         for section, source in zip(
                             labeled.sections, batch, strict=True
                         ):
@@ -429,6 +530,13 @@ class SemanticJudge:
                                 first = max(citation.start - source["start"], 0)
                                 last = min(citation.end - source["start"], len(text))
                                 prose[first:last] = " " * (last - first)
+                            if text.startswith("Sources:"):
+                                prose[: len("Sources:")] = " " * len("Sources:")
+                            remaining = "".join(prose)
+                            # Closing markup is layout, not cited factual prose.
+                            # Literal code examples must still be classified.
+                            if "`" not in remaining:
+                                remaining = re.sub(r"</[^<>\n]+>", "", remaining)
                             if (
                                 section.nonfactual_reason
                                 and cited
@@ -437,14 +545,19 @@ class SemanticJudge:
                                     and not unicodedata.category(character).startswith(
                                         "P"
                                     )
-                                    for character in prose
+                                    for character in remaining
                                 )
                             ):
                                 raise ValueError(
                                     "Cited prose must be classified as claims "
                                     "or limitations."
                                 )
-                            validate_grounding(section, case.result, case.citations)
+                            validate_grounding(
+                                section,
+                                case.result,
+                                case.citations,
+                                claim_range=(source["start"], source["end"]),
+                            )
                         return labeled.sections
                     except ValueError as error:
                         reason = (
@@ -464,6 +577,20 @@ class SemanticJudge:
                                 "Regenerate ALL supplied section labels, retaining "
                                 "correct claims. Validation: "
                                 + reason
+                                + (
+                                    "\nCopy quotes verbatim from this assigned "
+                                    "section; do not describe diagram edges in "
+                                    "quote or quote another section:\n"
+                                    + json.dumps(
+                                        next(
+                                            s
+                                            for s in batch
+                                            if s["id"] == invalid_section
+                                        )
+                                    )
+                                    if invalid_section is not None
+                                    else ""
+                                )
                                 + (
                                     "\nPrevious labels:\n" + previous.model_dump_json()
                                     if previous is not None
@@ -497,22 +624,50 @@ class SemanticJudge:
             "verified_gold_units": [u.model_dump() for u in question.required_evidence],
             "expected_missing": question.expected_missing,
         }
-        labeled_correctness = await self._label(
-            CorrectnessJudgment,
-            [
-                ("system", CORRECTNESS_PROMPT),
-                ("user", json.dumps(correctness_input)),
-            ],
-        )
-        correctness = CorrectnessJudgment.model_validate(labeled_correctness)
-        # Validate both before publishing any semantic scores for this case.
-        metrics = score_semantics(
-            question,
-            case.result,
-            case.citations,
-            grounding,
-            correctness,
-        )
+        correctness_messages = [
+            ("system", CORRECTNESS_PROMPT),
+            ("user", json.dumps(correctness_input)),
+        ]
+        for attempt in range(3):
+            previous_correctness: Model | None = None
+            try:
+                previous_correctness = await self._label(
+                    CorrectnessJudgment, correctness_messages
+                )
+                correctness = CorrectnessJudgment.model_validate(previous_correctness)
+                # Invalid IDs/schema can be repaired; valid low grades are retained.
+                metrics = score_semantics(
+                    question, case.result, case.citations, grounding, correctness
+                )
+                break
+            except ValueError as error:
+                reason = (
+                    str(error)
+                    if type(error) is ValueError
+                    else "Structured correctness output failed schema validation."
+                )
+                case.judge_validation_errors.append("correctness: " + reason)
+                if attempt == 2:
+                    raise
+                correctness_messages.append(
+                    (
+                        "user",
+                        "Regenerate all reference-fact labels exactly once. "
+                        "Validation: "
+                        + reason
+                        + "\nRequired fact IDs: "
+                        + json.dumps([fact.id for fact in question.reference_facts])
+                        + (
+                            "\nPrevious labels:\n"
+                            + previous_correctness.model_dump_json()
+                            if previous_correctness is not None
+                            else ""
+                        ),
+                    )
+                )
+        else:
+            raise RuntimeError("Correctness validation exhausted its attempts.")
+        # Publish both tasks only after their validation succeeds.
         case.grounding, case.correctness = grounding, correctness
         case.grounding_sections = labeled_sections
         case.metrics.update(metrics)
@@ -534,6 +689,16 @@ class SemanticJudge:
             examples.extend(
                 TypeAdapter(list[CalibrationExample]).validate_json(
                     (DATA / "calibration-v3-additions.json").read_text(encoding="utf-8")
+                )
+            )
+            examples.extend(
+                TypeAdapter(list[CalibrationExample]).validate_json(
+                    (DATA / "calibration-v5-additions.json").read_text(encoding="utf-8")
+                )
+            )
+            examples.extend(
+                TypeAdapter(list[CalibrationExample]).validate_json(
+                    (DATA / "calibration-v6-additions.json").read_text(encoding="utf-8")
                 )
             )
         results: list[dict[str, JsonValue]] = []

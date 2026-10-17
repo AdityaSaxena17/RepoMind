@@ -140,13 +140,25 @@ class Citation(Model):
     valid: bool
     reason: str
     cited_excerpt: str | None = None
+    attached_range: tuple[int, int] | None = None
+
+    @model_validator(mode="after")
+    def ordered_attachment(self) -> Citation:
+        if self.attached_range is not None and not (
+            0 <= self.attached_range[0] < self.attached_range[1]
+        ):
+            raise ValueError("Citation attachment offsets must be ordered.")
+        return self
 
 
 class CitationSupport(Model):
     citation_id: str = Field(
         description="ID from referenced_citations, e.g. citation:1"
     )
-    contributes: bool
+    contributes: bool = Field(
+        description="True only for evidence supporting a factual part of the claim; "
+        "contradictory evidence and mere topical relevance do not contribute."
+    )
 
 
 class Claim(Model):

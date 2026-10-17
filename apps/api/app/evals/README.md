@@ -518,7 +518,7 @@ to be accounted for, retains section judgments for audit, and adds two independe
 synthetic calibration cases (14 total). Section accounting detects dropped sections;
 it cannot prove that a model extracted every atomic claim within a section.
 
-Use a distinct output file when rescoring saved v1 results. Only the known v1 scorer
+Use a distinct output file when rescoring saved v1/v2 results. Only the known v1/v2 scorer
 hash is accepted for this explicit transition; other mismatches remain errors:
 
 ```powershell
@@ -642,3 +642,62 @@ These changes version the judge configuration. Reusing a v3 calibration for v4
 is rejected; recalibrate before accepting v4 grades. Historical v3 reports remain
 unchanged. Targeted regrades of saved answers are separate results: do not merge
 them with v3 grades to claim a newly completed whole-benchmark quality run.
+
+### Evaluator version 5: explicit block captions and resource provenance
+
+An adjacent standalone `Sources: [1], [2].` line following a fenced code or
+Mermaid block attaches those references to that block only. Literal references
+inside the fence remain excluded. Citation offsets still identify the original
+reference text; `attached_range` records the separate block interval. Diagram
+edges, code signatures and other factual assertions still require evidence, and
+caption references cannot support unrelated prose.
+
+An observed GitHub resource URL can cite successful details, file and diff reads
+of that same repository and numbered resource. Errors, other resources, search
+results and unrelated comments are excluded from this association. Full native
+records are retained. The synthesizer receives the same provenance IDs that the
+offline scorer uses to construct the citation excerpt.
+
+Judge v5 requires all 18 calibration cases, including three separate synthetic
+caption checks in `calibration-v5-additions.json`. Existing calibration files are
+unchanged. Scorer v3 preserves the metric definitions; explicit `--rescore`
+accepts only the recorded v1/v2 scorer hashes. Regrade saved and new answers with
+the same calibrated v5 configuration, into new files, before comparing quality.
+
+### Evaluator version 6: bounded labels and literal quotations
+
+Grounding calls receive assigned answer sections and all observed evidence, rather
+than a duplicate of the entire answer. Batches target at most 1,200 characters and
+six sections; a single logical section retains the existing 2,400-character cap.
+The correctness task still receives the complete answer. Code and diagram quotes
+must preserve literal syntax, and repair feedback identifies the exact assigned
+section without copying answer text into validation-error logs. Output token
+limits, concurrency, retries and metric definitions are unchanged.
+
+Closing markup outside code may accompany citation-only formatting. Factual text
+and literal code still cannot be excused as formatting. All original calibration
+files remain unchanged; two synthetic checks in `calibration-v6-additions.json`
+bring the required v6 calibration to 20 cases. Earlier calibrations cannot be
+reused for v6, and historical reports must remain separate from targeted regrades.
+
+### Evaluator version 7: application-resolved quotations
+
+Each assigned section supplies stable IDs for its literal nonempty lines. The
+judge may select a `quote_anchor` instead of transcribing a quotation; code and
+diagram labels use this path. The application copies the exact answer line and
+then applies the existing quotation, section, evidence and citation validation.
+Unknown IDs, IDs belonging to another section, and contradictory quote/anchor
+outputs are rejected. Multiple atomic claims may reference one line, with each
+judged fact identified in its reason. Public saved claims retain their existing
+`quote` shape; anchor fields are internal to judge labeling. The same 20 semantic
+calibration cases require a fresh matching v7 calibration. No production calls,
+scoring definitions, retries or token limits change.
+
+### Evaluator version 8: correctness validation recovery
+
+The correctness task now uses the same two bounded validation repairs as grounding.
+Missing, duplicate or invented fact IDs, contradictory abstention labels and schema
+errors receive controlled feedback. Valid low scores are retained without retry.
+Grounding is not rerun during a correctness repair, and no semantic scores are
+published until both tasks validate. A fresh matching 20-case calibration is required.
+Production models, calls, token limits and execution budgets remain unchanged.

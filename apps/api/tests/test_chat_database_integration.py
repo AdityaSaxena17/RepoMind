@@ -86,10 +86,14 @@ def test_real_cache_authorization_and_streamed_message_persistence(
 
             class Cache:
                 gets = 0
+                history_hits = 0
 
                 async def get(self, key: str) -> Any:
                     self.gets += 1
-                    return await redis.get(key)
+                    value = await redis.get(key)
+                    if key.startswith("repomind:chat-history:") and value is not None:
+                        self.history_hits += 1
+                    return value
 
                 async def set(self, key: str, value: bytes, **kwargs: Any) -> Any:
                     keys.add(key)
@@ -225,7 +229,12 @@ def test_real_cache_authorization_and_streamed_message_persistence(
                         ),
                     )
                     stream = chat.stream_repository_chat(
-                        pool, repository_id, conversation_id, user_id, message_id
+                        pool,
+                        repository_id,
+                        conversation_id,
+                        user_id,
+                        message_id,
+                        redis=cache,
                     )
                     events = []
                     try:
@@ -255,6 +264,40 @@ def test_real_cache_authorization_and_streamed_message_persistence(
                 )
                 assert citations == (0 if canceled else 1)
                 assert pool.get_idle_size() == pool.get_size()
+                if canceled:
+                    assert cache.history_hits == 1
+                    assert any(
+                        message.content == "Value is 7 [1]."
+                        for message in router.requests[0]
+                    )
+                else:
+                    history_keys = [
+                        key for key in keys if key.startswith("repomind:chat-history:")
+                    ]
+                    assert history_keys
+                    ttls = await asyncio.gather(
+                        *(redis.ttl(key) for key in history_keys)
+                    )
+                    assert all(
+                        0 < ttl <= chat.HISTORY_CACHE_TTL_SECONDS for ttl in ttls
+                    )
+
+            history = await chat.load_history(
+                connection,
+                conversation_id,
+                None,
+                redis=cache,
+                scope=RequestScope(
+                    user_id=user_id,
+                    repository_id=repository_id,
+                    capabilities=frozenset({"code.read"}),
+                ),
+            )
+            assert [message.content for message in history] == [
+                "Read code",
+                "Value is 7 [1].",
+                "Read code",
+            ]
 
             await connection.execute(
                 'UPDATE "UserRepository" SET "accessStatus"=\'REVOKED\' '
@@ -290,6 +333,33 @@ def test_real_cache_authorization_and_streamed_message_persistence(
                 )
                 assert result.status == "error" and "not authorized" in result.text
             assert cache.gets == gets
+            denied = [
+                event
+                async for event in chat.stream_repository_chat(
+                    pool,
+                    repository_id,
+                    conversation_id,
+                    user_id,
+                    message_id,
+                    redis=cache,
+                )
+            ]
+            assert denied[-1].startswith("event: error") and cache.gets == gets
+            await connection.execute(
+                'DELETE FROM "ChatConversation" WHERE "id"=$1', conversation_id
+            )
+            deleted = [
+                event
+                async for event in chat.stream_repository_chat(
+                    pool,
+                    repository_id,
+                    conversation_id,
+                    user_id,
+                    message_id,
+                    redis=cache,
+                )
+            ]
+            assert deleted[-1].startswith("event: error") and cache.gets == gets
         finally:
             if pool is not None:
                 await pool.close()

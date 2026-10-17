@@ -44,7 +44,11 @@ class ChatConnection(Connection):
 
     async def fetchrow(self, sql: str, *args: Any) -> Any:
         if 'FROM "ChatMessage"' in sql:
-            return {"content": self.database.question}
+            return {
+                "content": self.database.question,
+                "historyIds": [],
+                "historyUpdatedAt": [],
+            }
         if 'FROM "Repository"' in sql:
             return (
                 {
@@ -529,7 +533,7 @@ def test_greeting_persists_without_model_tools_or_investigation_deltas(
     database = ChatDatabase()
     database.question = question
 
-    async def history(*args: Any) -> Any:
+    async def history(*args: Any, **kwargs: Any) -> Any:
         return [
             HumanMessage(content="Compare this repository with another."),
             AIMessage(content="Previous mixed investigation."),
@@ -617,7 +621,7 @@ def test_native_github_and_mixed_stream_only_the_final_generation(
     requests, wires = [], []
     if metadata_history:
 
-        async def history(*args: Any) -> Any:
+        async def history(*args: Any, **kwargs: Any) -> Any:
             return [
                 HumanMessage(content="What commit is indexed?"),
                 AIMessage(content=json.dumps({"indexed_commit_sha": "c" * 40})),

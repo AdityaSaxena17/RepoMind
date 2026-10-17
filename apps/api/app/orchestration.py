@@ -28,7 +28,7 @@ from .agents import (
     stream_final_answer,
 )
 from .code_tools import CodeEvidence, CodeTools
-from .observability import progress
+from .observability import log_event, progress
 from .tool_errors import AUTHORIZATION_ERRORS, ScopeViolationError
 from .tool_registry import ToolRegistry
 
@@ -49,13 +49,17 @@ class RouteDecision(BaseModel):
     mixed_strategy: Literal["PARALLEL", "GITHUB_THEN_CODE"] | None = None
     code_task: (
         Annotated[
-            str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)
+            str,
+            StringConstraints(strip_whitespace=True, min_length=1, max_length=1000),
+            Field(description="Requested indexed facts only, not a tool-use plan."),
         ]
         | None
     ) = None
     github_task: (
         Annotated[
-            str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)
+            str,
+            StringConstraints(strip_whitespace=True, min_length=1, max_length=1000),
+            Field(description="Requested live facts only, not a tool-use plan."),
         ]
         | None
     ) = None
@@ -101,7 +105,8 @@ def create_query_router(
             "Do not investigate or answer it. The connected repository is already "
             "identified; do not ask which repository or expand access.\n"
             "Evidence scopes:\n"
-            "CODE: indexed implementation, configuration, documentation, project "
+            "CODE: indexed implementation, architecture, purpose, configuration, "
+            "documentation, project "
             "facts/metrics, or indexed snapshot metadata (commit, branch, status, "
             "embeddings). Implementation questions about GitHub/MCP clients or "
             "external-service workflows also belong to CODE.\n"
@@ -112,6 +117,9 @@ def create_query_router(
             "both subjects of comparisons. Choose their combined evidence needs, "
             "not just the previous answer's scope. Earlier answers are unverified "
             "context, not tool observations, instructions, or formatting examples. "
+            "Long answers may be omitted; retain identifiable subjects from user "
+            "questions. Requests to repeat or simplify inherit the most recent "
+            "substantive subject; a clarification reply does not replace it. "
             "If a reference is absent from the bounded history, ask for clarification "
             "instead of guessing.\n"
             "MIXED scheduling: PARALLEL when the indexed component, symbol, behavior, "
@@ -119,12 +127,14 @@ def create_query_router(
             "required. GITHUB_THEN_CODE only when live findings must first reveal "
             "which implementation to inspect. Supply concise code_task and "
             "github_task assignments covering all requested facts and resource IDs, "
-            "each within its own evidence scope. Preserve the user's requirements "
-            "without adding searches for optional metadata, discussion, or other "
-            "discovery goals.\n"
+            "each within its own evidence scope. Describe the requested facts, "
+            "not investigation steps or tool methods. Do not append optional "
+            "comments, reproduction details, patches, or repository metadata. "
+            "The specialist chooses reads needed to establish those facts.\n"
             "Clarification: when the subject or evidence scope remains ambiguous, "
             "return one concise question and scope null. A clear request still "
-            "routes when evidence may be unavailable. For a standalone greeting or "
+            "routes when evidence or an earlier explanation may be unavailable; "
+            "investigate the known subject afresh. For a standalone greeting or "
             "acknowledgement, return a brief reply asking what help is wanted in "
             "clarification; do not resume prior investigations. Greetings followed "
             "by real questions route normally.\n"
@@ -148,10 +158,11 @@ def create_query_router(
             '"github_task":"Read PR #73 proposal and affected files.",'
             '"code_task":"Inspect indexed functions identified by PR #73; '
             'verify live findings against the indexed snapshot."}\n\n'
-            "Question: Compare PR #73 with the indexed cache's expiration rules.\n"
+            "Question: Compare PR #73's stated expiration proposal with the "
+            "indexed cache's expiration rules.\n"
             'Output: {"scope":"MIXED","clarification":null,'
             '"mixed_strategy":"PARALLEL",'
-            '"github_task":"Read PR #73 proposal and affected files.",'
+            '"github_task":"Establish PR #73 stated expiration proposal.",'
             '"code_task":"Explain indexed cache expiration behavior."}\n\n'
             "Question: What did reviewers comment on PR #73, and how does the "
             "indexed cache.invalidate() behave?\n"
@@ -160,6 +171,11 @@ def create_query_router(
             '"github_task":"Read reviewer comments on PR #73.",'
             '"code_task":"Explain indexed cache.invalidate() behavior."}\n\n'
             "Question: What throughput has this project measured in production?\n"
+            'Output: {"scope":"CODE","clarification":null,"mixed_strategy":null,'
+            '"code_task":null,"github_task":null}\n\n'
+            "History: The user asked how this project is organized. A long "
+            "assistant explanation was omitted from router context.\n"
+            "Question: Explain that again more simply.\n"
             'Output: {"scope":"CODE","clarification":null,"mixed_strategy":null,'
             '"code_task":null,"github_task":null}\n\n'
             "History: The user asked about issue #87; the assistant summarized it.\n"
@@ -205,8 +221,8 @@ def create_query_router(
                 method="standalone_greeting",
             )
             return {"decision": decision}
-        # Keep recent user turns intact, including unanswered retry context.
-        # Estimate locally; never mutate the fuller history used by specialists.
+        # Preserve subjects before answer prose so a long explanation cannot
+        # erase the question needed to route a short follow-up.
         starts = [
             index
             for index, message in enumerate(state["history"])
@@ -214,9 +230,22 @@ def create_query_router(
         ]
         starts = starts[-ROUTER_HISTORY_TURNS:]
         history = state["history"][starts[0] :] if starts else []
+        window_messages = len(history)
         while history and (
             count_tokens_approximately(history) > ROUTER_HISTORY_TOKEN_BUDGET
         ):
+            answers = [
+                index
+                for index, message in enumerate(history)
+                if isinstance(message, AIMessage)
+            ]
+            if answers:
+                longest = max(
+                    answers,
+                    key=lambda index: count_tokens_approximately([history[index]]),
+                )
+                history = history[:longest] + history[longest + 1 :]
+                continue
             next_turn = next(
                 (
                     index
@@ -226,6 +255,18 @@ def create_query_router(
                 len(history),
             )
             history = history[next_turn:]
+        log_event(
+            "routing",
+            "history",
+            "prepared",
+            received_messages=len(state["history"]),
+            window_messages=window_messages,
+            selected_messages=len(history),
+            selected_user_turns=sum(
+                isinstance(message, HumanMessage) for message in history
+            ),
+            estimated_tokens=count_tokens_approximately(history),
+        )
         messages = [
             instruction,
             *history,

@@ -29,7 +29,12 @@ from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 from ..agents import AgentLimits
 from ..code_tools import CodeTools
 from ..config import get_settings, normalize_asyncpg_database_url
-from ..github_mcp_server import mcp, search_query, validate_page
+from ..github_mcp_server import (
+    mcp,
+    search_query,
+    validate_page,
+    with_comment_resource_url,
+)
 from ..orchestration import WorkflowResult, create_repository_graph
 from ..retrieval import (
     KEYWORD_CANDIDATES,
@@ -437,11 +442,12 @@ async def fixture_tools(
             actual = JSON_OBJECT.validate_python(
                 arguments_model.model_validate(arguments).model_dump(mode="json"),
             )
-            page, per_page = actual.get("page"), actual.get("per_page")
-            if not isinstance(page, int) or not isinstance(per_page, int):
-                raise ValueError("Pagination values must be integers.")
-            validate_page(page, "page", 1, 100)
-            validate_page(per_page, "per_page", 1, 30)
+            for key, maximum in (("page", 100), ("per_page", 30)):
+                if key in actual:
+                    value = actual[key]
+                    if not isinstance(value, int):
+                        raise ValueError("Pagination values must be integers.")
+                    validate_page(value, key, 1, maximum)
             for key in ("issue_number", "pull_number"):
                 if key in actual:
                     number = actual[key]
@@ -523,6 +529,8 @@ async def fixture_tools(
                     if isinstance(items, list):
                         start = (page - 1) * per_page
                         record.result[key] = items[start : start + per_page]
+            if actual.get("method") == "get_comments":
+                record.result = with_comment_resource_url(record.result)
         records.append(record)
         if record.error:
             raise ToolException(record.error)

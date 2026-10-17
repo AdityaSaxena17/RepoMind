@@ -105,8 +105,8 @@ Final-answer LLM tokens stream to the UI during generation, before the final val
 ### Query Router
 
 - Selects CODE, GITHUB, or MIXED according to the evidence required by the latest message.
-- Resolves references using up to three recent user turns, normally six history messages, within a 2,048-token estimate. Drops oldest whole turns without summarizing; retains unanswered retry context when it fits.
-- PostgreSQL still loads the latest 20 successful messages for specialists; the router trims its own copy only.
+- Resolves references using up to three recent user turns, normally six history messages, within a 2,048-token estimate. Omits the longest assistant answers first to retain user subjects; if questions alone exceed the budget, drops oldest turns. Does not summarize or truncate messages, and leaves specialist history intact.
+- Reuses up to 20 successful messages through a scoped Redis history cache; the router trims its own copy only. PostgreSQL remains authoritative and verifies access and the ordered message revision on each request. Cache misses fall back to PostgreSQL, and successful committed responses warm the next turn's history.
 - For MIXED, chooses PARALLEL or GITHUB_THEN_CODE in the same classification call and supplies bounded specialist assignments.
 - Keeps classifications and planning out of user-facing answer deltas.
 - Validates structured output and permits two bounded classification attempts.
@@ -218,6 +218,12 @@ Cache identity includes the repository, indexed commit, index revision, database
 A cache hit avoids repeating retrieval or the file-content read. Repository authorization and snapshot-consistency checks still access PostgreSQL before cache reuse. Cached windows receive request-local citation labels.
 
 Redis I/O has a 250-millisecond deadline and controlled fallback to the database path. Cache entries do not contain MCP sessions, and sessions are never reused across requests. Exact tool arguments matter: repeating a conversational question can still miss if the agent chooses different searches.
+
+### Redis conversation-history caching
+
+The API caches the latest 20 successful user/assistant messages for five minutes, with a 256 KiB entry limit. It checks ownership, repository access, and the ordered message IDs/update timestamps in PostgreSQL before looking up the scoped, versioned key. A hit skips the message-body query; a miss or Redis failure uses PostgreSQL. The router still receives at most three recent user turns within its existing token budget.
+
+Successful answer commits refresh the next turn's cache within a one-second total deadline; cache refresh failures do not change a committed answer's status. Failed or streaming assistant messages are excluded, while successful user messages from failed turns remain available for retry context. Late completions and changes select a different revision; concurrent refreshes cannot overwrite another version. Deleted or inaccessible conversations fail authorization before cache access. Unreferenced cache versions expire within five minutes. History reuse supplies conversational context, not verified evidence or tool execution state.
 
 ### Other latency controls
 

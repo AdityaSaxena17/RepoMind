@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+from collections.abc import Sequence
 from typing import Any, Literal
 from urllib.parse import urlencode
 
@@ -9,6 +11,7 @@ import asyncpg
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import JsonValue
 
 from .config import get_settings
 from .observability import log_event, request_id_context
@@ -58,6 +61,100 @@ def compact_text(value: object, limit: int = 1200) -> str | None:
 
     normalized = " ".join(text.split())
     return normalized[:limit]
+
+
+def with_comment_resource_url(result: dict[str, Any]) -> dict[str, Any]:
+    """Expose a parent citation only when returned comments verify that resource."""
+    repository, comments = result.get("repository"), result.get("comments")
+    if (
+        not isinstance(repository, str)
+        or not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, flags=re.ASCII)
+        or not isinstance(comments, list)
+        or not comments
+        or "url" in result
+    ):
+        return result
+    issue, pull = result.get("issue_number"), result.get("pull_number")
+    if (issue is None) == (pull is None):
+        return result
+    number, kind = (issue, "issues") if issue is not None else (pull, "pull")
+    if not isinstance(number, int) or isinstance(number, bool) or number < 1:
+        return result
+    parent = f"https://github.com/{repository}/{kind}/{number}"
+    # This is a relationship observed in a canonical comment URL, not permission
+    # to invent parent URLs for arbitrary links, resources or empty result pages.
+    if all(
+        isinstance(comment, dict)
+        and isinstance(comment.get("url"), str)
+        and re.fullmatch(
+            re.escape(parent) + r"#issuecomment-[1-9][0-9]*", comment["url"]
+        )
+        for comment in comments
+    ):
+        return {**result, "url": parent}
+    return result
+
+
+def github_citation_provenance(
+    catalog: dict[str, str], records: Sequence[dict[str, JsonValue]]
+) -> dict[str, list[str]]:
+    """Associate observed resource URLs with successful reads of that same entity."""
+    provenance: dict[str, list[str]] = {}
+    for record in records:
+        if record.get("error") is not None or record.get("status") == "error":
+            continue
+        name, arguments, result = (
+            record.get("name"),
+            record.get("arguments"),
+            record.get("result"),
+        )
+        if (
+            not isinstance(name, str)
+            or name not in {"issue_read", "pull_request_read"}
+            or not isinstance(arguments, dict)
+            or not isinstance(result, dict)
+        ):
+            continue
+        method = arguments.get("method", "get")
+        if not isinstance(method, str) or method not in {
+            "get",
+            "get_files",
+            "get_diff",
+        }:
+            continue
+        field = "issue_number" if name == "issue_read" else "pull_number"
+        number, repository, record_id = (
+            arguments.get(field),
+            result.get("repository"),
+            record.get("id"),
+        )
+        entity = result.get("issue" if name == "issue_read" else "pull_request")
+        observed_number = (
+            entity.get("number")
+            if method == "get" and isinstance(entity, dict)
+            else result.get(field)
+        )
+        if (
+            not isinstance(number, int)
+            or isinstance(number, bool)
+            or number < 1
+            or not isinstance(observed_number, int)
+            or isinstance(observed_number, bool)
+            or observed_number != number
+            or not isinstance(repository, str)
+            or not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, flags=re.ASCII)
+            or not isinstance(record_id, str)
+        ):
+            continue
+        kind = "issues" if name == "issue_read" else "pull"
+        url = f"https://github.com/{repository}/{kind}/{number}"
+        # Identity only joins already observed URLs; it cannot create citations
+        # or authorize access, and comments retain their individual evidence.
+        if url in catalog:
+            provenance.setdefault(url, [catalog[url]])
+            if record_id not in provenance[url]:
+                provenance[url].append(record_id)
+    return provenance
 
 
 def validate_page(value: int, name: str, minimum: int, maximum: int) -> int:
@@ -244,7 +341,8 @@ def query_string(values: dict[str, object]) -> str:
 async def get_repository_head() -> dict[str, Any]:
     """Read the latest live commit on the connected repository's default branch.
 
-    Use for GitHub's current/latest commit, not the snapshot RepoMind has indexed.
+    Use for requested GitHub branch/commit facts, not routine issue or PR context
+    or the snapshot RepoMind has indexed.
     Repository and user identity are server-owned; there are no arguments.
     """
     scope = await repository_scope()
@@ -367,22 +465,24 @@ async def issue_read(
     if not isinstance(payload, list):
         raise RuntimeError("GitHub returned an unexpected issue comments response.")
 
-    return {
-        "repository": f"{scope['owner']}/{scope['repo']}",
-        "issue_number": issue_number,
-        "comments": [
-            {
-                "id": read_number(item.get("id")),
-                "url": read_string(item.get("html_url")),
-                "author": read_user(item.get("user")),
-                "created_at": read_string(item.get("created_at")),
-                "updated_at": read_string(item.get("updated_at")),
-                "body": compact_text(item.get("body")),
-            }
-            for item in payload
-            if isinstance(item, dict)
-        ],
-    }
+    return with_comment_resource_url(
+        {
+            "repository": f"{scope['owner']}/{scope['repo']}",
+            "issue_number": issue_number,
+            "comments": [
+                {
+                    "id": read_number(item.get("id")),
+                    "url": read_string(item.get("html_url")),
+                    "author": read_user(item.get("user")),
+                    "created_at": read_string(item.get("created_at")),
+                    "updated_at": read_string(item.get("updated_at")),
+                    "body": compact_text(item.get("body")),
+                }
+                for item in payload
+                if isinstance(item, dict)
+            ],
+        }
+    )
 
 
 @mcp.tool(meta=GITHUB_TOOL_META, annotations=GITHUB_TOOL_ANNOTATIONS)
@@ -513,22 +613,24 @@ async def pull_request_read(
         if not isinstance(payload, list):
             raise RuntimeError("GitHub returned an unexpected PR comments response.")
 
-        return {
-            "repository": f"{scope['owner']}/{scope['repo']}",
-            "pull_number": pull_number,
-            "comments": [
-                {
-                    "id": read_number(item.get("id")),
-                    "url": read_string(item.get("html_url")),
-                    "author": read_user(item.get("user")),
-                    "created_at": read_string(item.get("created_at")),
-                    "updated_at": read_string(item.get("updated_at")),
-                    "body": compact_text(item.get("body")),
-                }
-                for item in payload
-                if isinstance(item, dict)
-            ],
-        }
+        return with_comment_resource_url(
+            {
+                "repository": f"{scope['owner']}/{scope['repo']}",
+                "pull_number": pull_number,
+                "comments": [
+                    {
+                        "id": read_number(item.get("id")),
+                        "url": read_string(item.get("html_url")),
+                        "author": read_user(item.get("user")),
+                        "created_at": read_string(item.get("created_at")),
+                        "updated_at": read_string(item.get("updated_at")),
+                        "body": compact_text(item.get("body")),
+                    }
+                    for item in payload
+                    if isinstance(item, dict)
+                ],
+            }
+        )
 
     diff = await github_text(
         f"/repos/{scope['owner']}/{scope['repo']}/pulls/{pull_number}",

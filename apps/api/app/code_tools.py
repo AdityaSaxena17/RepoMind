@@ -206,7 +206,8 @@ class CodeTools:
                 "file/chunk counts and stored embedding profiles. Use for questions "
                 "about the commit RepoMind is using or its index status. No arguments, "
                 "code search or embedding call is needed. Cite metadata using the "
-                "returned snapshot URL. This does not fetch GitHub's latest commit.",
+                "returned snapshot URL; this result has no numeric source label. "
+                "This does not fetch GitHub's latest commit.",
             ),
         ):
             registry.register_local(

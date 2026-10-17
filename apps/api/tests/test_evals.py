@@ -488,6 +488,36 @@ def test_citation_urls_ranges_and_tool_provenance() -> None:
     assert referenced_citations(value, CORPUS, SHA, "fixture/repo")[0].valid is False
 
 
+@pytest.mark.parametrize("comments_first", [False, True])
+def test_shared_url_citations_use_the_catalogs_observed_resource(
+    comments_first: bool,
+) -> None:
+    url = "https://github.com/fixture/repo/issues/101"
+    comment = url + "#issuecomment-19"
+    details = ToolExecution(
+        id="tool:details",
+        name="issue_read",
+        arguments={"issue_number": 101},
+        result={"issue": {"url": url, "state": "open"}},
+    )
+    comments = ToolExecution(
+        id="tool:comments",
+        name="issue_read",
+        arguments={"issue_number": 101, "method": "get_comments"},
+        result={"url": url, "comments": [{"url": comment, "body": "Defer."}]},
+    )
+    value = result(f"Open ({url}); defer ({comment}).")
+    value.tool_executions = (
+        [comments, details] if comments_first else [details, comments]
+    )
+    value.citation_catalog.update({url: details.id, comment: comments.id})
+    citations = referenced_citations(value, CORPUS, SHA, "fixture/repo")
+    assert [c.evidence_id for c in citations] == [details.id, comments.id]
+    assert all(c.valid for c in citations)
+    assert json.loads(citations[0].cited_excerpt or "null")["state"] == "open"
+    assert json.loads(citations[1].cited_excerpt or "null")["body"] == "Defer."
+
+
 def test_plain_locations_and_orphan_citations() -> None:
     value = result("See `app.py:1-2`, app.py:1-99 and missing.py:1. [1]")
     citations = referenced_citations(value, CORPUS, SHA, "fixture/repo")
@@ -500,6 +530,91 @@ def test_plain_locations_and_orphan_citations() -> None:
         None,
     )
     assert scores["citation_precision"].value == 0
+
+
+@pytest.mark.parametrize("fault", [None, "repository", "number", "error", "method"])
+def test_pr_url_provenance_includes_only_matching_successful_reads(
+    fault: str | None,
+) -> None:
+    url = "https://github.com/fixture/repo/pull/17"
+    value = result(f"The patch changes app.py ({url}).")
+    details = ToolExecution(
+        id="tool:details",
+        name="pull_request_read",
+        arguments={"pull_number": 17, "method": "get"},
+        result={
+            "repository": "fixture/repo",
+            "pull_request": {"number": 17, "url": url},
+        },
+    )
+    diff = ToolExecution(
+        id="tool:diff",
+        name="pull_request_read",
+        arguments={"pull_number": 17, "method": "get_diff"},
+        result={
+            "repository": "fixture/repo",
+            "pull_number": 17,
+            "diff": "-before\n+after",
+        },
+    )
+    if fault == "repository":
+        diff.result["repository"] = "other/repo"
+    elif fault == "number":
+        diff.result["pull_number"] = 18
+    elif fault == "error":
+        diff.error = "Unavailable."
+    elif fault == "method":
+        diff.arguments["method"] = "get_comments"
+    value.tool_executions = [details, diff]
+    value.citation_catalog[url] = details.id
+    citation = referenced_citations(value, CORPUS, SHA, "fixture/repo")[0]
+    assert citation.valid and citation.evidence_id == details.id
+    excerpt = json.loads(citation.cited_excerpt or "null")
+    if fault is None:
+        assert [r["id"] for r in excerpt["observations"]] == [details.id, diff.id]
+        assert excerpt["observations"][1]["result"]["diff"] == "-before\n+after"
+    else:
+        assert "observations" not in excerpt
+    details.result["pull_request"].pop("url")
+    assert not referenced_citations(value, CORPUS, SHA, "fixture/repo")[0].valid
+
+
+def test_pr_provenance_does_not_include_other_search_results() -> None:
+    url = "https://github.com/fixture/repo/pull/17"
+    value = result(f"The patch changes behavior ({url}).")
+    value.tool_executions = [
+        ToolExecution(
+            id="tool:search",
+            name="search_pull_requests",
+            arguments={"query": "behavior"},
+            result={
+                "items": [
+                    {"number": 17, "url": url, "body": "Requested proposal."},
+                    {
+                        "number": 18,
+                        "url": "https://github.com/fixture/repo/pull/18",
+                        "body": "UNRELATED_FACT",
+                    },
+                ]
+            },
+        ),
+        ToolExecution(
+            id="tool:diff",
+            name="pull_request_read",
+            arguments={"pull_number": 17, "method": "get_diff"},
+            result={
+                "repository": "fixture/repo",
+                "pull_number": 17,
+                "diff": "-before\n+after",
+            },
+        ),
+    ]
+    value.citation_catalog[url] = "tool:search"
+    citation = referenced_citations(value, CORPUS, SHA, "fixture/repo")[0]
+    assert citation.valid
+    assert "Requested proposal." in (citation.cited_excerpt or "")
+    assert "-before" in (citation.cited_excerpt or "")
+    assert "UNRELATED_FACT" not in (citation.cited_excerpt or "")
 
 
 def test_semantic_scores_are_independent_and_missing_citations_do_not_pass() -> None:
@@ -663,6 +778,7 @@ def test_fixtures_match_production_defaults_and_record_misses_and_errors() -> No
         records: list[ToolExecution] = []
         tools = await fixture_tools(fixtures, "streaming", records)
         assert {t.name for t in tools} == {
+            "get_repository_head",
             "search_issues",
             "issue_read",
             "search_pull_requests",
@@ -679,6 +795,21 @@ def test_fixtures_match_production_defaults_and_record_misses_and_errors() -> No
         assert records[0].arguments["method"] == "get"
         assert records[0].error is None
         assert records[1].fixture_miss and records[1].result == {}
+        comments_fixture = next(
+            call
+            for call in fixtures.scenarios["streaming"]
+            if call.arguments[0].get("method") == "get_comments"
+        )
+        original_comments = comments_fixture.model_dump_json()
+        response = await issue_tool.ainvoke(
+            {"issue_number": 101, "method": "get_comments"}
+        )
+        assert (
+            response["url"] == "https://github.com/AdityaSaxena17/RepoMind/issues/101"
+        )
+        assert response["comments"] == comments_fixture.result["comments"]
+        assert not records[-1].fixture_miss and records[-1].error is None
+        assert comments_fixture.model_dump_json() == original_comments
         failed: list[ToolExecution] = []
         tools = await fixture_tools(fixtures, "unavailable-pr", failed)
         tool = next(t for t in tools if t.name == "pull_request_read")
@@ -691,6 +822,19 @@ def test_fixtures_match_production_defaults_and_record_misses_and_errors() -> No
         assert paginated[0].error is None and not paginated[0].fixture_miss
         await tool.ainvoke({"pull_number": 201, "per_page": 100})
         assert paginated[1].error and not paginated[1].fixture_miss
+
+    asyncio.run(run())
+
+
+def test_no_argument_fixture_tool_reports_missing_coverage_without_pagination() -> None:
+    async def run() -> None:
+        records: list[ToolExecution] = []
+        tools = await fixture_tools(load_benchmark().fixtures, "streaming", records)
+        tool = next(t for t in tools if t.name == "get_repository_head")
+        await tool.ainvoke({})
+        assert records[0].arguments == {}
+        assert records[0].fixture_miss
+        assert records[0].error == "Unmatched deterministic fixture call."
 
     asyncio.run(run())
 
@@ -960,8 +1104,8 @@ def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
 
         async def ainvoke(self, messages: list[tuple[str, str]]) -> object:
             payloads.append(messages[-1][1])
-            if self.schema is GroundingBatch:
-                return GroundingBatch(
+            if self.schema in (GroundingBatch, judge_module._AnchoredGroundingBatch):
+                labeled = GroundingBatch(
                     sections=[
                         GroundingSection(
                             section_id="section:1",
@@ -982,6 +1126,9 @@ def test_judge_tasks_keep_gold_out_of_grounding_and_bound_validation_retries(
                             ],
                         )
                     ]
+                )
+                return judge_module._AnchoredGroundingBatch.model_validate(
+                    labeled.model_dump()
                 )
             return CorrectnessJudgment(
                 facts=[FactJudgment(fact_id="f1", status="matched", reason="Test")],

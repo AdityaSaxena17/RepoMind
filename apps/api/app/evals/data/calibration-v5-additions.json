@@ -1,0 +1,32 @@
+[
+  {
+    "id": "diagram-explicit-caption",
+    "question": "Show the observed value in a diagram.",
+    "source": "VALUE = 5",
+    "answer": "```mermaid\nflowchart LR\n    A[\"VALUE = 5\"]\n```\n\nSources: [1].",
+    "reference_facts": ["VALUE is 5."],
+    "expected_missing": [],
+    "expected_metrics": {"groundedness": 1.0, "citation_precision": 1.0, "citation_coverage": 1.0},
+    "minimum_claims": 1
+  },
+  {
+    "id": "diagram-incorrect-with-valid-caption",
+    "question": "Show the observed value in a diagram.",
+    "source": "VALUE = 5",
+    "answer": "```mermaid\nflowchart LR\n    A[\"VALUE = 99\"]\n```\n\nSources: [1].",
+    "reference_facts": ["VALUE is 5."],
+    "expected_missing": [],
+    "expected_metrics": {"groundedness": 0.0, "citation_precision": 0.0, "citation_coverage": 0.0},
+    "minimum_claims": 1
+  },
+  {
+    "id": "code-caption-does-not-cover-following-prose",
+    "question": "Show VALUE and report LIMIT.",
+    "source": "VALUE = 5\nLIMIT = 9",
+    "answer": "```python\nVALUE = 5\n```\n\nSources: [1].\n\nLIMIT is 9.",
+    "reference_facts": ["VALUE is 5.", "LIMIT is 9."],
+    "expected_missing": [],
+    "expected_metrics": {"groundedness": 1.0, "citation_precision": 1.0, "citation_coverage": 0.5},
+    "minimum_claims": 2
+  }
+]

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import re
 import sqlite3
 from collections.abc import Iterator
@@ -388,7 +389,8 @@ def test_latest_history_excludes_current_failed_and_other_conversations() -> Non
         database.row_factory = sqlite3.Row
         database.execute(
             'CREATE TABLE "ChatMessage" ("id" TEXT, "conversationId" TEXT, '
-            '"role" TEXT, "content" TEXT, "status" TEXT, "createdAt" INTEGER)'
+            '"role" TEXT, "content" TEXT, "status" TEXT, "createdAt" INTEGER, '
+            '"updatedAt" INTEGER DEFAULT 0)'
         )
         rows = [
             (
@@ -409,7 +411,10 @@ def test_latest_history_excludes_current_failed_and_other_conversations() -> Non
             ]
         )
         database.executemany(
-            'INSERT INTO "ChatMessage" VALUES (?, ?, ?, ?, ?, ?)', rows
+            'INSERT INTO "ChatMessage" '
+            '("id","conversationId","role","content","status","createdAt") '
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
         )
 
         class Connection:
@@ -483,7 +488,7 @@ def test_router_retains_unanswered_user_turn_for_retry_references(
 
 
 @pytest.mark.parametrize("newest_oversized", [False, True])
-def test_router_budget_drops_whole_oldest_turns_not_partial_answers(
+def test_router_budget_omits_long_answers_before_user_subjects(
     newest_oversized: bool, provider: Provider
 ) -> None:
     requests, replies = provider
@@ -497,14 +502,14 @@ def test_router_budget_drops_whole_oldest_turns_not_partial_answers(
     original = [message.model_dump() for message in history]
     router = create_query_router(chat.create_chat_model(purpose="router"))
     asyncio.run(router.ainvoke({"question": "What about it?", "history": history}))
-    assert requests[0]["messages"][1:-1] == (
-        []
-        if newest_oversized
-        else [
-            {"role": "user", "content": "Read issue #214."},
-            {"role": "assistant", "content": "A report."},
-        ]
-    )
+    assert requests[0]["messages"][1:-1] == [
+        {
+            "role": "user" if message.type == "human" else "assistant",
+            "content": message.content,
+        }
+        for message in history
+        if message is not oversized[1]
+    ]
     assert [message.model_dump() for message in history] == original
 
 
@@ -538,7 +543,7 @@ def test_long_architecture_answer_does_not_displace_two_recent_comparison_subjec
             "role": "user" if message.type == "human" else "assistant",
             "content": message.content,
         }
-        for message in history[-4:]
+        for message in [history[0], *history[-4:]]
     ]
 
 
@@ -556,7 +561,72 @@ def test_router_budget_keeps_an_exactly_fitting_turn(
     )
     router = create_query_router(chat.create_chat_model(purpose="router"))
     asyncio.run(router.ainvoke({"question": "Explain parser.py.", "history": history}))
-    assert len(requests[0]["messages"][1:-1]) == (2 if fits else 0)
+    assert len(requests[0]["messages"][1:-1]) == (2 if fits else 1)
+
+
+@pytest.mark.parametrize("after_clarification", [False, True])
+@pytest.mark.parametrize(
+    "subject,scope",
+    [
+        ("Explain how this repository is organized.", "CODE"),
+        ("Explain the latest comments on issue #214.", "GITHUB"),
+    ],
+)
+def test_repeat_request_keeps_subject_after_an_oversized_explanation(
+    provider: Provider,
+    subject: str,
+    scope: str,
+    after_clarification: bool,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="app.observability")
+    requests, replies = provider
+    replies.append(json.dumps({"scope": scope, "clarification": None}))
+    long_answer = AIMessage(content="Detailed explanation. " * 1200)
+    history = [HumanMessage(content=subject), long_answer]
+    if after_clarification:
+        history.extend(
+            [
+                HumanMessage(content="Explain again."),
+                AIMessage(content="What would you like me to explain again?"),
+            ]
+        )
+    original = [message.model_dump() for message in history]
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(
+        router.ainvoke({"question": "Explain it more simply.", "history": history})
+    )
+    sent = requests[0]["messages"][1:-1]
+    assert sent[0] == {"role": "user", "content": subject}
+    assert all(message["content"] != long_answer.content for message in sent)
+    assert len(requests) == 1 and "tools" not in requests[0]
+    assert [message.model_dump() for message in history] == original
+    prepared = [
+        json.loads(record.message)
+        for record in caplog.records
+        if record.name == "app.observability"
+        and '"operation": "history"' in record.message
+    ]
+    assert len(prepared) == 1
+    assert prepared[0]["selected_messages"] == len(sent)
+    assert prepared[0]["estimated_tokens"] <= orchestration.ROUTER_HISTORY_TOKEN_BUDGET
+    assert subject not in caplog.text and long_answer.content not in caplog.text
+
+
+def test_router_user_questions_alone_still_obey_history_budget(
+    provider: Provider,
+) -> None:
+    requests, replies = provider
+    replies.append('{"scope":null,"clarification":"Which subject do you mean?"}')
+    history = [
+        HumanMessage(content="x" * 9000),
+        HumanMessage(content="Read parser.py."),
+    ]
+    router = create_query_router(chat.create_chat_model(purpose="router"))
+    asyncio.run(router.ainvoke({"question": "Try again.", "history": history}))
+    assert requests[0]["messages"][1:-1] == [
+        {"role": "user", "content": "Read parser.py."}
+    ]
 
 
 @pytest.mark.parametrize(

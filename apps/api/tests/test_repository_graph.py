@@ -174,6 +174,103 @@ def test_snapshot_question_returns_sha_without_retrieval_or_github(
     assert github.requests == [] and synthesis.requests == [] and events == []
 
 
+@pytest.mark.parametrize("invented_label", [False, True])
+def test_snapshot_and_code_windows_use_distinct_citation_formats(
+    monkeypatch: pytest.MonkeyPatch, invented_label: bool
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch, "CODE")
+    url = f"https://github.com/example/project/tree/{SHA}"
+    reference = "[2]" if invented_label else f"({url})"
+    code.responses = [
+        call("get_repository_snapshot", {}, "snapshot"),
+        call("get_file_context", {"path": "app.py"}, "code-read"),
+        AIMessage(
+            content=FINAL_ANSWER_MARKER
+            + f"Indexed commit `{SHA}` {reference}. Observed code [1]."
+        ),
+    ]
+    result = asyncio.run(
+        graph.ainvoke({"question": "Read indexed commit and app.py.", "history": []})
+    )["result"]
+    assert result.status == ("failed" if invented_label else "complete"), result.errors
+    assert "2" not in result.citation_catalog
+    if not invented_label:
+        assert set(result.source_ids) == {"code:snapshot", result.evidence[0].id}
+    assert github.requests == [] and synthesis.requests == [] and events == []
+
+
+@pytest.mark.parametrize("kind", ["issues", "pull"])
+@pytest.mark.parametrize("reference", ["parent", "comment", "unobserved"])
+def test_comment_only_investigation_can_cite_its_observed_parent_without_extra_reads(
+    monkeypatch: pytest.MonkeyPatch, kind: str, reference: str
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch, "GITHUB")
+    url = f"https://github.com/example/project/{kind}/9"
+    comment = url + "#issuecomment-19"
+    calls: list[str] = []
+
+    async def get(path: str) -> Any:
+        calls.append(path)
+        assert path == "/repos/example/project/issues/9/comments?page=1&per_page=10"
+        return [{"id": 19, "html_url": comment, "body": "The proposal was deferred."}]
+
+    monkeypatch.setattr(github_mcp_server, "github_json", get)
+    citation = {
+        "parent": url,
+        "comment": comment,
+        "unobserved": f"https://github.com/example/project/{kind}/10",
+    }[reference]
+    name = "issue_read" if kind == "issues" else "pull_request_read"
+    number = "issue_number" if kind == "issues" else "pull_number"
+    github.responses = [
+        call(name, {number: 9, "method": "get_comments"}, "comments"),
+        AIMessage(
+            content=FINAL_ANSWER_MARKER + f"The proposal was deferred ({citation})."
+        ),
+    ]
+    result = asyncio.run(
+        graph.ainvoke({"question": "What did the discussion conclude?", "history": []})
+    )["result"]
+    assert result.status == ("failed" if reference == "unobserved" else "complete")
+    assert result.citation_catalog[url] == result.citation_catalog[comment]
+    assert result.tool_executions[0].result["url"] == url
+    assert len(calls) == 1 and code.requests == [] and synthesis.requests == []
+
+
+@pytest.mark.parametrize("comments_first", [False, True])
+def test_comment_parent_link_preserves_resource_details_provenance(
+    monkeypatch: pytest.MonkeyPatch, comments_first: bool
+) -> None:
+    graph, code, github, synthesis, database, events = graph_case(monkeypatch, "GITHUB")
+    comment = URL + "#issuecomment-19"
+
+    async def get(path: str) -> Any:
+        if "/comments?" in path:
+            return [{"id": 19, "html_url": comment, "body": "Defer the proposal."}]
+        return {"number": 1, "title": "Proposal", "state": "open", "html_url": URL}
+
+    monkeypatch.setattr(github_mcp_server, "github_json", get)
+    details = call("issue_read", {"issue_number": 1}, "details")
+    discussion = call(
+        "issue_read", {"issue_number": 1, "method": "get_comments"}, "comments"
+    )
+    github.responses = [
+        *([discussion, details] if comments_first else [details, discussion]),
+        AIMessage(
+            content=FINAL_ANSWER_MARKER
+            + f"The issue is open ({URL}); discussion recommends deferral ({comment})."
+        ),
+    ]
+    result = asyncio.run(
+        graph.ainvoke({"question": "Read issue status and discussion.", "history": []})
+    )["result"]
+    assert result.status == "complete", result.errors
+    assert result.citation_catalog[URL] == "github:details"
+    assert result.citation_catalog[comment] == "github:comments"
+    assert set(result.source_ids) == {"github:details", "github:comments"}
+    assert len(result.tool_executions) == 2
+
+
 @pytest.mark.parametrize("live_sha", [SHA, "b" * 40])
 def test_commit_comparison_followup_uses_fresh_metadata_from_both_sources(
     monkeypatch: pytest.MonkeyPatch, live_sha: str
